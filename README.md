@@ -8,6 +8,7 @@
 ## Running Maximal Clique Application
 
 Go to app_mc
+
 `make`
 
 `./run -dg ../graphs/soc-amazon.bin`
@@ -16,6 +17,7 @@ Go to app_mc
 ## Running Maximal Subgraph Matching
 
 Go to app_gmatch
+
 `make`
 
 `./run -dg ../graphs/soc-amazon.bin -q 0`
