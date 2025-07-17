@@ -1,9 +1,5 @@
 # G-ThinkerCG: A Hybrid CPU-GPU Framework for Efficient Parallel Subgraph Finding
 
-## Requirements
-
-* C++11
-* NVIDA GPU A100/P100
 
 ## Running Maximal Clique Application
 
