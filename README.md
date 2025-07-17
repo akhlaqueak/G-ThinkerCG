@@ -9,11 +9,13 @@
 
 Go to app_mc
 `make`
-`./ru -dg ../graphs/soc-amazon.bin`
+
+`./run -dg ../graphs/soc-amazon.bin`
 
 
 ## Running Maximal Subgraph Matching
 
 Go to app_gmatch
 `make`
-`./ru -dg ../graphs/soc-amazon.bin -q 0`
+
+`./run -dg ../graphs/soc-amazon.bin -q 0`
