@@ -199,6 +199,11 @@ public:
         return (ohead[0] >= otail[0]);
     }
 
+    ull size(){
+        if(empty()) return 0;
+        return otail[0]-ohead[0];
+    }
+
     void clear()
     {
         vtail[0] = 0;
