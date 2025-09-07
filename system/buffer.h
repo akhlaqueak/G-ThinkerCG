@@ -201,7 +201,7 @@ public:
 
     ull size(){
         if(empty()) return 0;
-        return otail[0]-ohead[0];
+        return (otail[0]-ohead[0])/3;
     }
 
     void clear()
