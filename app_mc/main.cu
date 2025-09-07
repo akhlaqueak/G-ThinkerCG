@@ -6,6 +6,7 @@ Graph data_graph;
 #include "mc_gpu_context.h"
 #include "mc_cpu_worker.h"
 CommandLine cmd;
+ull spilled_tasks;
 class MCApp : public Master<MCCPUWorker, MCGPUContext>
 {
 public:
@@ -53,7 +54,7 @@ public:
             else if (gw)
             {
                 res += gw->getContext()->get_results();
-                cout<<"Total spilled tasks: "<<gw->spilled_tasks<<endl;
+                spilled_tasks=gw->spilled_tasks;
             }
         }
         return res;
@@ -69,5 +70,7 @@ int main(int argc, char *argv[])
     app.run();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << app.get_results() << endl;
+    cout<<"Total spilled tasks: "<<spilled_tasks<<endl;
+
     return 0;
 }
