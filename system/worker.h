@@ -16,7 +16,8 @@ public:
     stack<TaskT *> *SC;
 
     ui tasks_per_fetch;
-
+    ull spilled_tasks = 0;
+    
     std::mutex ready_mtx;
     std::condition_variable ready_cv;
     bool ready = false; // Whether the consumer should wake up

@@ -53,6 +53,7 @@ public:
             else if (gw)
             {
                 res += gw->getContext()->get_results();
+                cout<<"Total spilled tasks: "<<gw->spilled_tasks<<endl;
             }
         }
         return res;

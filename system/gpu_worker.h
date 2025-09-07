@@ -145,6 +145,7 @@ public:
         if (workers_list.size() > num_cpu_workers / 2 and SC_size() < gpu_to_host_transfer_size_g)
         {
             gc.move_tasks_to_Sc(this->Lo, gc.H);
+            this->spilled_tasks+=this->Lo;
             this->spill_Lo();
         }
     }
