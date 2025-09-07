@@ -12,23 +12,21 @@ class MCApp : public Master<MCCPUWorker, MCGPUContext>
 public:
     MCApp()
     {
-        num_cpu_workers = cmd.GetOptionIntValue("-cpu", 32);
+        num_cpu_workers = cmd.GetOptionIntValue("-cpu", 28);
         num_gpu_workers = cmd.GetOptionIntValue("-gpu", 1);
         tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 100000);
         tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 10);
         ui eta_ = cmd.GetOptionIntValue("-eta", 1000);
         std::string fp = cmd.GetOptionValue("-dg", "./data/com-friendster.ungraph.txt.bin");
         std::cout.imbue(std::locale());
-        cout<<" ======= Parameters ========"<<endl;
-        cout<<"Graph: "<<fp<<endl;
-        cout<<"cpu workers: "<<num_cpu_workers<<endl;
-        cout<<"gpu workers: "<<num_gpu_workers<<endl;
-        cout<<"eta: "<<eta_<<endl;
-        cout<<"cpu chunk: "<<tasks_per_fetch_g<<endl;
-        cout<<"gpu chunk: "<<tasks_per_fetch_gpu_worker_g<<endl;
-        cout<<" ======= ********** ========"<<endl;
-
-
+        cout << " ======= Parameters ========" << endl;
+        cout << "Graph: " << fp << endl;
+        cout << "cpu workers: " << num_cpu_workers << endl;
+        cout << "gpu workers: " << num_gpu_workers << endl;
+        cout << "eta: " << eta_ << endl;
+        cout << "cpu chunk: " << tasks_per_fetch_g << endl;
+        cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
+        cout << " ======= ********** ========" << endl;
 
         data_graph = Graph(fp);
 
@@ -54,7 +52,7 @@ public:
             else if (gw)
             {
                 res += gw->getContext()->get_results();
-                spilled_tasks=gw->spilled_tasks;
+                spilled_tasks = gw->spilled_tasks;
             }
         }
         return res;
@@ -70,7 +68,7 @@ int main(int argc, char *argv[])
     app.run();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << app.get_results() << endl;
-    cout<<"Total spilled tasks: "<<spilled_tasks<<endl;
+    cout << "Total spilled tasks: " << spilled_tasks << endl;
 
     return 0;
 }
