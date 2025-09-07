@@ -72,7 +72,7 @@ public:
             {
                 loadFromHost<<<BLK_NUMS, BLK_DIM>>>(gc);
                 deviceSynch();
-                // move_tasks_to_cpu();
+                move_tasks_to_cpu();
             }
             else if (!gc.topLevelWorkExist())
             break;
@@ -141,6 +141,7 @@ public:
     }
     void move_tasks_to_cpu()
     {
+        return; // disabling spilling... 
         if (workers_list.size() > num_cpu_workers / 2 and SC_size() < gpu_to_host_transfer_size_g)
         {
             gc.move_tasks_to_Sc(this->Lo, gc.H);

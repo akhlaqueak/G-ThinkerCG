@@ -73,10 +73,10 @@ __device__ ui eta=1000*N_WARPS;
 #define DEV __device__
 #define DEVHOST __device__ __host__
 
-
 // #define SRC
 #define DST
 #define LO_SPILL_THRESH 1000
+
 
 // Global task queue
 void *global_SC;
