@@ -115,7 +115,6 @@ public:
                 }
             }
         }
-        cout<<"completed chunk"<<endl;
     }
     void dump_to_host()
     {
