@@ -133,7 +133,7 @@ public:
 
     virtual void move_tasks_from_Sc(std::vector<GMTask *> &src_tasks, GMBuffer &H)
     {
-        cout << "H to D: " << src_tasks.size() << endl;
+        // cout << "H to D: " << src_tasks.size() << endl;
         for (GMTask *task : src_tasks)
         {
             ui sz = task->context.cur_depth;
@@ -141,13 +141,13 @@ public:
             std::copy(task->context.embedding, task->context.embedding + sz, H.vertices + loc);
             delete task;
         }
-        cout<<"All copied"<<endl;
+        // cout<<"All copied"<<endl;
         src_tasks.clear();
     }
 
     virtual void move_tasks_to_Sc(vector<GMTask *> &collector, GMBuffer &H)
     {
-        cout << "D to H" << endl;
+        // cout << "D to H" << endl;
         for (ui i = 0; i < gpu_to_host_transfer_size_g; i++)
         {
             SubgraphOffsets so = H.pop_host();
