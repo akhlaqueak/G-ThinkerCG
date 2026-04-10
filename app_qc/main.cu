@@ -12,8 +12,6 @@ class QCApp : public Master<QCCPUWorker, QCGPUContext>
 public:
     QCApp()
     {
-        CommandLine cmd(argc, argv);
-
         std::string graph_file = cmd.GetOptionValue("-g");
         minimum_degree_ratio = cmd.GetOptionDoubleValue("-gamma", 0.5);
         minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
@@ -24,7 +22,6 @@ public:
         if (!graph_stream.is_open())
         {
             cout << "invalid graph file" << endl;
-            return 1;
         }
         
         if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
@@ -33,7 +30,6 @@ public:
             minimum_degree_ratio = 0.5;
         }
         
-        minimum_clique_size = atoi(min_size_arg);
         if (minimum_clique_size <= 1)
         {
             cout << "minimum size must be greater than 1" << endl;
@@ -85,7 +81,7 @@ public:
         allocate_memory(hd, dd, hc, hg);
         cudaDeviceSynchronize();
         
-        eta_ *= N_WARPS;
+        int eta_ *= N_WARPS;
         cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
         QCTask *t = initialize_tasks(hg, hd);
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
