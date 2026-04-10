@@ -70,7 +70,8 @@ public:
         number_of_vertices = static_cast<int>(vertex_count);
         number_of_edges = static_cast<int>(edge_count);
         number_of_lvl2adj = 0;
-
+        std::cout<<"|V|: "<<number_of_vertices<<endl;
+        std::cout<<"|E|: "<<number_of_edges<<endl;
         onehop_offsets = new uint64_t[number_of_vertices + 1];
         onehop_neighbors = new int[number_of_edges];
         twohop_neighbors = new int[LVL2ADJ_SIZE];
