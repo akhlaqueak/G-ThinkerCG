@@ -315,7 +315,7 @@ int h_sort_desc(const void* a, const void* b);
 inline int h_get_mindeg(int clique_size);
 inline bool h_cand_isvalid_LU(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg);
 inline bool  h_vert_isextendable_LU(Vertex vertex, int clique_size, int upper_bound, int lower_bound, int min_ext_deg);
-inline void chkerr(cudaError_t code);
+
 
 // debug
 void print_CPU_Data(CPU_Data& hd);
@@ -2196,15 +2196,6 @@ inline bool h_vert_isextendable_LU(Vertex vertex, int clique_size, int upper_bou
     }
     else {
         return true;
-    }
-}
-
-inline void chkerr(cudaError_t code)
-{
-    if (code != cudaSuccess)
-    {
-        cout << cudaGetErrorString(code) << endl;
-        exit(-1);
     }
 }
 
