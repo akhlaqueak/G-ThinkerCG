@@ -80,9 +80,7 @@ public:
         GPU_Data dd;
         allocate_memory(hd, dd, hc, hg);
         cudaDeviceSynchronize();
-        
-        int eta_ *= N_WARPS;
-        cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
+
         QCTask *t = initialize_tasks(hg, hd);
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
         h_expand_level(hg, hd, hc, t);
