@@ -20,7 +20,7 @@ public:
 
     virtual void compute(QCContext &context)
     {
-        QC(context);
+        QC(context, TIME_NOW);
     }
 };
 
