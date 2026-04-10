@@ -12,22 +12,54 @@ class QCApp : public Master<QCCPUWorker, QCGPUContext>
 public:
     QCApp()
     {
-        num_cpu_workers = cmd.GetOptionIntValue("-cpu", 28);
-        num_gpu_workers = cmd.GetOptionIntValue("-gpu", 1);
-        tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 500000);
-        tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 50);
-        ui eta_ = cmd.GetOptionIntValue("-eta", 1000);
-        std::string fp = cmd.GetOptionValue("-dg", "./data/com-friendster.ungraph.txt.bin");
-        std::cout.imbue(std::locale());
-        cout << " ======= Parameters ========" << endl;
-        cout << "Graph: " << fp << endl;
-        cout << "cpu workers: " << num_cpu_workers << endl;
-        cout << "gpu workers: " << num_gpu_workers << endl;
-        cout << "eta: " << eta_ << endl;
-        cout << "cpu chunk: " << tasks_per_fetch_g << endl;
-        cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
-        cout << " ======= ********** ========" << endl;
+        CommandLine cmd(argc, argv);
 
+        std::string graph_file = cmd.GetOptionValue("-g");
+        minimum_degree_ratio = cmd.GetOptionDoubleValue("-gamma", 0.5);
+        minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
+        std::string output_file = cmd.GetOptionValue("-o", "output.txt");
+        scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
+        
+        ifstream graph_stream(graph_file, ios::in);
+        if (!graph_stream.is_open())
+        {
+            cout << "invalid graph file" << endl;
+            return 1;
+        }
+        
+        if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
+        {
+            cout << "minimum degree ratio must be between .5 and 1 inclusive" << endl;
+            return 1;
+        }
+        
+        minimum_clique_size = atoi(min_size_arg);
+        if (minimum_clique_size <= 1)
+        {
+            cout << "minimum size must be greater than 1" << endl;
+            return 1;
+        }
+        
+        if (!(scheduling_toggle == 0 || scheduling_toggle == 1))
+        {
+            cout << "scheduling toggle must be 0 or 1" << endl;
+            return 1;
+        }
+        
+        if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD)
+        {
+            cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
+            return 1;
+        }
+        
+        cout << " ======= Parameters ========" << endl;
+        cout << "Graph: " << graph_file << endl;
+        cout << "Gamma: " << minimum_degree_ratio << endl;
+        cout << "Min size: " << minimum_clique_size << endl;
+        cout << "Output: " << output_file << endl;
+        cout << "Scheduling: " << (scheduling_toggle == 0 ? "dynamic" : "static") << endl;
+        cout << " ======= ********** ========" << endl;
+        
         // TIME
         auto start = chrono::high_resolution_clock::now();
 
@@ -420,39 +452,7 @@ int main(int argc, char *argv[])
     cmd = CommandLine(argc, argv);
 
     // ENSURE PROPER USAGE
-    if (argc != 6)
-    {
-        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt> <scheduling toggle 0-dyanmic/1-static>\n");
-        return 1;
-    }
-    ifstream graph_stream(argv[1], ios::in);
-    if (!graph_stream.is_open())
-    {
-        printf("invalid graph file\n");
-        return 1;
-    }
-    minimum_degree_ratio = atof(argv[2]);
-    if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
-    {
-        printf("minimum degree ratio must be between .5 and 1 inclusive\n");
-        return 1;
-    }
-    minimum_clique_size = atoi(argv[3]);
-    if (minimum_clique_size <= 1)
-    {
-        printf("minimum size must be greater than 1\n");
-        return 1;
-    }
-    scheduling_toggle = atoi(argv[5]);
-    if (!(scheduling_toggle == 0 || scheduling_toggle == 1))
-    {
-        cout << "scheduling toggle must be 0 or 1" << endl;
-    }
-    if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD)
-    {
-        cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
-        return 1;
-    }
+
 
     QCApp app;
     Timer t;
