@@ -4,7 +4,7 @@
 #define TEMPSIZE 200'000
 #define QBuff_SIZE 100'000'000
 
-class MCBuffer : public BufferBase
+class QCBuffer : public BufferBase
 {
 
 public:
@@ -41,7 +41,7 @@ public:
     }
 };
 
-class MCGPUContext : public GPUContext<MCBuffer, MCTask>
+class MCGPUContext : public GPUContext<QCBuffer, QCTask>
 {
 
     VertexID *tempv;
