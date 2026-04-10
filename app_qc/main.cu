@@ -112,13 +112,13 @@ public:
         CPU_Graph hg = CPU_Graph(fp);
         CPU_Data hd;
         CPU_Cliques hc;
-
-        allocate_memory(hg, hd, hc);
+        GPU_Data dd;
+        allocate_memory(hd, dd, hc, hg);
 
         eta_ *= N_WARPS;
         cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
         QCTask* t= initialize_tasks(hg, hd);
-        h_expand_level(hg, hd, hc, t)
+        h_expand_level(hg, hd, hc, t);
     }
     void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, QCTask* t)
     {
