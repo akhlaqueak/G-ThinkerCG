@@ -30,27 +30,22 @@ public:
         if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
         {
             cout << "minimum degree ratio must be between .5 and 1 inclusive" << endl;
-            return 1;
+            minimum_degree_ratio = 0.5;
         }
         
         minimum_clique_size = atoi(min_size_arg);
         if (minimum_clique_size <= 1)
         {
             cout << "minimum size must be greater than 1" << endl;
-            return 1;
+            minimum_clique_size  = 10;
         }
         
         if (!(scheduling_toggle == 0 || scheduling_toggle == 1))
         {
             cout << "scheduling toggle must be 0 or 1" << endl;
-            return 1;
+            scheduling_toggle = 0;
         }
         
-        if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD)
-        {
-            cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
-            return 1;
-        }
         
         cout << " ======= Parameters ========" << endl;
         cout << "Graph: " << graph_file << endl;
