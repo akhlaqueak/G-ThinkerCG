@@ -79,8 +79,7 @@ public:
     }
     virtual void init_level()
     {
-        qhead[0] = 0;
-        qtail[0] = 0;
+
     }
     __device__ virtual void extend(QCBuffer &Brd, QCBuffer &Bwr, QCBuffer &H, ull *row_ptrs, VertexID *cols)
 
