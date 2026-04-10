@@ -11,6 +11,8 @@
 #include <time.h>
 #include <chrono>
 #include <cstring>
+#include <cassert>
+#include <limits>
 #include <sys/timeb.h>
 #include <cuda_runtime.h>
 #include <cuda.h>
@@ -44,76 +46,43 @@ public:
     int* twohop_neighbors;
     uint64_t* twohop_offsets;
 
-    CPU_Graph(ifstream& graph_stream)
+    CPU_Graph(const char* input_file)
     {
-        graph_stream.seekg(0, graph_stream.end);
-        string graph_text(graph_stream.tellg(), 0);
-        graph_stream.seekg(0);
-        graph_stream.read(const_cast<char*>(graph_text.data()), graph_text.size());
+        FILE* file_in = fopen(input_file, "rb");
+        assert(file_in != NULL);
 
-        onehop_offsets = new uint64_t[OFFSETS_SIZE];
-        onehop_neighbors = new int[LVL1ADJ_SIZE];
-        twohop_neighbors = new int[LVL2ADJ_SIZE];
+        size_t res = 0;
+        size_t uintV_size = 0;
+        size_t uintE_size = 0;
+        size_t vertex_count = 0;
+        size_t edge_count = 0;
 
-        onehop_offsets[0] = 0;
+        res += fread(&uintV_size, sizeof(size_t), 1, file_in);
+        res += fread(&uintE_size, sizeof(size_t), 1, file_in);
+        res += fread(&vertex_count, sizeof(size_t), 1, file_in);
+        res += fread(&edge_count, sizeof(size_t), 1, file_in);
+
+        assert(uintV_size == sizeof(int));
+        assert(uintE_size == sizeof(uint64_t));
+        assert(vertex_count <= static_cast<size_t>(numeric_limits<int>::max()));
+        assert(edge_count <= static_cast<size_t>(numeric_limits<int>::max()));
+
+        number_of_vertices = static_cast<int>(vertex_count);
+        number_of_edges = static_cast<int>(edge_count);
         number_of_lvl2adj = 0;
 
-        int vertex_count = 0;
-        int number_count = 0;
-        int current_number = 0;
-        bool empty = true;
+        onehop_offsets = new uint64_t[number_of_vertices + 1];
+        onehop_neighbors = new int[number_of_edges];
+        twohop_neighbors = new int[LVL2ADJ_SIZE];
+        res += fread(onehop_offsets, sizeof(uint64_t), number_of_vertices + 1, file_in);
+        res += fread(onehop_neighbors, sizeof(int), number_of_edges, file_in);
+        assert(res == 4 + static_cast<size_t>(number_of_vertices + 1) + static_cast<size_t>(number_of_edges));
 
-
-
-        // TODO - way to detect and handle these cases without changing code?
-        // TWO FORMATS SO FAR
-        // 1 -  VSCode \r\n between lines, no ending character
-        // 2 - Visual Studio \n between lines, numerous \0 ending characters
-
-        // parse graph file assume adj are seperated by spaces ' ' and vertices are seperated by newlines "\r\n"
-        for (int i = 0; i < graph_text.size(); i++) {
-            char character = graph_text[i];
-
-            // line depends on whether newline is "\r\n" or '\n'
-            if (character == '\n') {
-                if (!empty) {
-                    onehop_neighbors[number_count++] = current_number;
-                }
-                onehop_offsets[++vertex_count] = number_count;
-                current_number = 0;
-                // line depends on whether newline is "\r\n" or '\n'
-                //i++;
-                empty = true;
-            }
-            else if (character == ' ') {
-                onehop_neighbors[number_count++] = current_number;
-                current_number = 0;
-            }
-            else if (character == '\0') {
-                // line depends on whether newline is "\r\n" or '\n'
-                break;
-            }
-            else {
-                current_number = current_number * 10 + (graph_text[i] - '0');
-                empty = false;
-            }
-        }
-
-        // line depends on whether newline is "\r\n" or '\n'
-        // handle last element
-        if (!empty) {
-            onehop_neighbors[number_count++] = current_number;
-        }
-        onehop_offsets[++vertex_count] = number_count;
-
-        // set variables and initialize twohop arrays
-        number_of_vertices = vertex_count;
-        number_of_edges = number_count;
-
-
+        fgetc(file_in);
+        assert(feof(file_in));
+        fclose(file_in);
 
         twohop_offsets = new uint64_t[number_of_vertices + 1];
-
         twohop_offsets[0] = 0;
 
         bool* twohop_flag_DIA;
@@ -121,7 +90,7 @@ public:
         memset(twohop_flag_DIA, true, number_of_vertices * sizeof(bool));
 
         // handle lvl2 adj
-        for (int i = 0; i < vertex_count; i++) {
+        for (int i = 0; i < number_of_vertices; i++) {
             for (int j = onehop_offsets[i]; j < onehop_offsets[i + 1]; j++) {
                 int lvl1adj = onehop_neighbors[j];
                 if (twohop_flag_DIA[lvl1adj]) {
@@ -201,10 +170,10 @@ public:
 
     ~CPU_Graph()
     {
-        delete onehop_neighbors;
-        delete onehop_offsets;
-        delete twohop_neighbors;
-        delete twohop_offsets;
+        delete[] onehop_neighbors;
+        delete[] onehop_offsets;
+        delete[] twohop_neighbors;
+        delete[] twohop_offsets;
     }
 };
 
@@ -218,16 +187,16 @@ int main(int argc, char* argv[])
         printf("Usage: ./main <graph_file> <output_file>\n");
         return 1;
     }
-    ifstream graph_stream(argv[1], ios::in);
-    if (!graph_stream.is_open()) {
+    FILE* graph_stream = fopen(argv[1], "rb");
+    if (graph_stream == NULL) {
         printf("invalid graph file\n");
         return 1;
     }
+    fclose(graph_stream);
 
     // GRAPH
-    CPU_Graph hg(graph_stream);
+    CPU_Graph hg(argv[1]);
     hg.write_serialized(argv[2]);
-    graph_stream.close();
     
     return 0;
 }
