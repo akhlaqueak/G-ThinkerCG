@@ -402,7 +402,7 @@ int scheduling_toggle;
 
 
 // MAIN
-int main(int argc, char* argv[])
+int main_(int argc, char* argv[])
 {
     // DEBUG - rm
     cout << TASKS_PER_WARP << endl;

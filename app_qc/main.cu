@@ -378,13 +378,13 @@ public:
             QCCPUWorker *cw = dynamic_cast<QCCPUWorker *>(w);
             GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
 
-            if (cw)
-                res += cw->total_counts;
-            else if (gw)
-            {
-                res += gw->getContext()->get_results();
-                spilled_tasks = gw->spilled_tasks;
-            }
+            // if (cw)
+            //     res += cw->total_counts;
+            // else if (gw)
+            // {
+            //     res += gw->getContext()->get_results();
+            //     spilled_tasks = gw->spilled_tasks;
+            // }
         }
         return res;
     }
