@@ -27,6 +27,12 @@ public:
         global_end_label = false;
     }
 
+    void add_task(TaskT *t)
+    {
+        unique_lock<shared_timed_mutex> lock(SC_mtx);
+        SC->push(t);
+    }
+
     void create_workers()
     {
         for (int i = 0; i < num_gpu_workers; i++)
@@ -107,11 +113,12 @@ public:
                     }
                 }
             }
-            else 
+            else
             {
-                if (not is_SC_empty()){
+                if (not is_SC_empty())
+                {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
-    
+
                     for (ui i = 0; i < worker->tasks_per_fetch && !SC->empty(); i++)
                     {
                         TaskT *task = SC->top();
@@ -119,8 +126,7 @@ public:
                         SC->pop();
                     }
                 }
-                else 
-                if (not data_array.empty())
+                else if (not data_array.empty())
                 {
                     for (ui i = 0; i < worker->tasks_per_fetch && data_array.size(); i++)
                     {
