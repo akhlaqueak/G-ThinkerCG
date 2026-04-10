@@ -27,20 +27,44 @@ public:
         cout << "cpu chunk: " << tasks_per_fetch_g << endl;
         cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
         cout << " ======= ********** ========" << endl;
-        ifstream graph_stream(fp, ios::in);
 
-        CPU_Graph hg = CPU_Graph(graph_stream);
+        // TIME
+        auto start = chrono::high_resolution_clock::now();
+
+        // GRAPH / MINDEGS
+        cout << ">:PRE-PROCESSING" << endl;
+        CPU_Graph hg(graph_stream);
+        graph_stream.close();
+        calculate_minimum_degrees(hg);
+
+        // generate random name for temp file so multiple programs can be run simultaneously without files overwriting
+        auto now = chrono::system_clock::now();
+        auto now_us = chrono::time_point_cast<chrono::microseconds>(now);
+        auto epoch = now_us.time_since_epoch();
+        auto value = chrono::duration_cast<chrono::microseconds>(epoch);
+        long long tduration = value.count();
+        ostringstream oss;
+        oss << "t_" << tduration << ".txt";
+        string temp_filename = oss.str();
+        ofstream temp_results(temp_filename);
+
+        // TIME
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
+        
         CPU_Data hd;
         CPU_Cliques hc;
         GPU_Data dd;
         allocate_memory(hd, dd, hc, hg);
-
+        cudaDeviceSynchronize();
+        
         eta_ *= N_WARPS;
         cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
-        QCTask* t= initialize_tasks(hg, hd);
+        QCTask *t = initialize_tasks(hg, hd);
+        cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
         h_expand_level(hg, hd, hc, t);
     }
-    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, QCTask* t)
+    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, QCTask *t)
     {
         // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
         uint64_t *read_count;
@@ -200,8 +224,8 @@ public:
                         vertices[k].lvl2adj = 0;
                     QCTask *t = new QCTask();
                     t->context.vertices = new Vertex[total_vertices];
-                    t->context.num_vertices= total_vertices;
-                    std::copy(vertices, vertices+total_vertices, t->context.vertices);
+                    t->context.num_vertices = total_vertices;
+                    std::copy(vertices, vertices + total_vertices, t->context.vertices);
                     add_task(t);
                 }
 
@@ -212,7 +236,7 @@ public:
         // (*hd.current_level)++;
     }
     // processes 0th level of expansion
-    QCTask* initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
+    QCTask *initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
     {
         // intersection
         int pvertexid;
@@ -362,9 +386,10 @@ public:
         total_vertices = number_of_candidates;
         for (int j = 0; j < total_vertices; j++)
             vertices[j].lvl2adj = 0;
-        QCTask* t=new QCTask();
+        QCTask *t = new QCTask();
         t->context.num_vertices = total_vertices;
         t->context.vertices = vertices;
+        std::cout<<"created "<<total_vertices<<" cand"<<endl;
         return t;
     }
 
@@ -394,9 +419,44 @@ int main(int argc, char *argv[])
 {
     cmd = CommandLine(argc, argv);
 
+    // ENSURE PROPER USAGE
+    if (argc != 6)
+    {
+        printf("Usage: ./main <graph_file> <gamma> <min_size> <output_file.txt> <scheduling toggle 0-dyanmic/1-static>\n");
+        return 1;
+    }
+    ifstream graph_stream(argv[1], ios::in);
+    if (!graph_stream.is_open())
+    {
+        printf("invalid graph file\n");
+        return 1;
+    }
+    minimum_degree_ratio = atof(argv[2]);
+    if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
+    {
+        printf("minimum degree ratio must be between .5 and 1 inclusive\n");
+        return 1;
+    }
+    minimum_clique_size = atoi(argv[3]);
+    if (minimum_clique_size <= 1)
+    {
+        printf("minimum size must be greater than 1\n");
+        return 1;
+    }
+    scheduling_toggle = atoi(argv[5]);
+    if (!(scheduling_toggle == 0 || scheduling_toggle == 1))
+    {
+        cout << "scheduling toggle must be 0 or 1" << endl;
+    }
+    if (CPU_EXPAND_THRESHOLD > EXPAND_THRESHOLD)
+    {
+        cout << "CPU_EXPAND_THRESHOLD must be less than the EXPAND_THRESHOLD" << endl;
+        return 1;
+    }
+
     QCApp app;
     Timer t;
-    app.run();
+    // app.run();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << app.get_results() << endl;
     cout << "Total spilled vertices: " << spilled_tasks << endl;
