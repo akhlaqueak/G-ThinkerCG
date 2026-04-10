@@ -57,6 +57,8 @@ public:
         // GRAPH / MINDEGS
         cout << ">:PRE-PROCESSING" << endl;
         CPU_Graph hg(graph_stream);
+        cout<< "|V| = "<<hg.number_of_vertices<<endl;
+        cout<< "|E| = "<<hg.number_of_edges<<endl;
         graph_stream.close();
         calculate_minimum_degrees(hg);
 
@@ -254,6 +256,7 @@ public:
             }
         }
         delete t;
+        std::cout<<"created "<<total_vertices<<" first level tasks"<<endl;
         // (*hd.current_level)++;
     }
     // processes 0th level of expansion
