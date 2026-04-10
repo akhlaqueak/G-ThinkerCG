@@ -66,7 +66,6 @@ using namespace std;
 #define DEBUG_TOGGLE 0
 
 
-
 // VERTEX DATA
 struct Vertex
 {
@@ -1006,7 +1005,7 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd)
         (*(hd.tasks1_count))++;
         hd.tasks1_offset[(*(hd.tasks1_count))] = total_vertices;
     }
-
+    cout<<"initial cand: "<<total_vertices<<endl;
     delete vertices;
 }
 
@@ -1188,6 +1187,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
             }
 
 
+            cout<<"expansion cand: "<<total_vertices<<endl;
 
             delete vertices;
         }
