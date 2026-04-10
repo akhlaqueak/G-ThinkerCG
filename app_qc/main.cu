@@ -371,11 +371,11 @@ public:
     ui get_results()
     {
         ui res = 0;
-        using GPUWorkerT = GPUWorker<MCGPUContext>;
+        using GPUWorkerT = GPUWorker<QCGPUContext>;
         while (workers_list.size())
         {
             WorkerT *w = (WorkerT *)workers_list.dequeue();
-            MCCPUWorker *cw = dynamic_cast<MCCPUWorker *>(w);
+            QCCPUWorker *cw = dynamic_cast<QCCPUWorker *>(w);
             GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
 
             if (cw)
