@@ -7,87 +7,6 @@
 CommandLine cmd;
 ull spilled_tasks;
 
-// class CPU_Graph
-// {
-// public:
-//     int number_of_vertices;
-//     int number_of_edges;
-//     uint64_t number_of_lvl2adj;
-
-//     // one dimentional arrays of 1hop and 2hop neighbors and the offsets for each vertex
-//     int *onehop_neighbors;
-//     uint64_t *onehop_offsets;
-//     int *twohop_neighbors;
-//     uint64_t *twohop_offsets;
-
-//     CPU_Graph(ifstream &graph_stream)
-//     {
-//         graph_stream >> number_of_vertices;
-//         graph_stream >> number_of_edges;
-//         graph_stream >> number_of_lvl2adj;
-
-//         onehop_neighbors = new int[number_of_edges];
-//         onehop_offsets = new uint64_t[number_of_vertices + 1];
-//         twohop_neighbors = new int[number_of_lvl2adj];
-//         twohop_offsets = new uint64_t[number_of_vertices + 1];
-
-//         for (int i = 0; i < number_of_edges; i++)
-//         {
-//             graph_stream >> onehop_neighbors[i];
-//         }
-
-//         for (int i = 0; i < number_of_vertices + 1; i++)
-//         {
-//             graph_stream >> onehop_offsets[i];
-//         }
-
-//         for (int i = 0; i < number_of_lvl2adj; i++)
-//         {
-//             graph_stream >> twohop_neighbors[i];
-//         }
-
-//         for (int i = 0; i < number_of_vertices + 1; i++)
-//         {
-//             graph_stream >> twohop_offsets[i];
-//         }
-//     }
-
-//     ~CPU_Graph()
-//     {
-//         delete onehop_neighbors;
-//         delete onehop_offsets;
-//         delete twohop_neighbors;
-//         delete twohop_offsets;
-//     }
-// };
-
-// // CPU DATA
-// struct CPU_Data
-// {
-//     uint64_t *tasks1_count;
-//     uint64_t *tasks1_offset;
-//     Vertex *tasks1_vertices;
-
-//     uint64_t *tasks2_count;
-//     uint64_t *tasks2_offset;
-//     Vertex *tasks2_vertices;
-
-//     uint64_t *buffer_count;
-//     uint64_t *buffer_offset;
-//     Vertex *buffer_vertices;
-
-//     uint64_t *current_level;
-//     bool *maximal_expansion;
-//     bool *dumping_cliques;
-
-//     int *vertex_order_map;
-//     int *remaining_candidates;
-//     int *removed_candidates;
-//     int *remaining_count;
-//     int *removed_count;
-//     int *candidate_indegs;
-// };
-
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
 public:
@@ -108,8 +27,9 @@ public:
         cout << "cpu chunk: " << tasks_per_fetch_g << endl;
         cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
         cout << " ======= ********** ========" << endl;
+        ifstream graph_stream(fp, ios::in);
 
-        CPU_Graph hg = CPU_Graph(fp);
+        CPU_Graph hg = CPU_Graph(graph_stream);
         CPU_Data hd;
         CPU_Cliques hc;
         GPU_Data dd;
@@ -190,7 +110,7 @@ public:
             method_return = h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start);
             if (method_return)
             {
-                continue;
+                return;
             }
 
             // NEXT LEVEL
