@@ -41,7 +41,7 @@ public:
     }
 };
 
-class MCGPUContext : public GPUContext<QCBuffer, QCTask>
+class QCGPUContext : public GPUContext<QCBuffer, QCTask>
 {
 
 
