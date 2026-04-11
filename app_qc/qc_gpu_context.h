@@ -1581,6 +1581,7 @@ public:
             delete task;
         }
         src_tasks.clear();
+        cout << "H to D: " << src_tasks.size() << endl;
     }
     virtual void move_tasks_to_Sc(vector<QCTask *> &collector, QCBuffer &H)
     {
