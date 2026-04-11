@@ -1,11 +1,13 @@
 #include "global.h"
 #include "master.h"
+#include "host_functions.h"
 #include "qc_task.h"
 #include "qc_gpu_context.h"
 #include "qc_cpu_worker.h"
-#include "host_functions.h"
 CommandLine cmd;
 ull spilled_tasks;
+CPU_Data hd;
+GPU_Data dd;
 
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
@@ -77,9 +79,7 @@ public:
         auto stop = chrono::high_resolution_clock::now();
         auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
         
-        CPU_Data hd;
         CPU_Cliques hc;
-        GPU_Data dd;
         allocate_memory(hd, dd, hc, hg);
         cudaDeviceSynchronize();
 

@@ -65,7 +65,15 @@ using namespace std;
 // debug toggle 0-normal/1-debug
 #define DEBUG_TOGGLE 0
 
-
+struct Vertex
+{
+    int vertexid;
+    // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex
+    int label;
+    int indeg;
+    int exdeg;
+    int lvl2adj;
+};
 
 // CPU GRAPH / CONSTRUCTOR
 class CPU_Graph

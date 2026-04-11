@@ -55,7 +55,7 @@ public:
 
 class QCGPUContext : public GPUContext<QCBuffer, QCTask>
 {
-
+    GPU_Data dd;
 public:
     __device__ Vertex make_vertex(const QCBuffer &buffer, ull pos)
     {
@@ -74,7 +74,7 @@ public:
 
     virtual void initialize()
     {
-        
+        this->dd = ::dd;
     }
 
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
@@ -259,13 +259,6 @@ public:
                         d_write_to_tasks(dd, wd, ld);
                     }
                 }
-
-                // schedule warps next task
-                if (LANE_IDX == 0)
-                {
-                    i = atomicAdd(dd.current_task, 1);
-                }
-                i = __shfl_sync(0xFFFFFFFF, i, 0);
             }
         }
 
@@ -1322,21 +1315,21 @@ public:
 
     __device__ void d_write_to_tasks(GPU_Data &dd, Warp_Data &wd, Local_Data &ld)
     {
-        uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
-
+        // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
+        uint64_t start_write =  Bwr.append(wd.total_vertices[WIB_IDX]);
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
-            dd.wtasks_vertices[start_write + k].vertexid = ld.vertices[k].vertexid;
-            dd.wtasks_vertices[start_write + k].label = ld.vertices[k].label;
-            dd.wtasks_vertices[start_write + k].indeg = ld.vertices[k].indeg;
-            dd.wtasks_vertices[start_write + k].exdeg = ld.vertices[k].exdeg;
-            dd.wtasks_vertices[start_write + k].lvl2adj = 0;
+            Bwr.vertexid[start_write + k] = ld.vertices[k].vertexid;
+            Bwr.label[start_write + k] = ld.vertices[k].label;
+            Bwr.indeg[start_write + k] = ld.vertices[k].indeg;
+            Bwr.exdeg[start_write + k] = ld.vertices[k].exdeg;
+            Bwr.lvl2adj[start_write + k] = 0;
         }
-        if (LANE_IDX == 0)
-        {
-            (dd.wtasks_count[WARP_IDX])++;
-            dd.wtasks_offset[(WTASKS_OFFSET_SIZE * WARP_IDX) + (dd.wtasks_count[WARP_IDX])] = start_write - (WTASKS_SIZE * WARP_IDX) + wd.total_vertices[WIB_IDX];
-        }
+        // if (LANE_IDX == 0)
+        // {
+        //     (dd.wtasks_count[WARP_IDX])++;
+        //     dd.wtasks_offset[(WTASKS_OFFSET_SIZE * WARP_IDX) + (dd.wtasks_count[WARP_IDX])] = start_write - (WTASKS_SIZE * WARP_IDX) + wd.total_vertices[WIB_IDX];
+        // }
     }
 
     // --- HELPER KERNELS ---

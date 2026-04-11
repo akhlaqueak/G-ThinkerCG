@@ -1,14 +1,5 @@
-#pragma once
-
-struct Vertex
-{
-    int vertexid;
-    // labels: 0 -> candidate, 1 -> member, 2 -> covered vertex, 3 -> cover vertex, 4 -> critical adjacent vertex
-    int label;
-    int indeg;
-    int exdeg;
-    int lvl2adj;
-};
+#ifndef APP_QC_QC_TASK_H
+#define APP_QC_QC_TASK_H
 
 struct QCContext
 {
@@ -29,3 +20,8 @@ struct QCContext
 
 
 using QCTask = Task<QCContext>;
+
+extern CPU_Data hd;
+extern GPU_Data dd;
+
+#endif
