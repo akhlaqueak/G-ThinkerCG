@@ -467,8 +467,8 @@ int main(int argc, char *argv[])
     app.run();
 
     chkerr(cudaDeviceSynchronize());
-uint64_t total_cliques = 0;
-chkerr(cudaMemcpy(&total_cliques, dd.total_cliques, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+ull total_cliques = 0;
+chkerr(cudaMemcpy(&total_cliques, dd.total_cliques, sizeof(ull), cudaMemcpyDeviceToHost));
 
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << total_cliques << endl;
