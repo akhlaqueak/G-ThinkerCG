@@ -2909,580 +2909,426 @@ void print_maxes()
 
 
 
-// --- DEVICE KERNELS ---
-
-
-__global__ void transfer_buffers(GPU_Data dd)
-{
-    __shared__ uint64_t tasks_write[WARPS_PER_BLOCK];
-    __shared__ int tasks_offset_write[WARPS_PER_BLOCK];
-    __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
-    __shared__ int cliques_offset_write[WARPS_PER_BLOCK];
-
-    __shared__ int twarp;
-    __shared__ int toffsetwrite;
-    __shared__ int twrite;
-    __shared__ int tasks_end;
-
-    if ((*(dd.current_level)) % 2 == 0) {
-        dd.write_count = dd.tasks2_count;
-        dd.write_offsets = dd.tasks2_offset;
-        dd.write_vertices = dd.tasks2_vertices;
-    }
-    else {
-        dd.write_count = dd.tasks1_count;
-        dd.write_offsets = dd.tasks1_offset;
-        dd.write_vertices = dd.tasks1_vertices;
-    }
-
-    // point of this is to find how many vertices will be transfered to tasks, it is easy to know how many tasks as it will just
-    // be the expansion threshold, but to find how many vertices we must now the total size of all the tasks that will be copied.
-    // each block does this but really could be done by one thread outside the GPU
-    if (threadIdx.x == 0) {
-        toffsetwrite = 0;
-        twrite = 0;
-
-        for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-            // if next warps count is more than expand threshold mark as such and break
-            if (toffsetwrite + dd.wtasks_count[i] >= EXPAND_THRESHOLD) {
-                twarp = i;
-                break;
-            }
-            // else adds its size and count
-            twrite += dd.wtasks_offset[(WTASKS_OFFSET_SIZE * i) + dd.wtasks_count[i]];
-            toffsetwrite += dd.wtasks_count[i];
-        }
-        // final size is the size of all tasks up until last warp and the remaining tasks in the last warp until expand threshold is satisfied
-        tasks_end = twrite + dd.wtasks_offset[(WTASKS_OFFSET_SIZE * twarp) + (EXPAND_THRESHOLD - toffsetwrite)];
-    }
-    __syncthreads();
-
-    // warp level
-    if (LANE_IDX == 0)
-    {
-        tasks_write[WIB_IDX] = 0;
-        tasks_offset_write[WIB_IDX] = 1;
-        cliques_write[WIB_IDX] = 0;
-        cliques_offset_write[WIB_IDX] = 1;
-
-        for (int i = 0; i < WARP_IDX; i++) {
-            tasks_offset_write[WIB_IDX] += dd.wtasks_count[i];
-            tasks_write[WIB_IDX] += dd.wtasks_offset[(WTASKS_OFFSET_SIZE * i) + dd.wtasks_count[i]];
-
-            cliques_offset_write[WIB_IDX] += dd.wcliques_count[i];
-            cliques_write[WIB_IDX] += dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * i) + dd.wcliques_count[i]];
-        }
-    }
-    __syncwarp();
-    
-    // move to tasks and buffer
-    for (int i = LANE_IDX + 1; i <= dd.wtasks_count[WARP_IDX]; i += WARP_SIZE)
-    {
-        if (tasks_offset_write[WIB_IDX] + i - 1 <= EXPAND_THRESHOLD) {
-            // to tasks
-            dd.write_offsets[tasks_offset_write[WIB_IDX] + i - 1] = dd.wtasks_offset[(WTASKS_OFFSET_SIZE * WARP_IDX) + i] + tasks_write[WIB_IDX];
-        }
-        else {
-            // to buffer
-            dd.buffer_offset[tasks_offset_write[WIB_IDX] + i - 2 - EXPAND_THRESHOLD + (*(dd.buffer_offset_start))] = dd.wtasks_offset[(WTASKS_OFFSET_SIZE * WARP_IDX) + i] +
-                tasks_write[WIB_IDX] - tasks_end + (*(dd.buffer_start));
-        }
-    }
-
-    for (int i = LANE_IDX; i < dd.wtasks_offset[(WTASKS_OFFSET_SIZE * WARP_IDX) + dd.wtasks_count[WARP_IDX]]; i += WARP_SIZE) {
-        if (tasks_write[WIB_IDX] + i < tasks_end) {
-            // to tasks
-            dd.write_vertices[tasks_write[WIB_IDX] + i] = dd.wtasks_vertices[(WTASKS_SIZE * WARP_IDX) + i];
-        }
-        else {
-            // to buffer
-            dd.buffer_vertices[(*(dd.buffer_start)) + tasks_write[WIB_IDX] + i - tasks_end] = dd.wtasks_vertices[(WTASKS_SIZE * WARP_IDX) + i];
-        }
-    }
-
-    //move to cliques
-    for (int i = LANE_IDX + 1; i <= dd.wcliques_count[WARP_IDX]; i += WARP_SIZE) {
-        dd.cliques_offset[(*(dd.cliques_offset_start)) + cliques_offset_write[WIB_IDX] + i - 2] = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + (*(dd.cliques_start)) + 
-            cliques_write[WIB_IDX];
-    }
-    for (int i = LANE_IDX; i < dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd.wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
-        dd.cliques_vertex[(*(dd.cliques_start)) + cliques_write[WIB_IDX] + i] = dd.wcliques_vertex[(WCLIQUES_SIZE * WARP_IDX) + i];
-    }
-
-    if (IDX == 0) {
-        // handle tasks and buffer counts
-        if ((*dd.total_tasks) <= EXPAND_THRESHOLD) {
-            (*dd.write_count) = (*(dd.total_tasks));
-        }
-        else {
-            (*dd.write_count) = EXPAND_THRESHOLD;
-            (*(dd.buffer_count)) += ((*(dd.total_tasks)) - EXPAND_THRESHOLD);
-        }
-        (*(dd.cliques_count)) += (*(dd.total_cliques));
-
-        (*(dd.total_tasks)) = 0;
-        (*(dd.total_cliques)) = 0;
-    }
-}
-
-__global__ void fill_from_buffer(GPU_Data dd)
-{
-    if ((*(dd.current_level)) % 2 == 0) {
-        dd.write_count = dd.tasks2_count;
-        dd.write_offsets = dd.tasks2_offset;
-        dd.write_vertices = dd.tasks2_vertices;
-    }
-    else {
-        dd.write_count = dd.tasks1_count;
-        dd.write_offsets = dd.tasks1_offset;
-        dd.write_vertices = dd.tasks1_vertices;
-    }
-
-    // get read and write locations
-    int write_amount = ((*(dd.buffer_count)) >= (EXPAND_THRESHOLD - (*dd.write_count))) ? EXPAND_THRESHOLD - (*dd.write_count) : (*(dd.buffer_count));
-    uint64_t start_buffer = dd.buffer_offset[(*(dd.buffer_count)) - write_amount];
-    uint64_t end_buffer = dd.buffer_offset[(*(dd.buffer_count))];
-    uint64_t size_buffer = end_buffer - start_buffer;
-    uint64_t start_write = dd.write_offsets[(*dd.write_count)];
-
-    // handle offsets
-    for (int i = IDX + 1; i <= write_amount; i += NUMBER_OF_THREADS) {
-        dd.write_offsets[(*dd.write_count) + i] = start_write + (dd.buffer_offset[(*(dd.buffer_count)) - write_amount + i] - start_buffer);
-    }
-
-    // handle data
-    for (int i = IDX; i < size_buffer; i += NUMBER_OF_THREADS) {
-        dd.write_vertices[start_write + i] = dd.buffer_vertices[start_buffer + i];
-    }
-
-    if (IDX == 0) {
-        (*dd.write_count) += write_amount;
-        (*(dd.buffer_count)) -= write_amount;
-    }
-}
-
-
-
-
-// --- DEBUG KERNELS ---
-
-__device__ void d_print_vertices(Vertex* vertices, int size)
-{
-    printf("\nOffsets:\n0 %i\nVertex:\n", size);
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].vertexid);
-    }
-    printf("\nLabel:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].label);
-    }
-    printf("\nIndeg:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].indeg);
-    }
-    printf("\nExdeg:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].exdeg);
-    }
-    printf("\nLvl2adj:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].lvl2adj);
-    }
-    printf("\n");
-}
-
-
-
-// --- RM NON-MAX (from Quick) ---
-
-int comp_int(const void* e1, const void* e2)
-{
-    int n1, n2;
-    n1 = *(int*)e1;
-    n2 = *(int*)e2;
-
-    if (n1 > n2)
-        return 1;
-    else if (n1 < n2)
-        return -1;
-    else
-        return 0;
-}
-
-extern int gntotal_max_cliques;
-
-struct TREE_NODE
-{
-    int nid;
-    TREE_NODE* pchild;
-    TREE_NODE* pright_sib;
-    bool bis_max;
-};
-
-#define TNODE_PAGE_SIZE (1<<10)
-
-struct TNODE_PAGE
-{
-    TREE_NODE ptree_nodes[TNODE_PAGE_SIZE];
-    TNODE_PAGE* pnext;
-};
-
-struct TNODE_BUF
-{
-    TNODE_PAGE* phead;
-    TNODE_PAGE* pcur_page;
-    int ncur_pos;
-    int ntotal_pages;
-};
-
-extern TNODE_BUF gotreenode_buf;
-
-inline TREE_NODE* NewTreeNode()
-{
-    TREE_NODE* ptnode;
-    TNODE_PAGE* pnew_page;
-
-    if (gotreenode_buf.ncur_pos == TNODE_PAGE_SIZE)
-    {
-        if (gotreenode_buf.pcur_page->pnext == NULL)
-        {
-            pnew_page = new TNODE_PAGE;
-            pnew_page->pnext = NULL;
-            gotreenode_buf.pcur_page->pnext = pnew_page;
-            gotreenode_buf.pcur_page = pnew_page;
-            gotreenode_buf.ntotal_pages++;
-        }
-        else
-            gotreenode_buf.pcur_page = gotreenode_buf.pcur_page->pnext;
-        gotreenode_buf.ncur_pos = 0;
-    }
-
-    ptnode = &(gotreenode_buf.pcur_page->ptree_nodes[gotreenode_buf.ncur_pos]);
-    gotreenode_buf.ncur_pos++;
-
-    ptnode->bis_max = true;
-
-    return ptnode;
-}
-
-inline void OutputOneSet(FILE* fp, int* pset, int nlen)
-{
-    int i;
-
-    gntotal_max_cliques++;
-
-    fprintf(fp, "%d ", nlen);
-    for (i = 0; i < nlen; i++)
-        fprintf(fp, "%d ", pset[i]);
-    fprintf(fp, "\n");
-
-}
-
-int gntotal_max_cliques;
-
-TNODE_BUF gotreenode_buf;
-
-void DelTNodeBuf()
-{
-    TNODE_PAGE* ppage;
-
-    ppage = gotreenode_buf.phead;
-    while (ppage != NULL)
-    {
-        gotreenode_buf.phead = gotreenode_buf.phead->pnext;
-        delete ppage;
-        gotreenode_buf.ntotal_pages--;
-        ppage = gotreenode_buf.phead;
-    }
-    if (gotreenode_buf.ntotal_pages != 0)
-        printf("Error: inconsistent number of pages\n");
-}
-
-void InsertOneSet(int* pset, int nlen, TREE_NODE*& proot)
-{
-    TREE_NODE* pnode, * pparent, * pleftsib, * pnew_node;
-    int i, j;
-
-    i = 0;
-    pparent = NULL;
-    pnode = proot;
-    pleftsib = NULL;
-
-    while (i < nlen)
-    {
-        while (pnode != NULL && pnode->nid < pset[i])
-        {
-            pleftsib = pnode;
-            pnode = pnode->pright_sib;
-        }
-
-        if (pnode == NULL || pnode->nid > pset[i])
-        {
-            pnew_node = NewTreeNode();
-            pnew_node->nid = pset[i];
-            pnew_node->pchild = NULL;
-            pnew_node->pright_sib = pnode;
-            if (pleftsib != NULL)
-                pleftsib->pright_sib = pnew_node;
-            else if (pparent != NULL)
-                pparent->pchild = pnew_node;
-            if (i == 0 && pleftsib == NULL)
-                proot = pnew_node;
-            pparent = pnew_node;
-            for (j = i + 1; j < nlen; j++)
-            {
-                pnew_node = NewTreeNode();
-                pnew_node->nid = pset[j];
-                pnew_node->pchild = NULL;
-                pnew_node->pright_sib = NULL;
-                pparent->pchild = pnew_node;
-                pparent = pnew_node;
-            }
-            break;
-        }
-        else
-        {
-            pparent = pnode;
-            pnode = pnode->pchild;
-            pleftsib = NULL;
-        }
-        i++;
-    }
-}
-
-int BuildTree(const char* szset_filename, TREE_NODE*& proot)
-{
-    FILE* fp;
-    int nlen, * pset, nset_size, i, nmax_len, num_of_sets;
-
-    fp = fopen(szset_filename, "rt");
-    if (fp == NULL)
-    {
-        printf("Error: cannot open file %s for read\n", szset_filename);
-        return 0;
-    }
-
-    gotreenode_buf.phead = new TNODE_PAGE;
-    gotreenode_buf.phead->pnext = NULL;
-    gotreenode_buf.pcur_page = gotreenode_buf.phead;
-    gotreenode_buf.ntotal_pages = 1;
-    gotreenode_buf.ncur_pos = 0;
-
-    proot = NULL;
-
-    num_of_sets = 0;
-
-    nset_size = 100;
-    pset = new int[nset_size];
-
-    nmax_len = 0;
-    fscanf(fp, "%d", &nlen);
-    while (!feof(fp))
-    {
-        if (nmax_len < nlen)
-            nmax_len = nlen;
-        if (nlen > nset_size)
-        {
-            delete[]pset;
-            nset_size *= 2;
-            if (nset_size < nlen)
-                nset_size = nlen;
-            pset = new int[nset_size];
-        }
-        for (i = 0; i < nlen; i++)
-            fscanf(fp, "%d", &pset[i]);
-        qsort(pset, nlen, sizeof(int), comp_int);
-        InsertOneSet(pset, nlen, proot);
-
-        num_of_sets++;
-        fscanf(fp, "%d", &nlen);
-    }
-    fclose(fp);
-
-    delete[]pset;
-
-    return nmax_len;
-}
-
-void SearchSubset(int* pset, int nset_len, TREE_NODE* proot, TREE_NODE** pstack, int* ppos)
-{
-    TREE_NODE* pnode;
-    int ntop, npos;
-
-    if (proot == NULL)
-        return;
-    ntop = 0;
-    npos = 0;
-    pnode = proot;
-
-    while (ntop >= 0)
-    {
-        while (pnode != NULL && npos < nset_len && pnode->nid != pset[npos])
-        {
-            if (pnode->nid < pset[npos])
-                pnode = pnode->pright_sib;
-            else
-                npos++;
-        }
-        if (pnode != NULL && npos < nset_len)
-        {
-            if (pnode->pchild == NULL && pnode->bis_max)
-                pnode->bis_max = false;
-            pstack[ntop] = pnode;
-            ppos[ntop] = npos;
-            ntop++;
-            pnode = pnode->pchild;
-            npos++;
-        }
-        else
-        {
-            ntop--;
-            if (ntop >= 0)
-            {
-                pnode = pstack[ntop]->pright_sib;
-                npos = ppos[ntop] + 1;
-            }
-        }
-    }
-
-}
-
-void RmNonMax(TREE_NODE* proot, int nmax_len)
-{
-    TREE_NODE* pnode, ** pstack, ** psearch_stack;
-    int* pset, ntop, i, * ppos;
-
-    pset = new int[nmax_len];
-    pstack = new TREE_NODE * [nmax_len];
-    psearch_stack = new TREE_NODE * [nmax_len];
-    ppos = new int[nmax_len];
-
-    pstack[0] = proot;
-    pset[0] = proot->nid;
-    ntop = 1;
-    pnode = proot;
-
-    while (ntop > 0)
-    {
-        if (pnode->pchild != NULL)
-        {
-            pnode = pnode->pchild;
-            pstack[ntop] = pnode;
-            pset[ntop] = pnode->nid;
-            ntop++;
-        }
-        else
-        {
-            if (ntop >= 2 && pnode->bis_max)
-            {
-                for (i = ntop - 1; i >= 1; i--)
-                {
-                    if (pstack[i - 1]->pright_sib != NULL)
-                        SearchSubset(&pset[i], ntop - i, pstack[i - 1]->pright_sib, psearch_stack, ppos);
-                }
-            }
-
-            while (ntop > 0 && pnode->pright_sib == NULL)
-            {
-                ntop--;
-                if (ntop > 0)
-                    pnode = pstack[ntop - 1];
-            }
-            if (ntop == 0)
-                break;
-            else //if(pnode->pright_sib!=NULL)
-            {
-                pnode = pnode->pright_sib;
-                pstack[ntop - 1] = pnode;
-                pset[ntop - 1] = pnode->nid;
-            }
-        }
-    }
-
-    delete[]pset;
-    delete[]pstack;
-    delete[]psearch_stack;
-    delete[]ppos;
-}
-
-void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
-{
-    FILE* fp;
-    TREE_NODE** pstack, * pnode;
-    int* pset, ntop;
-
-    fp = fopen(szoutput_filename, "wt");
-    if (fp == NULL)
-    {
-        printf("Error: cannot open file %s for write\n", szoutput_filename);
-        return;
-    }
-
-    pstack = new TREE_NODE * [nmax_len];
-    pset = new int[nmax_len];
-
-    pstack[0] = proot;
-    pset[0] = proot->nid;
-    ntop = 1;
-    pnode = proot;
-
-    while (ntop > 0)
-    {
-        if (pnode->pchild != NULL)
-        {
-            pnode = pnode->pchild;
-            pstack[ntop] = pnode;
-            pset[ntop] = pnode->nid;
-            ntop++;
-        }
-        else
-        {
-            if (pnode->bis_max)
-                OutputOneSet(fp, pset, ntop);
-
-            while (ntop > 0 && pnode->pright_sib == NULL)
-            {
-                ntop--;
-                if (ntop > 0)
-                    pnode = pstack[ntop - 1];
-            }
-            if (ntop == 0)
-                break;
-            else //if(pnode->pright_sib!=NULL)
-            {
-                pnode = pnode->pright_sib;
-                pstack[ntop - 1] = pnode;
-                pset[ntop - 1] = pnode->nid;
-            }
-        }
-    }
-
-    delete[]pstack;
-    delete[]pset;
-
-    fclose(fp);
-}
-
-void RemoveNonMax(const char* szset_filename, char* szoutput_filename)
-{
-    cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
-
-    TREE_NODE* proot;
-    int nmax_len;
-    struct timeb start, end;
-
-    ftime(&start);
-
-    gntotal_max_cliques = 0;
-
-    nmax_len = BuildTree(szset_filename, proot);
-    RmNonMax(proot, nmax_len);
-    OutputMaxSet(proot, nmax_len, szoutput_filename);
-
-    DelTNodeBuf();
-
-    ftime(&end);
-
-
-    printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
-}
+
+// // --- DEBUG KERNELS ---
+
+// __device__ void d_print_vertices(Vertex* vertices, int size)
+// {
+//     printf("\nOffsets:\n0 %i\nVertex:\n", size);
+//     for (int i = 0; i < size; i++) {
+//         printf("%i ", vertices[i].vertexid);
+//     }
+//     printf("\nLabel:\n");
+//     for (int i = 0; i < size; i++) {
+//         printf("%i ", vertices[i].label);
+//     }
+//     printf("\nIndeg:\n");
+//     for (int i = 0; i < size; i++) {
+//         printf("%i ", vertices[i].indeg);
+//     }
+//     printf("\nExdeg:\n");
+//     for (int i = 0; i < size; i++) {
+//         printf("%i ", vertices[i].exdeg);
+//     }
+//     printf("\nLvl2adj:\n");
+//     for (int i = 0; i < size; i++) {
+//         printf("%i ", vertices[i].lvl2adj);
+//     }
+//     printf("\n");
+// }
+
+
+
+// // --- RM NON-MAX (from Quick) ---
+
+// int comp_int(const void* e1, const void* e2)
+// {
+//     int n1, n2;
+//     n1 = *(int*)e1;
+//     n2 = *(int*)e2;
+
+//     if (n1 > n2)
+//         return 1;
+//     else if (n1 < n2)
+//         return -1;
+//     else
+//         return 0;
+// }
+
+// extern int gntotal_max_cliques;
+
+// struct TREE_NODE
+// {
+//     int nid;
+//     TREE_NODE* pchild;
+//     TREE_NODE* pright_sib;
+//     bool bis_max;
+// };
+
+// #define TNODE_PAGE_SIZE (1<<10)
+
+// struct TNODE_PAGE
+// {
+//     TREE_NODE ptree_nodes[TNODE_PAGE_SIZE];
+//     TNODE_PAGE* pnext;
+// };
+
+// struct TNODE_BUF
+// {
+//     TNODE_PAGE* phead;
+//     TNODE_PAGE* pcur_page;
+//     int ncur_pos;
+//     int ntotal_pages;
+// };
+
+// extern TNODE_BUF gotreenode_buf;
+
+// inline TREE_NODE* NewTreeNode()
+// {
+//     TREE_NODE* ptnode;
+//     TNODE_PAGE* pnew_page;
+
+//     if (gotreenode_buf.ncur_pos == TNODE_PAGE_SIZE)
+//     {
+//         if (gotreenode_buf.pcur_page->pnext == NULL)
+//         {
+//             pnew_page = new TNODE_PAGE;
+//             pnew_page->pnext = NULL;
+//             gotreenode_buf.pcur_page->pnext = pnew_page;
+//             gotreenode_buf.pcur_page = pnew_page;
+//             gotreenode_buf.ntotal_pages++;
+//         }
+//         else
+//             gotreenode_buf.pcur_page = gotreenode_buf.pcur_page->pnext;
+//         gotreenode_buf.ncur_pos = 0;
+//     }
+
+//     ptnode = &(gotreenode_buf.pcur_page->ptree_nodes[gotreenode_buf.ncur_pos]);
+//     gotreenode_buf.ncur_pos++;
+
+//     ptnode->bis_max = true;
+
+//     return ptnode;
+// }
+
+// inline void OutputOneSet(FILE* fp, int* pset, int nlen)
+// {
+//     int i;
+
+//     gntotal_max_cliques++;
+
+//     fprintf(fp, "%d ", nlen);
+//     for (i = 0; i < nlen; i++)
+//         fprintf(fp, "%d ", pset[i]);
+//     fprintf(fp, "\n");
+
+// }
+
+// int gntotal_max_cliques;
+
+// TNODE_BUF gotreenode_buf;
+
+// void DelTNodeBuf()
+// {
+//     TNODE_PAGE* ppage;
+
+//     ppage = gotreenode_buf.phead;
+//     while (ppage != NULL)
+//     {
+//         gotreenode_buf.phead = gotreenode_buf.phead->pnext;
+//         delete ppage;
+//         gotreenode_buf.ntotal_pages--;
+//         ppage = gotreenode_buf.phead;
+//     }
+//     if (gotreenode_buf.ntotal_pages != 0)
+//         printf("Error: inconsistent number of pages\n");
+// }
+
+// void InsertOneSet(int* pset, int nlen, TREE_NODE*& proot)
+// {
+//     TREE_NODE* pnode, * pparent, * pleftsib, * pnew_node;
+//     int i, j;
+
+//     i = 0;
+//     pparent = NULL;
+//     pnode = proot;
+//     pleftsib = NULL;
+
+//     while (i < nlen)
+//     {
+//         while (pnode != NULL && pnode->nid < pset[i])
+//         {
+//             pleftsib = pnode;
+//             pnode = pnode->pright_sib;
+//         }
+
+//         if (pnode == NULL || pnode->nid > pset[i])
+//         {
+//             pnew_node = NewTreeNode();
+//             pnew_node->nid = pset[i];
+//             pnew_node->pchild = NULL;
+//             pnew_node->pright_sib = pnode;
+//             if (pleftsib != NULL)
+//                 pleftsib->pright_sib = pnew_node;
+//             else if (pparent != NULL)
+//                 pparent->pchild = pnew_node;
+//             if (i == 0 && pleftsib == NULL)
+//                 proot = pnew_node;
+//             pparent = pnew_node;
+//             for (j = i + 1; j < nlen; j++)
+//             {
+//                 pnew_node = NewTreeNode();
+//                 pnew_node->nid = pset[j];
+//                 pnew_node->pchild = NULL;
+//                 pnew_node->pright_sib = NULL;
+//                 pparent->pchild = pnew_node;
+//                 pparent = pnew_node;
+//             }
+//             break;
+//         }
+//         else
+//         {
+//             pparent = pnode;
+//             pnode = pnode->pchild;
+//             pleftsib = NULL;
+//         }
+//         i++;
+//     }
+// }
+
+// int BuildTree(const char* szset_filename, TREE_NODE*& proot)
+// {
+//     FILE* fp;
+//     int nlen, * pset, nset_size, i, nmax_len, num_of_sets;
+
+//     fp = fopen(szset_filename, "rt");
+//     if (fp == NULL)
+//     {
+//         printf("Error: cannot open file %s for read\n", szset_filename);
+//         return 0;
+//     }
+
+//     gotreenode_buf.phead = new TNODE_PAGE;
+//     gotreenode_buf.phead->pnext = NULL;
+//     gotreenode_buf.pcur_page = gotreenode_buf.phead;
+//     gotreenode_buf.ntotal_pages = 1;
+//     gotreenode_buf.ncur_pos = 0;
+
+//     proot = NULL;
+
+//     num_of_sets = 0;
+
+//     nset_size = 100;
+//     pset = new int[nset_size];
+
+//     nmax_len = 0;
+//     fscanf(fp, "%d", &nlen);
+//     while (!feof(fp))
+//     {
+//         if (nmax_len < nlen)
+//             nmax_len = nlen;
+//         if (nlen > nset_size)
+//         {
+//             delete[]pset;
+//             nset_size *= 2;
+//             if (nset_size < nlen)
+//                 nset_size = nlen;
+//             pset = new int[nset_size];
+//         }
+//         for (i = 0; i < nlen; i++)
+//             fscanf(fp, "%d", &pset[i]);
+//         qsort(pset, nlen, sizeof(int), comp_int);
+//         InsertOneSet(pset, nlen, proot);
+
+//         num_of_sets++;
+//         fscanf(fp, "%d", &nlen);
+//     }
+//     fclose(fp);
+
+//     delete[]pset;
+
+//     return nmax_len;
+// }
+
+// void SearchSubset(int* pset, int nset_len, TREE_NODE* proot, TREE_NODE** pstack, int* ppos)
+// {
+//     TREE_NODE* pnode;
+//     int ntop, npos;
+
+//     if (proot == NULL)
+//         return;
+//     ntop = 0;
+//     npos = 0;
+//     pnode = proot;
+
+//     while (ntop >= 0)
+//     {
+//         while (pnode != NULL && npos < nset_len && pnode->nid != pset[npos])
+//         {
+//             if (pnode->nid < pset[npos])
+//                 pnode = pnode->pright_sib;
+//             else
+//                 npos++;
+//         }
+//         if (pnode != NULL && npos < nset_len)
+//         {
+//             if (pnode->pchild == NULL && pnode->bis_max)
+//                 pnode->bis_max = false;
+//             pstack[ntop] = pnode;
+//             ppos[ntop] = npos;
+//             ntop++;
+//             pnode = pnode->pchild;
+//             npos++;
+//         }
+//         else
+//         {
+//             ntop--;
+//             if (ntop >= 0)
+//             {
+//                 pnode = pstack[ntop]->pright_sib;
+//                 npos = ppos[ntop] + 1;
+//             }
+//         }
+//     }
+
+// }
+
+// void RmNonMax(TREE_NODE* proot, int nmax_len)
+// {
+//     TREE_NODE* pnode, ** pstack, ** psearch_stack;
+//     int* pset, ntop, i, * ppos;
+
+//     pset = new int[nmax_len];
+//     pstack = new TREE_NODE * [nmax_len];
+//     psearch_stack = new TREE_NODE * [nmax_len];
+//     ppos = new int[nmax_len];
+
+//     pstack[0] = proot;
+//     pset[0] = proot->nid;
+//     ntop = 1;
+//     pnode = proot;
+
+//     while (ntop > 0)
+//     {
+//         if (pnode->pchild != NULL)
+//         {
+//             pnode = pnode->pchild;
+//             pstack[ntop] = pnode;
+//             pset[ntop] = pnode->nid;
+//             ntop++;
+//         }
+//         else
+//         {
+//             if (ntop >= 2 && pnode->bis_max)
+//             {
+//                 for (i = ntop - 1; i >= 1; i--)
+//                 {
+//                     if (pstack[i - 1]->pright_sib != NULL)
+//                         SearchSubset(&pset[i], ntop - i, pstack[i - 1]->pright_sib, psearch_stack, ppos);
+//                 }
+//             }
+
+//             while (ntop > 0 && pnode->pright_sib == NULL)
+//             {
+//                 ntop--;
+//                 if (ntop > 0)
+//                     pnode = pstack[ntop - 1];
+//             }
+//             if (ntop == 0)
+//                 break;
+//             else //if(pnode->pright_sib!=NULL)
+//             {
+//                 pnode = pnode->pright_sib;
+//                 pstack[ntop - 1] = pnode;
+//                 pset[ntop - 1] = pnode->nid;
+//             }
+//         }
+//     }
+
+//     delete[]pset;
+//     delete[]pstack;
+//     delete[]psearch_stack;
+//     delete[]ppos;
+// }
+
+// void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
+// {
+//     FILE* fp;
+//     TREE_NODE** pstack, * pnode;
+//     int* pset, ntop;
+
+//     fp = fopen(szoutput_filename, "wt");
+//     if (fp == NULL)
+//     {
+//         printf("Error: cannot open file %s for write\n", szoutput_filename);
+//         return;
+//     }
+
+//     pstack = new TREE_NODE * [nmax_len];
+//     pset = new int[nmax_len];
+
+//     pstack[0] = proot;
+//     pset[0] = proot->nid;
+//     ntop = 1;
+//     pnode = proot;
+
+//     while (ntop > 0)
+//     {
+//         if (pnode->pchild != NULL)
+//         {
+//             pnode = pnode->pchild;
+//             pstack[ntop] = pnode;
+//             pset[ntop] = pnode->nid;
+//             ntop++;
+//         }
+//         else
+//         {
+//             if (pnode->bis_max)
+//                 OutputOneSet(fp, pset, ntop);
+
+//             while (ntop > 0 && pnode->pright_sib == NULL)
+//             {
+//                 ntop--;
+//                 if (ntop > 0)
+//                     pnode = pstack[ntop - 1];
+//             }
+//             if (ntop == 0)
+//                 break;
+//             else //if(pnode->pright_sib!=NULL)
+//             {
+//                 pnode = pnode->pright_sib;
+//                 pstack[ntop - 1] = pnode;
+//                 pset[ntop - 1] = pnode->nid;
+//             }
+//         }
+//     }
+
+//     delete[]pstack;
+//     delete[]pset;
+
+//     fclose(fp);
+// }
+
+// void RemoveNonMax(const char* szset_filename, char* szoutput_filename)
+// {
+//     cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
+
+//     TREE_NODE* proot;
+//     int nmax_len;
+//     struct timeb start, end;
+
+//     ftime(&start);
+
+//     gntotal_max_cliques = 0;
+
+//     nmax_len = BuildTree(szset_filename, proot);
+//     RmNonMax(proot, nmax_len);
+//     OutputMaxSet(proot, nmax_len, szoutput_filename);
+
+//     DelTNodeBuf();
+
+//     ftime(&end);
+
+
+//     printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
+// }
