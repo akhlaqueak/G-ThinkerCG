@@ -450,7 +450,7 @@ int main(int argc, char *argv[])
 
     QCApp app;
     Timer t;
-    // app.run();
+    app.run();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << app.get_results() << endl;
     cout << "Total spilled vertices: " << spilled_tasks << endl;
