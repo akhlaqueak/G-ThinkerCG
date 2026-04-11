@@ -1568,15 +1568,15 @@ public:
         cout << "H to D: " << src_tasks.size() << endl;
         for (QCTask *task : src_tasks)
         {
-            ui sz = task->num_vertices;
+            ui sz = task->context.num_vertices;
             ull loc = H.append_host(sz);
             for (ui i = 0; i < sz; i++)
             {
-                H.vertices[loc + i] = task->vertices[i].vertexid;
-                H.label[loc + i] = task->vertices[i].label;
-                H.indeg[loc + i] = task->vertices[i].indeg;
-                H.exdeg[loc + i] = task->vertices[i].exdeg;
-                H.lvl2adj[loc + i] = task->vertices[i].lvl2adj;
+                H.vertices[loc + i] = task->context.vertices[i].vertexid;
+                H.label[loc + i] = task->context.vertices[i].label;
+                H.indeg[loc + i] = task->context.vertices[i].indeg;
+                H.exdeg[loc + i] = task->context.vertices[i].exdeg;
+                H.lvl2adj[loc + i] = task->context.vertices[i].lvl2adj;
             }
             delete task;
         }
