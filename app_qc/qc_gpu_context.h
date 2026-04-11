@@ -1572,16 +1572,17 @@ public:
             ull loc = H.append_host(sz);
             for (ui i = 0; i < sz; i++)
             {
-                H.vertices[loc + i] = task->context.vertices[i].vertexid;
-                H.label[loc + i] = task->context.vertices[i].label;
-                H.indeg[loc + i] = task->context.vertices[i].indeg;
-                H.exdeg[loc + i] = task->context.vertices[i].exdeg;
-                H.lvl2adj[loc + i] = task->context.vertices[i].lvl2adj;
+                H.vertices[loc+i]=0;
+                // H.vertices[loc + i] = task->context.vertices[i].vertexid;
+                // H.label[loc + i] = task->context.vertices[i].label;
+                // H.indeg[loc + i] = task->context.vertices[i].indeg;
+                // H.exdeg[loc + i] = task->context.vertices[i].exdeg;
+                // H.lvl2adj[loc + i] = task->context.vertices[i].lvl2adj;
             }
             delete task;
         }
         src_tasks.clear();
-        cout << "H to D: " << src_tasks.size() << endl;
+        cout << "Moved: " << src_tasks.size() << endl;
     }
     virtual void move_tasks_to_Sc(vector<QCTask *> &collector, QCBuffer &H)
     {
