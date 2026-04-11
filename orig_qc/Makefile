@@ -1,7 +1,7 @@
 NVCC ?= nvcc
 NVCCFLAGS ?=
 
-TARGET := cuQC
+TARGET := run
 SRC := main.cu
 
 .PHONY: all clean

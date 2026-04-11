@@ -1067,7 +1067,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
     (*hd.maximal_expansion) = true;
 
 
-
+    size_t sum=0;
     // CURRENT LEVEL
     for (int i = 0; i < *read_count; i++)
     {
@@ -1186,11 +1186,12 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
                 h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
             }
 
-
+            sum+=total_vertices;
             cout<<"expansion cand: "<<total_vertices<<endl;
-
+            
             delete vertices;
         }
+        cout<<"expansion cand: "<<sum<<endl;
     }
 
 

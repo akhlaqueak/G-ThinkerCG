@@ -124,10 +124,11 @@ public:
 
         // set to false later if task is generated indicating non-maximal expansion
         (*hd.maximal_expansion) = true;
-
+        size_t sum=0;
         // CURRENT LEVEL
         // for (int i = 0; i < *read_count; i++)
         {
+
             // get information of vertices being handled within tasks
             start = 0;
             end = t->context.num_vertices;
@@ -253,10 +254,12 @@ public:
                 }
 
                 delete[] vertices;
+                std::cout<<"created "<<total_vertices<<" first level tasks"<<endl;
+                sum+=total_vertices;
             }
         }
+        std::cout<<"created "<<sum<<" first level tasks"<<endl;
         delete t;
-        std::cout<<"created "<<total_vertices<<" first level tasks"<<endl;
         // (*hd.current_level)++;
     }
     // processes 0th level of expansion
