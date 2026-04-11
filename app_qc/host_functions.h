@@ -2978,6 +2978,49 @@ __device__ int d_sort_degs(int n1, int n2)
     }
 }
 
+// Quick enumeration order sort keys
+__device__ int d_sort_vert_Q(Vertex& v1, Vertex& v2)
+{
+    // order is: member -> covered -> cands -> cover
+    // keys are: indeg -> exdeg -> lvl2adj -> vertexid
+
+    if (v1.label == 1 && v2.label != 1)
+        return -1;
+    else if (v1.label != 1 && v2.label == 1)
+        return 1;
+    else if (v1.label == 2 && v2.label != 2)
+        return -1;
+    else if (v1.label != 2 && v2.label == 2)
+        return 1;
+    else if (v1.label == 0 && v2.label != 0)
+        return -1;
+    else if (v1.label != 0 && v2.label == 0)
+        return 1;
+    else if (v1.label == 3 && v2.label != 3)
+        return -1;
+    else if (v1.label != 3 && v2.label == 3)
+        return 1;
+    else if (v1.indeg > v2.indeg)
+        return -1;
+    else if (v1.indeg < v2.indeg)
+        return 1;
+    else if (v1.exdeg > v2.exdeg)
+        return -1;
+    else if (v1.exdeg < v2.exdeg)
+        return 1;
+    else if (v1.lvl2adj > v2.lvl2adj)
+        return -1;
+    else if (v1.lvl2adj < v2.lvl2adj)
+        return 1;
+    else if (v1.vertexid > v2.vertexid)
+        return -1;
+    else if (v1.vertexid < v2.vertexid)
+        return 1;
+    else
+        return 0;
+}
+
+
 // // --- DEBUG KERNELS ---
 
 // __device__ void d_print_vertices(Vertex* vertices, int size)
