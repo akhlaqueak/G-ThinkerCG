@@ -1187,8 +1187,6 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
             }
 
             sum+=total_vertices;
-            cout<<"expansion cand: "<<total_vertices<<endl;
-            
             delete vertices;
         }
         cout<<"expansion cand: "<<sum<<endl;

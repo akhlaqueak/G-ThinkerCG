@@ -254,7 +254,6 @@ public:
                 }
 
                 delete[] vertices;
-                std::cout<<"created "<<total_vertices<<" first level tasks"<<endl;
                 sum+=total_vertices;
             }
         }
