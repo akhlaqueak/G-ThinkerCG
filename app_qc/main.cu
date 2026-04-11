@@ -267,7 +267,7 @@ public:
                     add_task(t);
                 }
 
-                delete[] vertices;
+                // delete[] vertices;
                 sum+=total_vertices;
             }
         }
