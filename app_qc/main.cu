@@ -224,7 +224,7 @@ public:
                         h_check_for_clique(hc, vertices, number_of_members);
                     }
 
-                    delete vertices;
+                    delete[] vertices;
                     continue;
                 }
 
@@ -234,7 +234,7 @@ public:
                 // if critical fail continue onto next iteration
                 if (method_return == 2)
                 {
-                    delete vertices;
+                    delete[] vertices;
                     continue;
                 }
 
@@ -247,7 +247,7 @@ public:
                 // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
                 if (method_return == 1)
                 {
-                    delete vertices;
+                    delete[] vertices;
                     continue;
                 }
 
@@ -260,14 +260,14 @@ public:
                     // h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
                     for (int k = 0; k < total_vertices; k++)
                         vertices[k].lvl2adj = 0;
-                    QCTask *t = new QCTask();
-                    t->context.vertices = new Vertex[total_vertices];
-                    t->context.num_vertices = total_vertices;
-                    std::copy(vertices, vertices + total_vertices, t->context.vertices);
-                    add_task(t);
+                    QCTask *new_task = new QCTask();
+                    new_task->context.vertices = new Vertex[total_vertices];
+                    new_task->context.num_vertices = total_vertices;
+                    std::copy(vertices, vertices + total_vertices, new_task->context.vertices);
+                    add_task(new_task);
                 }
 
-                // delete[] vertices;
+                delete[] vertices;
                 sum+=total_vertices;
             }
         }
