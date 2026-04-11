@@ -56,6 +56,7 @@ public:
 class QCGPUContext : public GPUContext<QCBuffer, QCTask>
 {
     GPU_Data dd;
+
 public:
     __device__ Vertex make_vertex(const QCBuffer &buffer, ull pos)
     {
@@ -1316,7 +1317,7 @@ public:
     __device__ void d_write_to_tasks(GPU_Data &dd, Warp_Data &wd, Local_Data &ld)
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
-        uint64_t start_write =  Bwr.append(wd.total_vertices[WIB_IDX]);
+        uint64_t start_write = Bwr.append(wd.total_vertices[WIB_IDX]);
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
             Bwr.vertices[start_write + k] = ld.vertices[k].vertexid;
@@ -1564,6 +1565,22 @@ public:
 
     virtual void move_tasks_from_Sc(std::vector<QCTask *> &src_tasks, QCBuffer &H)
     {
+        cout << "H to D: " << src_tasks.size() << endl;
+        for (QCTask *task : src_tasks)
+        {
+            ui sz = task->num_vertices;
+            ull loc = H.append_host(sz);
+            for (ui i = 0; i < sz; i++)
+            {
+                H.vertices[loc + i] = task->vertices[i].vertexid;
+                H.label[loc + i] = task->vertices[i].label;
+                H.indeg[loc + i] = task->vertices[i].indeg;
+                H.exdeg[loc + i] = task->vertices[i].exdeg;
+                H.lvl2adj[loc + i] = task->vertices[i].lvl2adj;
+            }
+            delete task;
+        }
+        src_tasks.clear();
     }
     virtual void move_tasks_to_Sc(vector<QCTask *> &collector, QCBuffer &H)
     {
