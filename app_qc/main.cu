@@ -28,7 +28,7 @@ public:
         std::cout.imbue(std::locale());
         eta_ *= N_WARPS;
         cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
-        
+
         ifstream graph_stream(graph_file, ios::in);
         if (!graph_stream.is_open())
         {
@@ -465,8 +465,13 @@ int main(int argc, char *argv[])
     QCApp app;
     Timer t;
     app.run();
+
+    chkerr(cudaDeviceSynchronize());
+uint64_t total_cliques = 0;
+chkerr(cudaMemcpy(&total_cliques, dd.total_cliques, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-    cout << "Total count: " << app.get_results() << endl;
+    cout << "Total count: " << total_cliques << endl;
     cout << "Total spilled vertices: " << spilled_tasks << endl;
 
     return 0;

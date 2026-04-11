@@ -227,16 +227,7 @@ struct GPU_Data
     uint64_t* wcliques_offset;
     int* wcliques_vertex;
 
-    int* total_cliques;
-
-    // // moved from local
-    // Vertex* read_vertices;
-    // uint64_t* read_offsets;
-    // uint64_t* read_count;
-
-    // uint64_t* write_count;
-    // uint64_t* write_offsets;
-    // Vertex* write_vertices;
+    uint64_t* total_cliques;
 
     // task scheduling
     int* current_task;
@@ -554,9 +545,9 @@ void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
     chkerr(cudaMemset(dd.wcliques_offset, 0, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
     chkerr(cudaMemset(dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
 
-    chkerr(cudaMalloc((void**)&dd.total_cliques, sizeof(int)));
+    chkerr(cudaMalloc((void**)&dd.total_cliques, sizeof(uint64_t)));
 
-    chkerr(cudaMemset(dd.total_cliques, 0, sizeof(int)));
+    chkerr(cudaMemset(dd.total_cliques, 0, sizeof(uint64_t)));
 
     chkerr(cudaMalloc((void**)&dd.buffer_offset_start, sizeof(uint64_t)));
     chkerr(cudaMalloc((void**)&dd.buffer_start, sizeof(uint64_t)));
