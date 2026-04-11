@@ -1419,7 +1419,7 @@ public:
     }
 
     // Quick enumeration order sort keys
-    __device__ int d_sort_vert_Q(Vertex &v1, Vertex &v2)
+    static __device__ int d_sort_vert_Q(Vertex &v1, Vertex &v2)
     {
         // order is: member -> covered -> cands -> cover
         // keys are: indeg -> exdeg -> lvl2adj -> vertexid
@@ -1460,7 +1460,7 @@ public:
             return 0;
     }
 
-    __device__ int d_sort_vert_cv(Vertex &v1, Vertex &v2)
+    static __device__ int d_sort_vert_cv(Vertex &v1, Vertex &v2)
     {
         // put crit adj vertices before candidates
 
@@ -1472,7 +1472,7 @@ public:
             return 0;
     }
 
-    __device__ int d_sort_degs(int n1, int n2)
+    static __device__ int d_sort_degs(int n1, int n2)
     {
         // descending order
 
