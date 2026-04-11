@@ -38,7 +38,7 @@ class GPUWorker : public Worker<typename GPUContext::TaskType>
     using TaskT = typename GPUContext::TaskType;
     using ContextT = typename TaskT::ContextType;
 
-    using GPUContextype = GPUContext;
+    // using GPUContextype = GPUContext;
 
 public:
     GPUContext gc;
