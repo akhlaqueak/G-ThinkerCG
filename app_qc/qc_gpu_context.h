@@ -15,7 +15,7 @@ public:
 
     static ull sizeOf()
     {
-        return BufferBase::sizeOf() + sizeof(Label) + 3 * size(int);
+        return BufferBase::sizeOf() + sizeof(Label) + 3 * sizeof(int);
     }
     void allocateMemory(ull sz)
     {
@@ -118,7 +118,7 @@ public:
         while (true)
         {
             // initialize i for each warp
-            if (isLevelFilled() or isLevelFilledQ()) // dst or both
+            if (isLevelFilled()) // dst or both
                 break;
             SubgraphOffsets so = Brd.next();
             if (so.empty())
@@ -349,7 +349,7 @@ public:
             uint64_t start_write = (WCLIQUES_SIZE * WARP_IDX) + dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])];
             for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE)
             {
-                dd.wcliques_vertex[start_write + j] = Brd.[wd.start[WIB_IDX] + j].vertexid;
+                dd.wcliques_vertex[start_write + j] = Brd.vertices[wd.start[WIB_IDX] + j];
             }
             if (LANE_IDX == 0)
             {
@@ -1319,7 +1319,7 @@ public:
         uint64_t start_write =  Bwr.append(wd.total_vertices[WIB_IDX]);
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
-            Bwr.vertexid[start_write + k] = ld.vertices[k].vertexid;
+            Bwr.vertices[start_write + k] = ld.vertices[k].vertexid;
             Bwr.label[start_write + k] = ld.vertices[k].label;
             Bwr.indeg[start_write + k] = ld.vertices[k].indeg;
             Bwr.exdeg[start_write + k] = ld.vertices[k].exdeg;
