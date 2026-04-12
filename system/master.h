@@ -95,6 +95,7 @@ public:
 
             if (dynamic_cast<GPUWorkerT *>(worker))
             {
+                cout<<"SC size: "<<SC->size()<<endl;
                 if (not data_array.empty())
                     for (ui i = 0; i < worker->tasks_per_fetch && data_array.size(); i++)
                     {
