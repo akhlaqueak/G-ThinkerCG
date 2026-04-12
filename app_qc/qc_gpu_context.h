@@ -271,6 +271,7 @@ public:
             // sum to find tasks count
             atomicAdd(dd.total_tasks, dd.wtasks_count[WARP_IDX]);
             atomicAdd(dd.total_cliques, dd.wcliques_count[WARP_IDX]);
+            dd.wcliques_count[WARP_IDX]=0;
         }
 
         if (IDX == 0)
