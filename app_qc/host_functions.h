@@ -2445,142 +2445,142 @@ __device__ int d_sort_degs(int n1, int n2)
 
 // }
 
-// void RmNonMax(TREE_NODE* proot, int nmax_len)
-// {
-//     TREE_NODE* pnode, ** pstack, ** psearch_stack;
-//     int* pset, ntop, i, * ppos;
+void RmNonMax(TREE_NODE* proot, int nmax_len)
+{
+    TREE_NODE* pnode, ** pstack, ** psearch_stack;
+    int* pset, ntop, i, * ppos;
 
-//     pset = new int[nmax_len];
-//     pstack = new TREE_NODE * [nmax_len];
-//     psearch_stack = new TREE_NODE * [nmax_len];
-//     ppos = new int[nmax_len];
+    pset = new int[nmax_len];
+    pstack = new TREE_NODE * [nmax_len];
+    psearch_stack = new TREE_NODE * [nmax_len];
+    ppos = new int[nmax_len];
 
-//     pstack[0] = proot;
-//     pset[0] = proot->nid;
-//     ntop = 1;
-//     pnode = proot;
+    pstack[0] = proot;
+    pset[0] = proot->nid;
+    ntop = 1;
+    pnode = proot;
 
-//     while (ntop > 0)
-//     {
-//         if (pnode->pchild != NULL)
-//         {
-//             pnode = pnode->pchild;
-//             pstack[ntop] = pnode;
-//             pset[ntop] = pnode->nid;
-//             ntop++;
-//         }
-//         else
-//         {
-//             if (ntop >= 2 && pnode->bis_max)
-//             {
-//                 for (i = ntop - 1; i >= 1; i--)
-//                 {
-//                     if (pstack[i - 1]->pright_sib != NULL)
-//                         SearchSubset(&pset[i], ntop - i, pstack[i - 1]->pright_sib, psearch_stack, ppos);
-//                 }
-//             }
+    while (ntop > 0)
+    {
+        if (pnode->pchild != NULL)
+        {
+            pnode = pnode->pchild;
+            pstack[ntop] = pnode;
+            pset[ntop] = pnode->nid;
+            ntop++;
+        }
+        else
+        {
+            if (ntop >= 2 && pnode->bis_max)
+            {
+                for (i = ntop - 1; i >= 1; i--)
+                {
+                    if (pstack[i - 1]->pright_sib != NULL)
+                        SearchSubset(&pset[i], ntop - i, pstack[i - 1]->pright_sib, psearch_stack, ppos);
+                }
+            }
 
-//             while (ntop > 0 && pnode->pright_sib == NULL)
-//             {
-//                 ntop--;
-//                 if (ntop > 0)
-//                     pnode = pstack[ntop - 1];
-//             }
-//             if (ntop == 0)
-//                 break;
-//             else //if(pnode->pright_sib!=NULL)
-//             {
-//                 pnode = pnode->pright_sib;
-//                 pstack[ntop - 1] = pnode;
-//                 pset[ntop - 1] = pnode->nid;
-//             }
-//         }
-//     }
+            while (ntop > 0 && pnode->pright_sib == NULL)
+            {
+                ntop--;
+                if (ntop > 0)
+                    pnode = pstack[ntop - 1];
+            }
+            if (ntop == 0)
+                break;
+            else //if(pnode->pright_sib!=NULL)
+            {
+                pnode = pnode->pright_sib;
+                pstack[ntop - 1] = pnode;
+                pset[ntop - 1] = pnode->nid;
+            }
+        }
+    }
 
-//     delete[]pset;
-//     delete[]pstack;
-//     delete[]psearch_stack;
-//     delete[]ppos;
-// }
+    delete[]pset;
+    delete[]pstack;
+    delete[]psearch_stack;
+    delete[]ppos;
+}
 
-// void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
-// {
-//     FILE* fp;
-//     TREE_NODE** pstack, * pnode;
-//     int* pset, ntop;
+void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
+{
+    FILE* fp;
+    TREE_NODE** pstack, * pnode;
+    int* pset, ntop;
 
-//     fp = fopen(szoutput_filename, "wt");
-//     if (fp == NULL)
-//     {
-//         printf("Error: cannot open file %s for write\n", szoutput_filename);
-//         return;
-//     }
+    fp = fopen(szoutput_filename, "wt");
+    if (fp == NULL)
+    {
+        printf("Error: cannot open file %s for write\n", szoutput_filename);
+        return;
+    }
 
-//     pstack = new TREE_NODE * [nmax_len];
-//     pset = new int[nmax_len];
+    pstack = new TREE_NODE * [nmax_len];
+    pset = new int[nmax_len];
 
-//     pstack[0] = proot;
-//     pset[0] = proot->nid;
-//     ntop = 1;
-//     pnode = proot;
+    pstack[0] = proot;
+    pset[0] = proot->nid;
+    ntop = 1;
+    pnode = proot;
 
-//     while (ntop > 0)
-//     {
-//         if (pnode->pchild != NULL)
-//         {
-//             pnode = pnode->pchild;
-//             pstack[ntop] = pnode;
-//             pset[ntop] = pnode->nid;
-//             ntop++;
-//         }
-//         else
-//         {
-//             if (pnode->bis_max)
-//                 OutputOneSet(fp, pset, ntop);
+    while (ntop > 0)
+    {
+        if (pnode->pchild != NULL)
+        {
+            pnode = pnode->pchild;
+            pstack[ntop] = pnode;
+            pset[ntop] = pnode->nid;
+            ntop++;
+        }
+        else
+        {
+            if (pnode->bis_max)
+                OutputOneSet(fp, pset, ntop);
 
-//             while (ntop > 0 && pnode->pright_sib == NULL)
-//             {
-//                 ntop--;
-//                 if (ntop > 0)
-//                     pnode = pstack[ntop - 1];
-//             }
-//             if (ntop == 0)
-//                 break;
-//             else //if(pnode->pright_sib!=NULL)
-//             {
-//                 pnode = pnode->pright_sib;
-//                 pstack[ntop - 1] = pnode;
-//                 pset[ntop - 1] = pnode->nid;
-//             }
-//         }
-//     }
+            while (ntop > 0 && pnode->pright_sib == NULL)
+            {
+                ntop--;
+                if (ntop > 0)
+                    pnode = pstack[ntop - 1];
+            }
+            if (ntop == 0)
+                break;
+            else //if(pnode->pright_sib!=NULL)
+            {
+                pnode = pnode->pright_sib;
+                pstack[ntop - 1] = pnode;
+                pset[ntop - 1] = pnode->nid;
+            }
+        }
+    }
 
-//     delete[]pstack;
-//     delete[]pset;
+    delete[]pstack;
+    delete[]pset;
 
-//     fclose(fp);
-// }
+    fclose(fp);
+}
 
-// void RemoveNonMax(const char* szset_filename, char* szoutput_filename)
-// {
-//     cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
+void RemoveNonMax(const char* szset_filename, char* szoutput_filename)
+{
+    cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
 
-//     TREE_NODE* proot;
-//     int nmax_len;
-//     struct timeb start, end;
+    TREE_NODE* proot;
+    int nmax_len;
+    struct timeb start, end;
 
-//     ftime(&start);
+    ftime(&start);
 
-//     gntotal_max_cliques = 0;
+    gntotal_max_cliques = 0;
 
-//     nmax_len = BuildTree(szset_filename, proot);
-//     RmNonMax(proot, nmax_len);
-//     OutputMaxSet(proot, nmax_len, szoutput_filename);
+    nmax_len = BuildTree(szset_filename, proot);
+    RmNonMax(proot, nmax_len);
+    OutputMaxSet(proot, nmax_len, szoutput_filename);
 
-//     DelTNodeBuf();
+    DelTNodeBuf();
 
-//     ftime(&end);
+    ftime(&end);
 
 
-//     printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
-// }
+    printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
+}

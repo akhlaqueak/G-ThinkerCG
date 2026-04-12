@@ -77,17 +77,6 @@ public:
         graph_stream.close();
         calculate_minimum_degrees(hg);
 
-        // generate random name for temp file so multiple programs can be run simultaneously without files overwriting
-        auto now = chrono::system_clock::now();
-        auto now_us = chrono::time_point_cast<chrono::microseconds>(now);
-        auto epoch = now_us.time_since_epoch();
-        auto value = chrono::duration_cast<chrono::microseconds>(epoch);
-        long long tduration = value.count();
-        ostringstream oss;
-        oss << "t_" << tduration << ".txt";
-        string temp_filename = oss.str();
-        ofstream temp_results(temp_filename);
-
         // TIME
         auto stop = chrono::high_resolution_clock::now();
         auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
@@ -609,13 +598,34 @@ int main(int argc, char *argv[])
 {
     cmd = CommandLine(argc, argv);
 
-    // ENSURE PROPER USAGE
+    string temp_filename = "t_cliques.txt";
+    ofstream temp_results(temp_filename);
 
     QCApp app;
     Timer t;
     app.run();
-
     chkerr(cudaDeviceSynchronize());
+
+    dump_cliques(hc, dd, temp_results);
+
+
+        // TIME
+    auto start1 = chrono::high_resolution_clock::now();
+
+
+    // RM NON-MAX
+    RemoveNonMax(temp_filename.c_str(), cmd.GetOptionValue("-o", "output.txt"));
+
+    // TIME
+    auto stop1 = chrono::high_resolution_clock::now();
+    auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
+    cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+
+    auto stop2 = chrono::high_resolution_clock::now();
+    auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
+    cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
+
+
     ull total_cliques = 0;
     chkerr(cudaMemcpy(&total_cliques, dd.total_cliques, sizeof(ull), cudaMemcpyDeviceToHost));
 
