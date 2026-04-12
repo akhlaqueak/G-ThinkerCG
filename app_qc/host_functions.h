@@ -2561,7 +2561,7 @@ void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
     fclose(fp);
 }
 
-void RemoveNonMax(const char* szset_filename, char* szoutput_filename)
+void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 {
     cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
 
