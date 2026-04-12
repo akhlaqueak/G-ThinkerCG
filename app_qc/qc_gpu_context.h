@@ -19,6 +19,7 @@ public:
     }
     void allocateMemory(ull sz)
     {
+        cout<<"Device buffers size: "<<sz<<endl;
         BufferBase::allocateMemory(sz);
         chkerr(cudaMalloc((void **)&label, sz * sizeof(Label)));
         chkerr(cudaMalloc((void **)&indeg, sz * sizeof(int)));
