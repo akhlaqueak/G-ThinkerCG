@@ -23,5 +23,5 @@ using QCTask = Task<QCContext>;
 
 extern CPU_Data hd;
 extern GPU_Data dd;
-
+extern CPU_Cliques hc;
 #endif

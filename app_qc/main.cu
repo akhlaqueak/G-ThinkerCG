@@ -8,6 +8,7 @@ CommandLine cmd;
 ull spilled_tasks;
 CPU_Data hd;
 GPU_Data dd;
+CPU_Cliques hc;
 
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
@@ -81,7 +82,6 @@ public:
         auto stop = chrono::high_resolution_clock::now();
         auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
 
-        CPU_Cliques hc;
         allocate_memory(hd, dd, hc, hg);
         cudaDeviceSynchronize();
 
@@ -614,16 +614,13 @@ int main(int argc, char *argv[])
 
 
     // RM NON-MAX
-    RemoveNonMax(temp_filename.c_str(), cmd.GetOptionValue("-o", "output.txt"));
+    string out_file = cmd.GetOptionValue("-o", "output.txt");
+    RemoveNonMax(temp_filename.c_str(), out_file.c_str());
 
     // TIME
     auto stop1 = chrono::high_resolution_clock::now();
     auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
     cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
-
-    auto stop2 = chrono::high_resolution_clock::now();
-    auto duration2 = chrono::duration_cast<chrono::milliseconds>(stop2 - start2);
-    cout << "--->:TOTAL TIME: " << duration2.count() << " ms" << endl;
 
 
     ull total_cliques = 0;
