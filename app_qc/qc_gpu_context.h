@@ -276,8 +276,8 @@ public:
 
         if (IDX == 0)
         {
-            (*(dd.buffer_offset_start)) = (*(dd.buffer_count)) + 1;
-            (*(dd.buffer_start)) = dd.buffer_offset[(*(dd.buffer_count))];
+            // (*(dd.buffer_offset_start)) = (*(dd.buffer_count)) + 1;
+            // (*(dd.buffer_start)) = dd.buffer_offset[(*(dd.buffer_count))];
             (*(dd.cliques_offset_start)) = (*(dd.cliques_count)) + 1;
             (*(dd.cliques_start)) = dd.cliques_offset[(*(dd.cliques_count))];
         }
