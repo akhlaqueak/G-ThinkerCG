@@ -98,7 +98,6 @@ public:
     {
     }
     __device__ virtual void extend(QCBuffer &Brd, QCBuffer &Bwr, QCBuffer &H, ull *row_ptrs, VertexID *cols)
-
     {
         // data is stored in data structures to reduce the number of variables that need to be passed to methods
         __shared__ Warp_Data wd;
@@ -276,8 +275,6 @@ public:
 
         if (IDX == 0)
         {
-            // (*(dd.buffer_offset_start)) = (*(dd.buffer_count)) + 1;
-            // (*(dd.buffer_start)) = dd.buffer_offset[(*(dd.buffer_count))];
             (*(dd.cliques_offset_start)) = (*(dd.cliques_count)) + 1;
             (*(dd.cliques_start)) = dd.cliques_offset[(*(dd.cliques_count))];
         }

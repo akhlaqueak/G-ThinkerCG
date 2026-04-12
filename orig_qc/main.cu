@@ -63,7 +63,8 @@ using namespace std;
 #define CPU_MODE 0
 
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
+
 
 
 // VERTEX DATA
@@ -700,6 +701,7 @@ void search(CPU_Graph& hg, ofstream& temp_results)
 
     dump_cliques(hc, dd, temp_results);
 
+
     free_memory(hd, dd, hc);
 }
 
@@ -1005,7 +1007,7 @@ void initialize_tasks(CPU_Graph& hg, CPU_Data& hd)
         (*(hd.tasks1_count))++;
         hd.tasks1_offset[(*(hd.tasks1_count))] = total_vertices;
     }
-    cout<<"initial cand: "<<total_vertices<<endl;
+
     delete vertices;
 }
 
@@ -1067,7 +1069,7 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
     (*hd.maximal_expansion) = true;
 
 
-    size_t sum=0;
+
     // CURRENT LEVEL
     for (int i = 0; i < *read_count; i++)
     {
@@ -1186,10 +1188,10 @@ void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc)
                 h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
             }
 
-            sum+=total_vertices;
+
+
             delete vertices;
         }
-        cout<<"expansion cand: "<<sum<<endl;
     }
 
 
@@ -1236,7 +1238,7 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     cudaDeviceSynchronize();
 
     // DEBUG
-    //print_CPU_Cliques(hc);
+    print_CPU_Cliques(hc);
 
     flush_cliques(hc, temp_results);
 

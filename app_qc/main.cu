@@ -609,20 +609,20 @@ int main(int argc, char *argv[])
     transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
     chkerr(cudaDeviceSynchronize());
 
-    // dump_cliques(hc, dd, temp_results);
+    dump_cliques(hc, dd, temp_results);
 
     //     // TIME
     // auto start1 = chrono::high_resolution_clock::now();
 
 
     // // RM NON-MAX
-    // string out_file = cmd.GetOptionValue("-o", "output.txt");
-    // RemoveNonMax(temp_filename.c_str(), out_file.c_str());
+    string out_file = cmd.GetOptionValue("-o", "output.txt");
+    RemoveNonMax(temp_filename.c_str(), out_file.c_str());
 
     // TIME
-    auto stop1 = chrono::high_resolution_clock::now();
-    auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
-    cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+    // auto stop1 = chrono::high_resolution_clock::now();
+    // auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
+    // cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
 
 
     ull cliques_count = 0;
