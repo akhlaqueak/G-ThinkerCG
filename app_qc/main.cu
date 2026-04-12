@@ -607,18 +607,17 @@ int main(int argc, char *argv[])
     chkerr(cudaDeviceSynchronize());
 
     transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
-    cudaDeviceSynchronize();
+    chkerr(cudaDeviceSynchronize());
 
-    dump_cliques(hc, dd, temp_results);
+    // dump_cliques(hc, dd, temp_results);
+
+    //     // TIME
+    // auto start1 = chrono::high_resolution_clock::now();
 
 
-        // TIME
-    auto start1 = chrono::high_resolution_clock::now();
-
-
-    // RM NON-MAX
-    string out_file = cmd.GetOptionValue("-o", "output.txt");
-    RemoveNonMax(temp_filename.c_str(), out_file.c_str());
+    // // RM NON-MAX
+    // string out_file = cmd.GetOptionValue("-o", "output.txt");
+    // RemoveNonMax(temp_filename.c_str(), out_file.c_str());
 
     // TIME
     auto stop1 = chrono::high_resolution_clock::now();
