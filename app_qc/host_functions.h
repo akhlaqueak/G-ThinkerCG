@@ -2584,3 +2584,41 @@ void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 
     printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
 }
+
+
+__global__ void transfer_cliques(GPU_Data dd)
+{
+    __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
+    __shared__ int cliques_offset_write[WARPS_PER_BLOCK];
+
+    // warp level
+    if (LANE_IDX == 0)
+    {
+        cliques_write[WIB_IDX] = 0;
+        cliques_offset_write[WIB_IDX] = 1;
+
+        for (int i = 0; i < WARP_IDX; i++) {
+            cliques_offset_write[WIB_IDX] += dd.wcliques_count[i];
+            cliques_write[WIB_IDX] += dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * i) + dd.wcliques_count[i]];
+        }
+    }
+    __syncwarp();
+    
+
+    //move to cliques
+    for (int i = LANE_IDX + 1; i <= dd.wcliques_count[WARP_IDX]; i += WARP_SIZE) {
+        dd.cliques_offset[(*(dd.cliques_offset_start)) + cliques_offset_write[WIB_IDX] + i - 2] = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + (*(dd.cliques_start)) + 
+            cliques_write[WIB_IDX];
+    }
+    for (int i = LANE_IDX; i < dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd.wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
+        dd.cliques_vertex[(*(dd.cliques_start)) + cliques_write[WIB_IDX] + i] = dd.wcliques_vertex[(WCLIQUES_SIZE * WARP_IDX) + i];
+    }
+
+    if (IDX == 0) {
+        // handle tasks and buffer counts
+        (*(dd.cliques_count)) += (*(dd.total_cliques));
+
+        (*(dd.total_tasks)) = 0;
+        (*(dd.total_cliques)) = 0;
+    }
+}

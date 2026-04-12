@@ -606,6 +606,9 @@ int main(int argc, char *argv[])
     app.run();
     chkerr(cudaDeviceSynchronize());
 
+    transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+    cudaDeviceSynchronize();
+
     dump_cliques(hc, dd, temp_results);
 
 
@@ -623,11 +626,11 @@ int main(int argc, char *argv[])
     cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
 
 
-    ull total_cliques = 0;
-    chkerr(cudaMemcpy(&total_cliques, dd.total_cliques, sizeof(ull), cudaMemcpyDeviceToHost));
+    ull cliques_count = 0;
+    chkerr(cudaMemcpy(&cliques_count, dd.cliques_count, sizeof(ull), cudaMemcpyDeviceToHost));
 
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-    cout << "Total count: " << total_cliques << endl;
+    cout << "Total count: " << cliques_count << endl;
     cout << "Total spilled vertices: " << spilled_tasks << endl;
 
     return 0;
