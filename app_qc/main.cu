@@ -253,10 +253,10 @@ public:
                     new_task->context.num_vertices = total_vertices;
                     std::copy(vertices, vertices + total_vertices, new_task->context.vertices);
                     add_task(new_task);
+                    sum ++;
                 }
 
                 delete[] vertices;
-                sum ++;
             }
         }
         std::cout << "created " << sum << " first level tasks" << endl;
