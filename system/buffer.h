@@ -92,12 +92,13 @@ public:
             ull ot = atomicAdd(otail, 3);
             vt = atomicAdd(vtail, sglen);
             atomicAdd(n_tasks_proc, 1);
+            // todo check if threadfence is unnecessary... i think it's not useful.
             __threadfence();
             // if it's a host buffer
             if (capacity[0] == HOST_BUFF_SZ)
             {
                 assert(ot + 3 < HOST_OFFSET_SZ && vt + sglen < capacity[0]);
-                // printf("Host level_filled\n");
+                // printf("Host overflow\n");
             }
             else
             {
