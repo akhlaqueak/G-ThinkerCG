@@ -69,7 +69,7 @@ public:
         // todo HOST_BUFF_SZ should be small in final release
         allocatePtrs();
         buffsize[0] = HOST_BUFF_SZ;
-        std::cout << "Host allocated Buffer: " << buffsize[0] << std::endl;
+        std::cout << "Host allocated Buffer: " << buffsize[0]/1024.0/1024/1024 <<" G" << std::endl;
     }
 
     void allocateMemory(size_t sz)
@@ -79,7 +79,7 @@ public:
 
         allocatePtrs();
         buffsize[0] = sz;
-        std::cout << "Device allocated Buffer: " << buffsize[0] << std::endl;
+        std::cout << "Device allocated Buffer: " << buffsize[0]/1024.0/1024/1024 <<" G" << std::endl;
     }
 
     __device__ IndexType append_thread(IndexType sglen, volatile bool *overflow)

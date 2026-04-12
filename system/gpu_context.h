@@ -58,7 +58,7 @@ public:
 
         size_t total, free;
         cudaMemGetInfo(&free, &total);
-
+        cout<<"Available Memory "<< free/1024.0/1024/1024 <<" GB"<<endl;
         // leave some memory for pointers and other variables...
         free -= 500'000'000 + reserved_mem;
 
