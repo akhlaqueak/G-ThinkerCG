@@ -59,7 +59,7 @@ public:
             gc.move_vertices_to_gpu(this->Lv);
         }
         else{
-            // cout<<"Lt: "<<this->Lt.size()<<endl;
+            cout<<"Lt: "<<this->Lt.size()<<endl;
             gc.move_tasks_from_Sc(this->Lt, gc.H);
         }
 

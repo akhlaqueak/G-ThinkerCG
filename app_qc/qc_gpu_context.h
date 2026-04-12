@@ -1583,7 +1583,6 @@ public:
                 H.lvl2adj[loc + i] = task->context.vertices[i].lvl2adj;
             }
             delete task;
-        cout << "Moved: " << src_tasks.size() << endl;
         }
         src_tasks.clear();
     }
