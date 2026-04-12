@@ -35,7 +35,7 @@ using namespace std;
 #define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
 
 // DATA STRUCTURE SIZE
-#define TASKS_SIZE 250000000
+#define TASKS_SIZE 2500
 #define TASKS_PER_WARP 100
 #define BUFFER_SIZE 900000000
 #define BUFFER_OFFSET_SIZE 90000000
@@ -467,16 +467,16 @@ void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
     // GPU DATA
     chkerr(cudaMalloc((void**)&dd.current_level, sizeof(uint64_t)));
 
-    // chkerr(cudaMalloc((void**)&dd.tasks1_count, sizeof(uint64_t)));
-    // chkerr(cudaMalloc((void**)&dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-    // chkerr(cudaMalloc((void**)&dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
+    chkerr(cudaMalloc((void**)&dd.tasks1_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
+    chkerr(cudaMalloc((void**)&dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
 
     chkerr(cudaMemset(dd.tasks1_offset, 0, sizeof(uint64_t)));
     chkerr(cudaMemset(dd.tasks1_count, 0, sizeof(uint64_t)));
 
-    // chkerr(cudaMalloc((void**)&dd.tasks2_count, sizeof(uint64_t)));
-    // chkerr(cudaMalloc((void**)&dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-    // chkerr(cudaMalloc((void**)&dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
+    chkerr(cudaMalloc((void**)&dd.tasks2_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void**)&dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
+    chkerr(cudaMalloc((void**)&dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
 
     chkerr(cudaMemset(dd.tasks2_offset, 0, sizeof(uint64_t)));
     chkerr(cudaMemset(dd.tasks2_count, 0, sizeof(uint64_t)));
