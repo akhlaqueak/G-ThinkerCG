@@ -2503,7 +2503,7 @@ void RmNonMax(TREE_NODE* proot, int nmax_len)
     delete[]ppos;
 }
 
-void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
+void OutputMaxSet(TREE_NODE* proot, int nmax_len, const char* szoutput_filename)
 {
     FILE* fp;
     TREE_NODE** pstack, * pnode;
