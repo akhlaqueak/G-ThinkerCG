@@ -467,16 +467,16 @@ void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg)
     // GPU DATA
     chkerr(cudaMalloc((void**)&dd.current_level, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.tasks1_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-    chkerr(cudaMalloc((void**)&dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
+    // chkerr(cudaMalloc((void**)&dd.tasks1_count, sizeof(uint64_t)));
+    // chkerr(cudaMalloc((void**)&dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
+    // chkerr(cudaMalloc((void**)&dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
 
     chkerr(cudaMemset(dd.tasks1_offset, 0, sizeof(uint64_t)));
     chkerr(cudaMemset(dd.tasks1_count, 0, sizeof(uint64_t)));
 
-    chkerr(cudaMalloc((void**)&dd.tasks2_count, sizeof(uint64_t)));
-    chkerr(cudaMalloc((void**)&dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-    chkerr(cudaMalloc((void**)&dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
+    // chkerr(cudaMalloc((void**)&dd.tasks2_count, sizeof(uint64_t)));
+    // chkerr(cudaMalloc((void**)&dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
+    // chkerr(cudaMalloc((void**)&dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
 
     chkerr(cudaMemset(dd.tasks2_offset, 0, sizeof(uint64_t)));
     chkerr(cudaMemset(dd.tasks2_count, 0, sizeof(uint64_t)));
