@@ -606,9 +606,6 @@ int main(int argc, char *argv[])
     app.run();
     chkerr(cudaDeviceSynchronize());
 
-    // transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
-    // chkerr(cudaDeviceSynchronize());
-
     dump_cliques(hc, dd, temp_results);
 
     //     // TIME

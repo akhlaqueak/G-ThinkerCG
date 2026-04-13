@@ -417,7 +417,7 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     cudaDeviceSynchronize();
 
     // DEBUG
-    print_CPU_Cliques(hc);
+    // print_CPU_Cliques(hc);
 
     flush_cliques(hc, temp_results);
 
