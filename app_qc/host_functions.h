@@ -593,7 +593,6 @@ int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* re
     }
     (*hc.cliques_count)++;
     hc.cliques_offset[(*hc.cliques_count)] = start_write + tot_vert;
-    cout<<"found... "<<endl;
     return 1;
 }
 
