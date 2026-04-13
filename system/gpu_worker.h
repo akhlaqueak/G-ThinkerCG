@@ -111,10 +111,10 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        if (prog_trigger.elapsed() / 1e6 > 10)
-        {
-            prog_trigger.restart();
-        }
+        // if (prog_trigger.elapsed() / 1e6 > 10)
+        // {
+        //     prog_trigger.restart();
+        // }
 
         if (!gc.Bwr.empty())
         {
