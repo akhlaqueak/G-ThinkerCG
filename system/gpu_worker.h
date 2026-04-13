@@ -84,11 +84,11 @@ public:
             gc.incrementLevel();
             while (true)
             {
-                gc.init_level();
                 gc.resetLevel();
                 // cout<<gc.Brd.size()<<endl;
                 process<<<BLK_NUMS, BLK_DIM>>>(gc);
                 extend<<<BLK_NUMS, BLK_DIM>>>(gc);
+                gc.init_level();
 
                 deviceSynch();
 
