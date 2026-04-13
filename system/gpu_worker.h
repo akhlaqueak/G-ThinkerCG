@@ -88,9 +88,9 @@ public:
                 // cout<<gc.Brd.size()<<endl;
                 process<<<BLK_NUMS, BLK_DIM>>>(gc);
                 extend<<<BLK_NUMS, BLK_DIM>>>(gc);
-                gc.init_level();
-
+                
                 deviceSynch();
+                gc.init_level();
 
                 auto tick = chrono::steady_clock::now();
                 deviceSynch();
