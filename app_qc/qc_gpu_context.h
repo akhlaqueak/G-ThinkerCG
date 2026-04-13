@@ -277,7 +277,6 @@ public:
 
         if (IDX == 0)
         {
-            printf("%d: \n", dd.wcliques_count[WARP_IDX]);
             (*(dd.cliques_offset_start)) = (*(dd.cliques_count)) + 1;
             (*(dd.cliques_start)) = dd.cliques_offset[(*(dd.cliques_count))];
         }
