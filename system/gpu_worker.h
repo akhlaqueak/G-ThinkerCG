@@ -84,6 +84,7 @@ public:
             gc.incrementLevel();
             while (true)
             {
+                show_progress(" ** level changed...  ** ");
                 gc.resetLevel();
                 // cout<<gc.Brd.size()<<endl;
                 process<<<BLK_NUMS, BLK_DIM>>>(gc);
