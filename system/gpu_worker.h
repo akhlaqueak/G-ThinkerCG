@@ -88,12 +88,16 @@ public:
             gc.incrementLevel();
             while (true)
             {
-                // bool next_expansion = level_style_expansion();
-                // if (!next_expansion)
-                //     break;
-                bool next_expansion = ping_pong_style_expansion();
-                if (!next_expansion)
+                if(gc.ping_pong_mode){
+                    bool next_expansion = ping_pong_style_expansion();
+                    if (!next_expansion)
                     break;
+                }
+                else{
+                    bool next_expansion = level_style_expansion();
+                    if (!next_expansion)
+                        break;
+                }
             }
         }
     }
