@@ -146,6 +146,7 @@ public:
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
 
         deviceSynch();
+        show_progress(" ** host dump ** ");
 
         gc.incrementLevel();
         if (gc.isOverflow())
