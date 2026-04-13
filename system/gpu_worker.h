@@ -53,13 +53,16 @@ public:
 
     virtual void run()
     {
-        if(gc.v_proc[0]>=gc.sources_num[0]) gc.sources_num[0]=0;
-        if (this->Lv.size()){
+        if (gc.v_proc[0] >= gc.sources_num[0])
+            gc.sources_num[0] = 0;
+        if (this->Lv.size())
+        {
             // cout<<"Lv: "<<this->Lv.size()<<endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
-        else{
-            cout<<"Lt: "<<this->Lt.size()<<endl;
+        else
+        {
+            cout << "Lt: " << this->Lt.size() << endl;
             gc.move_tasks_from_Sc(this->Lt, gc.H);
         }
 
@@ -75,8 +78,9 @@ public:
                 move_tasks_to_cpu();
             }
             else if (!gc.topLevelWorkExist() && gc.Bwr.empty() && gc.Brd.empty())
-            break;
-            if(gc.sources_num[0]>0){
+                break;
+            if (gc.sources_num[0] > 0)
+            {
                 generateInitialTasks<<<BLK_NUMS, BLK_DIM>>>(gc);
                 deviceSynch();
             }
@@ -84,37 +88,72 @@ public:
             gc.incrementLevel();
             while (true)
             {
-                gc.resetLevel();
-                // cout<<gc.Brd.size()<<endl;
-                process<<<BLK_NUMS, BLK_DIM>>>(gc);
-                extend<<<BLK_NUMS, BLK_DIM>>>(gc);
-                
-                deviceSynch();
-                gc.init_level();
-
-                auto tick = chrono::steady_clock::now();
-                deviceSynch();
-                
-                if (prog_trigger.elapsed() / 1e6 > 10)
-                {
-                    prog_trigger.restart();
-                }
-
-                if (!gc.Bwr.empty())
-                {
-                    gc.incrementLevel();
-                    if(gc.isOverflow()){
-                        dump_to_host();
-                        move_tasks_to_cpu();
-                    }
-                }
-                else if (gc.Brd.empty())
-                {
-                    if (!gc.decrementLevel())
-                        break;
-                }
+                // bool next_expansion = level_style_expansion();
+                // if (!next_expansion)
+                //     break;
+                bool next_expansion = ping_pong_style_expansion();
+                if (!next_expansion)
+                    break;
             }
         }
+    }
+
+    bool level_style_expansion()
+    {
+        gc.resetLevel();
+        // cout<<gc.Brd.size()<<endl;
+        process<<<BLK_NUMS, BLK_DIM>>>(gc);
+        extend<<<BLK_NUMS, BLK_DIM>>>(gc);
+
+        deviceSynch();
+        gc.init_level();
+
+        auto tick = chrono::steady_clock::now();
+        deviceSynch();
+
+        if (prog_trigger.elapsed() / 1e6 > 10)
+        {
+            prog_trigger.restart();
+        }
+
+        if (!gc.Bwr.empty())
+        {
+            gc.incrementLevel();
+            if (gc.isOverflow())
+            {
+                dump_to_host();
+                move_tasks_to_cpu();
+            }
+        }
+        else if (gc.Brd.empty())
+        {
+            if (!gc.decrementLevel())
+                return false;
+        }
+        return true;
+    }
+
+    bool ping_pong_style_expansion()
+    {
+        gc.resetLevel();
+        gc.init_level();
+        // cout<<gc.Brd.size()<<endl;
+        process<<<BLK_NUMS, BLK_DIM>>>(gc);
+        extend<<<BLK_NUMS, BLK_DIM>>>(gc);
+
+        deviceSynch();
+
+        gc.incrementLevel();
+        if (gc.isOverflow())
+        {
+            dump_to_host();
+            move_tasks_to_cpu();
+        }
+        else if (gc.Brd.empty())
+        {
+            return false;
+        }
+        return true;
     }
     void dump_to_host()
     {
@@ -132,7 +171,7 @@ public:
     }
     ull SC_size()
     {
-        stack<TaskT *> *SC= (stack<TaskT *> *) global_SC;
+        stack<TaskT *> *SC = (stack<TaskT *> *)global_SC;
 
         shared_lock<shared_timed_mutex> lock(SC_mtx);
         // shared_lock lock(SC_mtx);
@@ -141,11 +180,11 @@ public:
     }
     void move_tasks_to_cpu()
     {
-        // return; // disabling spilling... 
+        // return; // disabling spilling...
         if (workers_list.size() > num_cpu_workers / 2 and SC_size() < gpu_to_host_transfer_size_g)
         {
             gc.move_tasks_to_Sc(this->Lo, gc.H);
-            this->spilled_tasks+=this->Lo.size();
+            this->spilled_tasks += this->Lo.size();
             this->spill_Lo();
         }
     }

@@ -17,6 +17,7 @@ public:
     using TaskContainer = vector<TaskT *>;
     ull *v_proc;
     std::stack<BPointers> SL;
+    bool ping_pong_mode = false;
 
     // memory is allocated only to B and H buffers, Brd, Bwr are just pointers hovering over B
     // managed memory for H
@@ -25,6 +26,8 @@ public:
 
     BufferT Bwr;
     BufferT Brd;
+
+    BufferT B1, B2; // for ping-pong expansion
 
     ull *sources_num;  // size of Lv
     VertexID *sources; // Lv copy on GPU
@@ -58,7 +61,7 @@ public:
 
         size_t total, free;
         cudaMemGetInfo(&free, &total);
-        cout<<"Available Memory "<< free/1024.0/1024/1024 <<" GB"<<endl;
+        cout << "Available Memory " << free / 1024.0 / 1024 / 1024 << " GB" << endl;
         // leave some memory for pointers and other variables...
         free -= 500'000'000 + reserved_mem;
 
@@ -70,10 +73,10 @@ public:
 
         Bwr.allocatePtrs();
         Brd.allocatePtrs();
-
-        Brd.capacity[0] = sz;
-        Bwr.capacity[0] = sz;
-
+        
+        Brd.capacity[0] = sz / 2;
+        Bwr.capacity[0] = sz ;
+        Bwr.reset_pointers(true); //Bwr is the second buffer, its starting point is sz/2
         // this version allocates on host memory
         H.allocateMemory();
     }
@@ -90,8 +93,18 @@ public:
         Bwr.n_tasks_proc[0] = 0;
         H.n_tasks_proc[0] = 0;
     }
+    void swap_buffers()
+    {
+        std::swap(Brd, Bwr);
+    }
     void incrementLevel()
     {
+        if (ping_pong_mode)
+        {
+            swap_buffers();
+            Bwr.reset_pointers();
+            return;
+        }
         resetLevel();
         if (!Brd.empty())
             SL.push({Brd.ohead[0], Brd.otail[0], Brd.vtail[0]});
@@ -130,13 +143,9 @@ public:
 
     __device__ bool isLevelFilled()
     {
-#ifdef SRC
-        return (Brd.n_tasks_proc[0] > eta); // Source
-#elif defined(DST)
-        return (Bwr.n_tasks_proc[0] > eta ); // Destination
-#else
-        return (Brd.n_tasks_proc[0] > eta or Bwr.n_tasks_proc[0] > eta); // Both
-#endif
+        if (ping_pong_mode)
+            return this->isOverflow();
+        return (Bwr.n_tasks_proc[0] > eta); // Destination
     }
 
     __device__ __host__ bool isOverflow()

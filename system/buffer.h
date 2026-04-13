@@ -41,6 +41,7 @@ public:
     ull *ohead;
     ull *capacity;
     ui *n_tasks_proc;
+    bool second_buffer = false; // the second buffer in ping-pong mode. 
 
 
     static ull sizeOf()
@@ -245,6 +246,20 @@ public:
         otail[0] = 0;
         vtail[0] = 0;
         ohead[0] = 0;
+    }
+    
+    void reset_pointers(bool sb=false){
+        if(sb or second_buffer){
+            second_buffer = true;
+            otail[0] = capacity[0]/2;
+            vtail[0] = capacity[0]/2;
+            ohead[0] = capacity[0]/2;
+        }
+        else{
+            otail[0] = 0;
+            vtail[0] = 0;
+            ohead[0] = 0;
+        }
     }
     __device__ void copy(auto &src, ull i, ull j)
     {
