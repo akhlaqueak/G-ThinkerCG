@@ -74,7 +74,7 @@ public:
                 deviceSynch();
                 move_tasks_to_cpu();
             }
-            else if (!gc.topLevelWorkExist())
+            else if (!gc.topLevelWorkExist() && gc.Bwr.empty() && gc.Brd.empty())
             break;
             if(gc.sources_num[0]>0){
                 generateInitialTasks<<<BLK_NUMS, BLK_DIM>>>(gc);
@@ -84,7 +84,6 @@ public:
             gc.incrementLevel();
             while (true)
             {
-                show_progress(" ** level changed...  ** ");
                 gc.resetLevel();
                 // cout<<gc.Brd.size()<<endl;
                 process<<<BLK_NUMS, BLK_DIM>>>(gc);

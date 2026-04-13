@@ -1,4 +1,5 @@
 #include "global.h"
+#include <memory>
 #include "master.h"
 #include "host_functions.h"
 #include "qc_task.h"
@@ -85,186 +86,13 @@ public:
         allocate_memory(hd, dd, hc, hg);
         cudaDeviceSynchronize();
 
-        QCTask *t = initialize_tasks(hg, hd);
+        auto [initial_vertices, initial_total_vertices] = initialize_tasks(hg, hd);
+
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
-        h_expand_level(hg, hd, hc, t);
+        h_expand_level(hg, hd, hc, initial_vertices.get(), initial_total_vertices);
     }
-    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, QCTask *t)
-    {
-        // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
-        uint64_t *read_count;
-        uint64_t *read_offsets;
-        Vertex *read_vertices;
-        uint64_t *write_count;
-        uint64_t *write_offsets;
-        Vertex *write_vertices;
-
-        // old vertices information
-        uint64_t start;
-        uint64_t end;
-        int tot_vert;
-        int num_mem;
-        int num_cand;
-        int expansions;
-        int number_of_covered;
-
-        // new vertices information
-        Vertex *vertices;
-        int number_of_members;
-        int number_of_candidates;
-        int total_vertices;
-
-        // calculate lower-upper bounds
-        int min_ext_deg;
-        int lower_bound;
-        int upper_bound;
-
-        int method_return;
-        int index;
-
-        read_vertices = t->context.vertices;
-
-        // set to false later if task is generated indicating non-maximal expansion
-        (*hd.maximal_expansion) = true;
-        size_t sum = 0;
-        // CURRENT LEVEL
-        // for (int i = 0; i < *read_count; i++)
-        {
-
-            // get information of vertices being handled within tasks
-            start = 0;
-            end = t->context.num_vertices;
-            tot_vert = end - start;
-            num_mem = 0;
-            for (uint64_t j = start; j < end; j++)
-            {
-                if (read_vertices[j].label != 1)
-                {
-                    break;
-                }
-                num_mem++;
-            }
-            number_of_covered = 0;
-            for (uint64_t j = start + num_mem; j < end; j++)
-            {
-                if (read_vertices[j].label != 2)
-                {
-                    break;
-                }
-                number_of_covered++;
-            }
-            num_cand = tot_vert - num_mem;
-            expansions = num_cand;
-
-            // LOOKAHEAD PRUNING
-            method_return = h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start);
-            if (method_return)
-            {
-                return;
-            }
-
-            // NEXT LEVEL
-            for (int j = number_of_covered; j < expansions; j++)
-            {
-
-                // REMOVE ONE VERTEX
-                if (j != number_of_covered)
-                {
-                    method_return = h_remove_one_vertex(hg, hd, read_vertices, tot_vert, num_cand, num_mem, start);
-                    if (method_return)
-                    {
-                        break;
-                    }
-                }
-
-                // NEW VERTICES
-                vertices = new Vertex[tot_vert];
-                number_of_members = num_mem;
-                number_of_candidates = num_cand;
-                total_vertices = tot_vert;
-                for (index = 0; index < number_of_members; index++)
-                {
-                    vertices[index] = read_vertices[start + index];
-                }
-                vertices[number_of_members] = read_vertices[start + total_vertices - 1];
-                for (; index < total_vertices - 1; index++)
-                {
-                    vertices[index + 1] = read_vertices[start + index];
-                }
-
-                if (number_of_covered > 0)
-                {
-                    // set all covered vertices from previous level as candidates
-                    for (int j = num_mem + 1; j <= num_mem + number_of_covered; j++)
-                    {
-                        vertices[j].label = 0;
-                    }
-                }
-
-                // ADD ONE VERTEX
-                method_return = h_add_one_vertex(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
-
-                // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
-                if (method_return == 1)
-                {
-                    if (number_of_members >= minimum_clique_size)
-                    {
-                        h_check_for_clique(hc, vertices, number_of_members);
-                    }
-
-                    delete[] vertices;
-                    continue;
-                }
-
-                // CRITICAL VERTEX PRUNING
-                method_return = h_critical_vertex_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
-
-                // if critical fail continue onto next iteration
-                if (method_return == 2)
-                {
-                    delete[] vertices;
-                    continue;
-                }
-
-                // CHECK FOR CLIQUE
-                if (number_of_members >= minimum_clique_size)
-                {
-                    h_check_for_clique(hc, vertices, number_of_members);
-                }
-
-                // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
-                if (method_return == 1)
-                {
-                    delete[] vertices;
-                    continue;
-                }
-
-                // WRITE TO TASKS
-                // sort vertices so that lowest degree vertices are first in enumeration order before writing to tasks
-                qsort(vertices, total_vertices, sizeof(Vertex), h_sort_vert_Q);
-
-                if (number_of_candidates > 0)
-                {
-                    // h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
-                    for (int k = 0; k < total_vertices; k++)
-                        vertices[k].lvl2adj = 0;
-                    QCTask *new_task = new QCTask();
-                    new_task->context.vertices = new Vertex[total_vertices];
-                    new_task->context.num_vertices = total_vertices;
-                    std::copy(vertices, vertices + total_vertices, new_task->context.vertices);
-                    add_task(new_task);
-                    sum ++;
-                }
-
-                delete[] vertices;
-            }
-        }
-        std::cout << "created " << sum << " first level tasks" << endl;
-        delete t;
-        // (*hd.current_level)++;
-    }
-    // processes 0th level of expansion
-    QCTask *initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
+      // processes 0th level of expansion
+    std::pair<std::unique_ptr<Vertex[]>, size_t> initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
     {
         // intersection
         int pvertexid;
@@ -279,14 +107,14 @@ public:
         // vertices information
         int total_vertices;
         int number_of_candidates;
-        Vertex *vertices;
+        std::unique_ptr<Vertex[]> vertices;
 
         (*hd.remaining_count) = 0;
         (*hd.removed_count) = 0;
 
         // initialize vertices
         total_vertices = hg.number_of_vertices;
-        vertices = new Vertex[total_vertices];
+        vertices = std::make_unique<Vertex[]>(total_vertices);
         number_of_candidates = total_vertices;
         for (int i = 0; i < total_vertices; i++)
         {
@@ -414,12 +242,177 @@ public:
         total_vertices = number_of_candidates;
         for (int j = 0; j < total_vertices; j++)
             vertices[j].lvl2adj = 0;
-        QCTask *t = new QCTask();
-        t->context.num_vertices = total_vertices;
-        t->context.vertices = vertices;
-        std::cout << "created " << total_vertices << " cand" << endl;
-        return t;
+        return {std::move(vertices), static_cast<size_t>(total_vertices)};
     }
+    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, Vertex *read_vertices, size_t read_vertices_count)
+    {
+        // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
+        uint64_t *read_count;
+        uint64_t *read_offsets;
+        uint64_t *write_count;
+        uint64_t *write_offsets;
+        Vertex *write_vertices;
+
+        // old vertices information
+        uint64_t start;
+        uint64_t end;
+        int tot_vert;
+        int num_mem;
+        int num_cand;
+        int expansions;
+        int number_of_covered;
+
+        // new vertices information
+        Vertex *vertices;
+        int number_of_members;
+        int number_of_candidates;
+        int total_vertices;
+
+        // calculate lower-upper bounds
+        int min_ext_deg;
+        int lower_bound;
+        int upper_bound;
+
+        int method_return;
+        int index;
+
+        // set to false later if task is generated indicating non-maximal expansion
+        (*hd.maximal_expansion) = true;
+        size_t sum = 0;
+        // CURRENT LEVEL
+        // for (int i = 0; i < *read_count; i++)
+        {
+
+            // get information of vertices being handled within tasks
+            start = 0;
+            end = read_vertices_count;
+            tot_vert = end - start;
+            num_mem = 0;
+            for (uint64_t j = start; j < end; j++)
+            {
+                if (read_vertices[j].label != 1)
+                {
+                    break;
+                }
+                num_mem++;
+            }
+            number_of_covered = 0;
+            for (uint64_t j = start + num_mem; j < end; j++)
+            {
+                if (read_vertices[j].label != 2)
+                {
+                    break;
+                }
+                number_of_covered++;
+            }
+            num_cand = tot_vert - num_mem;
+            expansions = num_cand;
+
+            // LOOKAHEAD PRUNING
+            method_return = h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start);
+            if (method_return)
+            {
+                return;
+            }
+
+            // NEXT LEVEL
+            for (int j = number_of_covered; j < expansions; j++)
+            {
+
+                // REMOVE ONE VERTEX
+                if (j != number_of_covered)
+                {
+                    method_return = h_remove_one_vertex(hg, hd, read_vertices, tot_vert, num_cand, num_mem, start);
+                    if (method_return)
+                    {
+                        break;
+                    }
+                }
+
+                // NEW VERTICES
+                vertices = new Vertex[tot_vert];
+                number_of_members = num_mem;
+                number_of_candidates = num_cand;
+                total_vertices = tot_vert;
+                for (index = 0; index < number_of_members; index++)
+                {
+                    vertices[index] = read_vertices[start + index];
+                }
+                vertices[number_of_members] = read_vertices[start + total_vertices - 1];
+                for (; index < total_vertices - 1; index++)
+                {
+                    vertices[index + 1] = read_vertices[start + index];
+                }
+
+                if (number_of_covered > 0)
+                {
+                    // set all covered vertices from previous level as candidates
+                    for (int j = num_mem + 1; j <= num_mem + number_of_covered; j++)
+                    {
+                        vertices[j].label = 0;
+                    }
+                }
+
+                // ADD ONE VERTEX
+                method_return = h_add_one_vertex(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
+
+                // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
+                if (method_return == 1)
+                {
+                    if (number_of_members >= minimum_clique_size)
+                    {
+                        h_check_for_clique(hc, vertices, number_of_members);
+                    }
+
+                    delete[] vertices;
+                    continue;
+                }
+
+                // CRITICAL VERTEX PRUNING
+                method_return = h_critical_vertex_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
+
+                // if critical fail continue onto next iteration
+                if (method_return == 2)
+                {
+                    delete[] vertices;
+                    continue;
+                }
+
+                // CHECK FOR CLIQUE
+                if (number_of_members >= minimum_clique_size)
+                {
+                    h_check_for_clique(hc, vertices, number_of_members);
+                }
+
+                // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
+                if (method_return == 1)
+                {
+                    delete[] vertices;
+                    continue;
+                }
+
+                // WRITE TO TASKS
+                // sort vertices so that lowest degree vertices are first in enumeration order before writing to tasks
+                qsort(vertices, total_vertices, sizeof(Vertex), h_sort_vert_Q);
+
+                if (number_of_candidates > 0)
+                {
+                    // h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
+                    for (int k = 0; k < total_vertices; k++)
+                        vertices[k].lvl2adj = 0;
+                    QCTask *new_task = new QCTask();
+                    new_task->context.assign_from_vertices(vertices, total_vertices);
+                    add_task(new_task);
+                    sum ++;
+                }
+
+                delete[] vertices;
+            }
+        }
+        std::cout << "created " << sum << " first level tasks" << endl;
+        // (*hd.current_level)++;
+    }
+  
 
     ui get_results()
     {

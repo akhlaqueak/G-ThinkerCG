@@ -1568,19 +1568,18 @@ public:
 
     virtual void move_tasks_from_Sc(std::vector<QCTask *> &src_tasks, QCBuffer &H)
     {
-        cout << "H to D: " << src_tasks.size() << endl;
+        (void)H;
+        cout << "SC to D: " << src_tasks.size() << endl;
         for (QCTask *task : src_tasks)
         {
             ui sz = task->context.num_vertices;
-            ull loc = H.append_host(sz);
-            for (ui i = 0; i < sz; i++)
-            {
-                H.vertices[loc + i] = task->context.vertices[i].vertexid;
-                H.label[loc + i] = task->context.vertices[i].label;
-                H.indeg[loc + i] = task->context.vertices[i].indeg;
-                H.exdeg[loc + i] = task->context.vertices[i].exdeg;
-                H.lvl2adj[loc + i] = task->context.vertices[i].lvl2adj;
-            }
+            SubgraphOffsets so = this->Bwr.append_host_to_device(sz);
+            ull loc = so.st;
+            chkerr(cudaMemcpy(this->Bwr.vertices + loc, task->context.vertices, sizeof(VertexID) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.label + loc, task->context.label, sizeof(Label) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.indeg + loc, task->context.indeg, sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.exdeg + loc, task->context.exdeg, sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.lvl2adj + loc, task->context.lvl2adj, sizeof(int) * sz, cudaMemcpyHostToDevice));
             delete task;
         }
         src_tasks.clear();

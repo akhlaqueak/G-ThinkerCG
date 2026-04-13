@@ -84,6 +84,24 @@ public:
         return vt;
     }
 
+    SubgraphOffsets append_host_to_device(ull sglen, ull md = 0)
+    {
+        ull ot = otail[0];
+        ull vt = vtail[0];
+
+        if (ot + 3 > capacity[0] || vt + sglen > capacity[0])
+        {
+            throw std::runtime_error("Device buffer overflow");
+        }
+
+        ull host_offsets[3] = {vt, md, vt + sglen};
+        chkerr(cudaMemcpy(offsets + ot, host_offsets, sizeof(host_offsets), cudaMemcpyHostToDevice));
+
+        otail[0] = ot + 3;
+        vtail[0] = vt + sglen;
+        return {vt, md, vt + sglen};
+    }
+
     __device__ ull append(ull sglen, ull md = 0)
     {
         ull vt;
