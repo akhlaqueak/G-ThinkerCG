@@ -19,7 +19,7 @@ public:
     }
     void allocateMemory(ull sz)
     {
-        cout<<"Device buffers size: "<<sz<<endl;
+        cout << "Device buffers size: " << sz << endl;
         BufferBase::allocateMemory(sz);
         chkerr(cudaMalloc((void **)&label, sz * sizeof(Label)));
         chkerr(cudaMalloc((void **)&indeg, sz * sizeof(int)));
@@ -130,140 +130,138 @@ public:
             if (so.empty())
                 break;
 
+            // get information on vertices being handled within tasks
+            if (LANE_IDX == 0)
             {
-                // get information on vertices being handled within tasks
-                if (LANE_IDX == 0)
-                {
-                    wd.start[WIB_IDX] = so.st;
-                    wd.end[WIB_IDX] = so.en;
-                    wd.tot_vert[WIB_IDX] = so.en - so.st;
-                }
-                __syncwarp();
+                wd.start[WIB_IDX] = so.st;
+                wd.end[WIB_IDX] = so.en;
+                wd.tot_vert[WIB_IDX] = so.en - so.st;
+            }
+            __syncwarp();
 
-                // each warp gets partial number of members
-                num_mem = 0;
-                for (uint64_t j = wd.start[WIB_IDX] + LANE_IDX; j < wd.end[WIB_IDX]; j += WARP_SIZE)
+            // each warp gets partial number of members
+            num_mem = 0;
+            for (uint64_t j = wd.start[WIB_IDX] + LANE_IDX; j < wd.end[WIB_IDX]; j += WARP_SIZE)
+            {
+                if (Brd.label[j] != 1)
                 {
-                    if (Brd.label[j] != 1)
+                    break;
+                }
+                num_mem++;
+            }
+            // sum members across warp
+            for (int k = 1; k < 32; k *= 2)
+            {
+                num_mem += __shfl_xor_sync(0xFFFFFFFF, num_mem, k);
+            }
+
+            if (LANE_IDX == 0)
+            {
+                wd.num_mem[WIB_IDX] = num_mem;
+                wd.num_cand[WIB_IDX] = wd.tot_vert[WIB_IDX] - wd.num_mem[WIB_IDX];
+                wd.expansions[WIB_IDX] = wd.num_cand[WIB_IDX];
+            }
+            __syncwarp();
+
+            // LOOKAHEAD PRUNING
+            method_return = d_lookahead_pruning(dd, wd, ld);
+            if (method_return)
+            {
+                continue;
+            }
+
+            // --- NEXT LEVEL ---
+            for (int j = 0; j < wd.expansions[WIB_IDX]; j++)
+            {
+
+                // REMOVE ONE VERTEX
+                if (j > 0)
+                {
+                    method_return = d_remove_one_vertex(dd, wd, ld);
+                    if (method_return)
                     {
                         break;
                     }
-                    num_mem++;
                 }
-                // sum members across warp
-                for (int k = 1; k < 32; k *= 2)
+
+                // INITIALIZE NEW VERTICES
+                if (LANE_IDX == 0)
                 {
-                    num_mem += __shfl_xor_sync(0xFFFFFFFF, num_mem, k);
+                    wd.number_of_members[WIB_IDX] = wd.num_mem[WIB_IDX];
+                    wd.number_of_candidates[WIB_IDX] = wd.num_cand[WIB_IDX];
+                    wd.total_vertices[WIB_IDX] = wd.tot_vert[WIB_IDX];
+                }
+                __syncwarp();
+
+                // select whether to store vertices in global or shared memory based on size
+                if (wd.total_vertices[WIB_IDX] <= VERTICES_SIZE)
+                {
+                    ld.vertices = wd.shared_vertices + (VERTICES_SIZE * WIB_IDX);
+                }
+                else
+                {
+                    ld.vertices = dd.global_vertices + (WVERTICES_SIZE * WARP_IDX);
+                }
+
+                for (index = LANE_IDX; index < wd.number_of_members[WIB_IDX]; index += WARP_SIZE)
+                {
+                    ld.vertices[index] = make_vertex(Brd, wd.start[WIB_IDX] + index);
+                    // ld.vertices[index] = dd.read_vertices[wd.start[WIB_IDX] + index];
+                }
+                for (; index < wd.total_vertices[WIB_IDX] - 1; index += WARP_SIZE)
+                {
+                    ld.vertices[index + 1] = make_vertex(Brd, wd.start[WIB_IDX] + index);
+                    // ld.vertices[index + 1] = dd.read_vertices[wd.start[WIB_IDX] + index];
                 }
 
                 if (LANE_IDX == 0)
                 {
-                    wd.num_mem[WIB_IDX] = num_mem;
-                    wd.num_cand[WIB_IDX] = wd.tot_vert[WIB_IDX] - wd.num_mem[WIB_IDX];
-                    wd.expansions[WIB_IDX] = wd.num_cand[WIB_IDX];
+                    ld.vertices[wd.number_of_members[WIB_IDX]] = make_vertex(Brd, wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1);
+                    // ld.vertices[wd.number_of_members[WIB_IDX]] = dd.read_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
                 }
                 __syncwarp();
 
-                // LOOKAHEAD PRUNING
-                method_return = d_lookahead_pruning(dd, wd, ld);
-                if (method_return)
+                // ADD ONE VERTEX
+                method_return = d_add_one_vertex(dd, wd, ld);
+
+                // if failed found check for clique and continue on to the next iteration
+                if (method_return == 1)
                 {
-                    continue;
-                }
-
-                // --- NEXT LEVEL ---
-                for (int j = 0; j < wd.expansions[WIB_IDX]; j++)
-                {
-
-                    // REMOVE ONE VERTEX
-                    if (j > 0)
-                    {
-                        method_return = d_remove_one_vertex(dd, wd, ld);
-                        if (method_return)
-                        {
-                            break;
-                        }
-                    }
-
-                    // INITIALIZE NEW VERTICES
-                    if (LANE_IDX == 0)
-                    {
-                        wd.number_of_members[WIB_IDX] = wd.num_mem[WIB_IDX];
-                        wd.number_of_candidates[WIB_IDX] = wd.num_cand[WIB_IDX];
-                        wd.total_vertices[WIB_IDX] = wd.tot_vert[WIB_IDX];
-                    }
-                    __syncwarp();
-
-                    // select whether to store vertices in global or shared memory based on size
-                    if (wd.total_vertices[WIB_IDX] <= VERTICES_SIZE)
-                    {
-                        ld.vertices = wd.shared_vertices + (VERTICES_SIZE * WIB_IDX);
-                    }
-                    else
-                    {
-                        ld.vertices = dd.global_vertices + (WVERTICES_SIZE * WARP_IDX);
-                    }
-
-                    for (index = LANE_IDX; index < wd.number_of_members[WIB_IDX]; index += WARP_SIZE)
-                    {
-                        ld.vertices[index] = make_vertex(Brd, wd.start[WIB_IDX] + index);
-                        // ld.vertices[index] = dd.read_vertices[wd.start[WIB_IDX] + index];
-                    }
-                    for (; index < wd.total_vertices[WIB_IDX] - 1; index += WARP_SIZE)
-                    {
-                        ld.vertices[index + 1] = make_vertex(Brd, wd.start[WIB_IDX] + index);
-                        // ld.vertices[index + 1] = dd.read_vertices[wd.start[WIB_IDX] + index];
-                    }
-
-                    if (LANE_IDX == 0)
-                    {
-                        ld.vertices[wd.number_of_members[WIB_IDX]] = make_vertex(Brd, wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1);
-                        // ld.vertices[wd.number_of_members[WIB_IDX]] = dd.read_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
-                    }
-                    __syncwarp();
-
-                    // ADD ONE VERTEX
-                    method_return = d_add_one_vertex(dd, wd, ld);
-
-                    // if failed found check for clique and continue on to the next iteration
-                    if (method_return == 1)
-                    {
-                        if (wd.number_of_members[WIB_IDX] >= (*dd.minimum_clique_size))
-                        {
-                            d_check_for_clique(dd, wd, ld);
-                        }
-                        continue;
-                    }
-
-                    // CRITICAL VERTEX PRUNING
-                    method_return = d_critical_vertex_pruning(dd, wd, ld);
-
-                    // critical fail, cannot be clique continue onto next iteration
-                    if (method_return == 2)
-                    {
-                        continue;
-                    }
-
-                    // HANDLE CLIQUES
                     if (wd.number_of_members[WIB_IDX] >= (*dd.minimum_clique_size))
                     {
                         d_check_for_clique(dd, wd, ld);
                     }
+                    continue;
+                }
 
-                    // if vertex in x found as not extendable continue to next iteration
-                    if (method_return == 1)
-                    {
-                        continue;
-                    }
+                // CRITICAL VERTEX PRUNING
+                method_return = d_critical_vertex_pruning(dd, wd, ld);
 
-                    // WRITE TASKS TO BUFFERS
-                    // sort vertices in Quick efficient enumeration order before writing
-                    d_sort(ld.vertices, wd.total_vertices[WIB_IDX], d_sort_vert_Q);
+                // critical fail, cannot be clique continue onto next iteration
+                if (method_return == 2)
+                {
+                    continue;
+                }
 
-                    if (wd.number_of_candidates[WIB_IDX] > 0)
-                    {
-                        d_write_to_tasks(dd, wd, ld);
-                    }
+                // HANDLE CLIQUES
+                if (wd.number_of_members[WIB_IDX] >= (*dd.minimum_clique_size))
+                {
+                    d_check_for_clique(dd, wd, ld);
+                }
+
+                // if vertex in x found as not extendable continue to next iteration
+                if (method_return == 1)
+                {
+                    continue;
+                }
+
+                // WRITE TASKS TO BUFFERS
+                // sort vertices in Quick efficient enumeration order before writing
+                d_sort(ld.vertices, wd.total_vertices[WIB_IDX], d_sort_vert_Q);
+
+                if (wd.number_of_candidates[WIB_IDX] > 0)
+                {
+                    d_write_to_tasks(dd, wd, ld);
                 }
             }
         }

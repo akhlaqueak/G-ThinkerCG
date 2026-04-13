@@ -404,7 +404,6 @@ public:
                     add_task(new_task);
                     sum ++;
                 }
-
                 delete[] vertices;
             }
         }
