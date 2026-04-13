@@ -1,5 +1,4 @@
 #include "global.h"
-#include <memory>
 #include "master.h"
 #include "host_functions.h"
 #include "qc_task.h"
@@ -89,10 +88,10 @@ public:
         auto [initial_vertices, initial_total_vertices] = initialize_tasks(hg, hd);
 
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
-        h_expand_level(hg, hd, hc, initial_vertices.get(), initial_total_vertices);
+        h_expand_level(hg, hd, hc, initial_vertices, initial_total_vertices);
     }
       // processes 0th level of expansion
-    std::pair<std::unique_ptr<Vertex[]>, size_t> initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
+    std::pair<Vertex *, size_t> initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
     {
         // intersection
         int pvertexid;
@@ -107,14 +106,14 @@ public:
         // vertices information
         int total_vertices;
         int number_of_candidates;
-        std::unique_ptr<Vertex[]> vertices;
+        Vertex *vertices;
 
         (*hd.remaining_count) = 0;
         (*hd.removed_count) = 0;
 
         // initialize vertices
         total_vertices = hg.number_of_vertices;
-        vertices = std::make_unique<Vertex[]>(total_vertices);
+        vertices = new Vertex[total_vertices];
         number_of_candidates = total_vertices;
         for (int i = 0; i < total_vertices; i++)
         {
@@ -242,7 +241,7 @@ public:
         total_vertices = number_of_candidates;
         for (int j = 0; j < total_vertices; j++)
             vertices[j].lvl2adj = 0;
-        return {std::move(vertices), static_cast<size_t>(total_vertices)};
+        return {vertices, static_cast<size_t>(total_vertices)};
     }
     void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, Vertex *read_vertices, size_t read_vertices_count)
     {
