@@ -142,11 +142,11 @@ public:
         gc.resetLevel();
         gc.init_level();
         // cout<<gc.Brd.size()<<endl;
+        show_progress(" ** host dump ** ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
 
         deviceSynch();
-        show_progress(" ** host dump ** ");
 
         gc.incrementLevel();
         if (gc.isOverflow())
