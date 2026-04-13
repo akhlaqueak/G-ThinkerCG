@@ -96,6 +96,8 @@ public:
     }
     virtual void init_level()
     {
+        transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
+        chkerr(cudaDeviceSynchronize());
     }
     __device__ virtual void extend(QCBuffer &Brd, QCBuffer &Bwr, QCBuffer &H, ull *row_ptrs, VertexID *cols)
     {
