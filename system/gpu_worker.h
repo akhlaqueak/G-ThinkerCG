@@ -71,6 +71,7 @@ public:
         Timer prog_trigger;
         while (true)
         {
+        show_progress(" ** host dump ** ");
             if (not gc.H.empty())
             {
                 loadFromHost<<<BLK_NUMS, BLK_DIM>>>(gc);
@@ -147,7 +148,6 @@ public:
         gc.resetLevel();
         gc.init_level();
         // cout<<gc.Brd.size()<<endl;
-        show_progress(" ** host dump ** ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
 
