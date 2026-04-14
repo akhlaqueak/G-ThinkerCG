@@ -71,7 +71,7 @@ public:
         Timer prog_trigger;
         while (true)
         {
-        show_progress(" ** host dump ** ");
+            show_progress(" ** top level ** ");
             if (not gc.H.empty())
             {
                 loadFromHost<<<BLK_NUMS, BLK_DIM>>>(gc);
@@ -89,12 +89,12 @@ public:
             gc.incrementLevel();
             while (true)
             {
+            show_progress(" inner ");
                 if (gc.ping_pong_mode)
                 {
                     bool next_expansion = ping_pong_style_expansion();
                     if (!next_expansion)
                     {
-                        gc.incrementLevel();
                         break;
                     }
                 }
