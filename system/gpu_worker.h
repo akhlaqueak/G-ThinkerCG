@@ -71,7 +71,6 @@ public:
         Timer prog_trigger;
         while (true)
         {
-            show_progress(" ** top level ** ");
             if (not gc.H.empty())
             {
                 loadFromHost<<<BLK_NUMS, BLK_DIM>>>(gc);
@@ -85,12 +84,10 @@ public:
                 generateInitialTasks<<<BLK_NUMS, BLK_DIM>>>(gc);
                 deviceSynch();
             }
-                show_progress(" after init ");
 
             gc.incrementLevel();
             while (true)
             {
-                show_progress(" inner ");
                 if (gc.ping_pong_mode)
                 {
                     bool next_expansion = ping_pong_style_expansion();
@@ -154,6 +151,7 @@ public:
 
         if (gc.isOverflow())
         {
+            show_progress(" ** overflow ** ");
             dump_to_host();
             move_tasks_to_cpu();
         }
@@ -166,7 +164,7 @@ public:
     }
     void dump_to_host()
     {
-
+        
         show_progress(" ** host dump ** ");
         dumpToHost<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
