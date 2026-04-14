@@ -381,7 +381,7 @@ public:
 #ifdef SRC
             if (isLevelFilled()) // source only
 #else
-            if (isLevelFilled() or isLevelFilledQ()) // dst or both
+            if (isLevelFilled()) // dst or both
 #endif
                 break;
             SubgraphOffsets so = Brd.next();
