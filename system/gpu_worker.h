@@ -85,18 +85,17 @@ public:
                 generateInitialTasks<<<BLK_NUMS, BLK_DIM>>>(gc);
                 deviceSynch();
             }
+                show_progress(" after init ");
 
             gc.incrementLevel();
             while (true)
             {
-            show_progress(" inner ");
+                show_progress(" inner ");
                 if (gc.ping_pong_mode)
                 {
                     bool next_expansion = ping_pong_style_expansion();
                     if (!next_expansion)
-                    {
                         break;
-                    }
                 }
                 else
                 {
