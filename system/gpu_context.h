@@ -153,7 +153,7 @@ public:
         return Bwr.isOverflow();
     }
 
-    bool change_expansion_mode()
+    void change_expansion_mode()
     {
         ping_pong_mode = false;
         Brd.capacity[0] = Bwr.capacity[0] = B.capacity[0];
