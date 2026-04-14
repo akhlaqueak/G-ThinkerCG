@@ -17,7 +17,7 @@ public:
     using TaskContainer = vector<TaskT *>;
     ull *v_proc;
     std::stack<BPointers> SL;
-    bool ping_pong_mode = true;
+    bool ping_pong_mode = false;
 
     // memory is allocated only to B and H buffers, Brd, Bwr are just pointers hovering over B
     // managed memory for H
