@@ -145,20 +145,20 @@ public:
     bool ping_pong_style_expansion()
     {
         gc.resetLevel();
+        gc.init_level();
         // cout<<gc.Brd.size()<<endl;
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
-        gc.init_level();
 
         deviceSynch();
 
-        gc.incrementLevel();
         if (gc.isOverflow())
         {
             dump_to_host();
             move_tasks_to_cpu();
         }
-        else if (gc.Brd.empty())
+        gc.incrementLevel();
+        if (gc.Brd.empty())
         {
             return false;
         }
