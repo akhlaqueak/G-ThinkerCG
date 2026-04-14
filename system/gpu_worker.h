@@ -145,10 +145,10 @@ public:
     bool ping_pong_style_expansion()
     {
         gc.resetLevel();
-        gc.init_level();
         // cout<<gc.Brd.size()<<endl;
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
+        gc.init_level();
 
         deviceSynch();
 
