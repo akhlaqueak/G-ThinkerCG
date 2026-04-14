@@ -73,10 +73,10 @@ public:
 
         Bwr.allocatePtrs();
         Brd.allocatePtrs();
-        
+
         Brd.capacity[0] = sz / 2;
-        Bwr.capacity[0] = sz ;
-        Bwr.reset_pointers(true); //Bwr is the second buffer, its starting point is sz/2
+        Bwr.capacity[0] = sz;
+        Bwr.reset_pointers(true); // Bwr is the second buffer, its starting point is sz/2
         // this version allocates on host memory
         H.allocateMemory();
     }
@@ -151,6 +151,17 @@ public:
     __device__ __host__ bool isOverflow()
     {
         return Bwr.isOverflow();
+    }
+
+    bool change_expansion_mode()
+    {
+        ping_pong_mode = false;
+        Brd.capacity[0] = Bwr.capacity[0] = B.capacity[0];
+
+        Brd.reset_pointers();
+        Bwr.reset_pointers();
+
+        resetLevel();
     }
 
     void buffers_status()

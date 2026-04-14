@@ -57,12 +57,12 @@ public:
             gc.sources_num[0] = 0;
         if (this->Lv.size())
         {
-            cout<<"Lv: "<<this->Lv.size()<<endl;
+            // cout<<"Lv: "<<this->Lv.size()<<endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
         else
         {
-            cout << "Lt: " << this->Lt.size() << endl;
+            // cout << "Lt: " << this->Lt.size() << endl;
             gc.move_tasks_from_Sc(this->Lt, gc.H);
         }
 
@@ -151,9 +151,12 @@ public:
 
         if (gc.isOverflow())
         {
-            show_progress(" ** overflow ** ");
-            dump_to_host();
-            move_tasks_to_cpu();
+            dump_to_host();// dumps remaining unxpanded Brd tasks to H
+            gc.incrementLevel(); // switch Bwr => Brd
+            dump_to_host();// now dump Brd to host... 
+            gc.change_expansion_mode();
+            move_tasks_to_cpu(); 
+            return false;
         }
         gc.incrementLevel();
         if (gc.Brd.empty())
@@ -162,9 +165,10 @@ public:
         }
         return true;
     }
+
+
     void dump_to_host()
-    {
-        
+    {        
         show_progress(" ** host dump ** ");
         dumpToHost<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
