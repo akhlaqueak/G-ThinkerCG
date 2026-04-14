@@ -57,7 +57,7 @@ public:
             gc.sources_num[0] = 0;
         if (this->Lv.size())
         {
-            // cout<<"Lv: "<<this->Lv.size()<<endl;
+            cout<<"Lv: "<<this->Lv.size()<<endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
         else
@@ -78,7 +78,7 @@ public:
                 deviceSynch();
                 move_tasks_to_cpu();
             }
-            else if (!gc.topLevelWorkExist() && gc.Bwr.empty() && gc.Brd.empty())
+            else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
                 break;
             if (gc.sources_num[0] > 0)
             {
