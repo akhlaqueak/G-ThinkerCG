@@ -71,6 +71,10 @@ public:
         chkerr(cudaMallocManaged((void **)&qtail, sizeof(ui)));
         chkerr(cudaMallocManaged((void **)&qhead, sizeof(ui)));
 
+        chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (data_graph.GetVertexCount() + 1)));
+        chkerr(cudaMalloc(&(cols), sizeof(VertexID) * data_graph.GetEdgeCount()));
+        cudaMemcpy(row_ptrs, data_graph.GetRowPtrs(), sizeof(ull) * (data_graph.GetVertexCount() + 1), cudaMemcpyHostToDevice);
+        cudaMemcpy(cols, data_graph.GetCols(), sizeof(VertexID) * data_graph.GetEdgeCount(), cudaMemcpyHostToDevice);
         qtail[0] = 0;
         qhead[0] = 0;
         for (ui i = 0; i < N_WARPS; i++)
@@ -378,11 +382,9 @@ public:
     {
         while (true)
         {
-#ifdef SRC
-            if (isLevelFilled()) // source only
-#else
+
+            // if (isLevelFilled()) // source only
             if (isLevelFilled()) // dst or both
-#endif
                 break;
             SubgraphOffsets so = Brd.next();
             if (so.empty())
