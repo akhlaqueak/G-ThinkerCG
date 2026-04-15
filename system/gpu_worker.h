@@ -194,6 +194,11 @@ public:
         // return; // disabling spilling...
         if (workers_list.size() > num_cpu_workers / 2 and SC_size() < gpu_to_host_transfer_size_g)
         {
+            if (gc.H.otail[0])
+                chkerr(cudaMemPrefetchAsync(gc.H.offsets, sizeof(ull) * gc.H.otail[0], cudaCpuDeviceId, 0));
+            if (gc.H.vtail[0])
+                chkerr(cudaMemPrefetchAsync(gc.H.vertices, sizeof(VertexID) * gc.H.vtail[0], cudaCpuDeviceId, 0));
+            deviceSynch();
             gc.move_tasks_to_Sc(this->Lo, gc.H);
             this->spilled_tasks += this->Lo.size();
             this->spill_Lo();

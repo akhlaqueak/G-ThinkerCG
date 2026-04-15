@@ -27,8 +27,6 @@ public:
     BufferT Bwr;
     BufferT Brd;
 
-    BufferT B1, B2; // for ping-pong expansion
-
     ull *sources_num;  // size of Lv
     VertexID *sources; // Lv copy on GPU
 
@@ -79,6 +77,8 @@ public:
         Bwr.reset_pointers(true); // Bwr is the second buffer, its starting point is sz/2
         // this version allocates on host memory
         H.allocateMemory();
+        chkerr(cudaMemAdvise(H.offsets, sizeof(ull) * HOST_OFFSET_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        chkerr(cudaMemAdvise(H.vertices, sizeof(VertexID) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
     }
 
     void move_vertices_to_gpu(vector<ui> &data_items)

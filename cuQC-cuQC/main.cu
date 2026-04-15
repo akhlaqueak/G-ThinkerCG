@@ -36,7 +36,7 @@ using namespace std;
 
 // DATA STRUCTURE SIZE
 #define TASKS_SIZE 250000000
-#define TASKS_PER_WARP 100
+#define TASKS_PER_WARP 10
 #define BUFFER_SIZE 900000000
 #define BUFFER_OFFSET_SIZE 90000000
 #define CLIQUES_SIZE 10000000
@@ -63,7 +63,7 @@ using namespace std;
 #define CPU_MODE 0
 
 // debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
+#define DEBUG_TOGGLE 1
 
 
 
