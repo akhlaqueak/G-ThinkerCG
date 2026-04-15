@@ -588,6 +588,9 @@ int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* re
 
     // write to cliques
     uint64_t start_write = hc.cliques_offset[(*hc.cliques_count)];
+    if ((*hc.cliques_count) + 1 >= CLIQUES_OFFSET_SIZE || start_write + tot_vert > CLIQUES_SIZE) {
+        throw std::runtime_error("CPU clique buffer overflow during DFS expansion");
+    }
     for (int j = 0; j < tot_vert; j++) {
         hc.cliques_vertex[start_write + j] = read_vertices[start + j].vertexid;
     }
@@ -1178,6 +1181,9 @@ void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members
     // if clique write to cliques array
     if (clique) {
         uint64_t start_write = hc.cliques_offset[(*hc.cliques_count)];
+        if ((*hc.cliques_count) + 1 >= CLIQUES_OFFSET_SIZE || start_write + number_of_members > CLIQUES_SIZE) {
+            throw std::runtime_error("CPU clique buffer overflow during DFS expansion");
+        }
         for (int k = 0; k < number_of_members; k++) {
             hc.cliques_vertex[start_write + k] = vertices[k].vertexid;
         }
