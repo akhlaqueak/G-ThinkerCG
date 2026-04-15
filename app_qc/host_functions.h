@@ -120,10 +120,10 @@ class CPU_Graph
 
     ~CPU_Graph() 
     {
-        delete onehop_neighbors;
-        delete onehop_offsets;
-        delete twohop_neighbors;
-        delete twohop_offsets;
+        delete[] onehop_neighbors;
+        delete[] onehop_offsets;
+        delete[] twohop_neighbors;
+        delete[] twohop_offsets;
     }
 };
 
@@ -450,27 +450,27 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
 
     // CPU DATA
     delete hd.tasks1_count;
-    delete hd.tasks1_offset;
-    delete hd.tasks1_vertices;
+    delete[] hd.tasks1_offset;
+    delete[] hd.tasks1_vertices;
 
     delete hd.tasks2_count;
-    delete hd.tasks2_offset;
-    delete hd.tasks2_vertices;
+    delete[] hd.tasks2_offset;
+    delete[] hd.tasks2_vertices;
 
     delete hd.buffer_count;
-    delete hd.buffer_offset;
-    delete hd.buffer_vertices;
+    delete[] hd.buffer_offset;
+    delete[] hd.buffer_vertices;
 
     delete hd.current_level;
     delete hd.maximal_expansion;
     delete hd.dumping_cliques;
 
-    delete hd.vertex_order_map;
-    delete hd.remaining_candidates;
+    delete[] hd.vertex_order_map;
+    delete[] hd.remaining_candidates;
     delete hd.remaining_count;
-    delete hd.removed_candidates;
+    delete[] hd.removed_candidates;
     delete hd.removed_count;
-    delete hd.candidate_indegs;
+    delete[] hd.candidate_indegs;
 
     // GPU DATA
     chkerr(cudaFree(dd.current_level));
@@ -513,8 +513,8 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
 
     // CPU CLIQUES
     delete hc.cliques_count;
-    delete hc.cliques_vertex;
-    delete hc.cliques_offset;
+    delete[] hc.cliques_vertex;
+    delete[] hc.cliques_offset;
 
     // GPU CLIQUES
     chkerr(cudaFree(dd.cliques_count));
@@ -1477,10 +1477,10 @@ void print_GPU_Graph(GPU_Data& dd, CPU_Graph& hg)
     delete number_of_vertices;
     delete number_of_edges;
 
-    delete onehop_offsets;
-    delete onehop_neighbors;
-    delete twohop_offsets;
-    delete twohop_neighbors;
+    delete[] onehop_offsets;
+    delete[] onehop_neighbors;
+    delete[] twohop_offsets;
+    delete[] twohop_neighbors;
 }
 
 void print_CPU_Data(CPU_Data& hd)
@@ -1683,16 +1683,16 @@ void print_GPU_Data(GPU_Data& dd)
     delete current_level;
 
     delete tasks1_count;
-    delete tasks1_offset;
-    delete tasks1_vertices;
+    delete[] tasks1_offset;
+    delete[] tasks1_vertices;
 
     delete tasks2_count;
-    delete tasks2_offset;
-    delete tasks2_vertices;
+    delete[] tasks2_offset;
+    delete[] tasks2_vertices;
 
     delete buffer_count;
-    delete buffer_offset;
-    delete buffer_vertices;
+    delete[] buffer_offset;
+    delete[] buffer_vertices;
 }
 
 // returns true if warp buffer was too small causing error
@@ -1757,10 +1757,10 @@ bool print_Warp_Data_Sizes(GPU_Data& dd)
         return true;
     }
 
-    delete tasks_counts;
-    delete tasks_sizes;
-    delete cliques_counts;
-    delete cliques_sizes;
+    delete[] tasks_counts;
+    delete[] tasks_sizes;
+    delete[] cliques_counts;
+    delete[] cliques_sizes;
 
     return false;
 }
@@ -1788,10 +1788,10 @@ void print_All_Warp_Data_Sizes(GPU_Data& dd)
         cout << i << ":" << cliques_counts[i] << " " << cliques_sizes[i] << " " << flush;
     }
 
-    delete tasks_counts;
-    delete tasks_sizes;
-    delete cliques_counts;
-    delete cliques_sizes;
+    delete[] tasks_counts;
+    delete[] tasks_sizes;
+    delete[] cliques_counts;
+    delete[] cliques_sizes;
 }
 
 bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every)
@@ -1961,9 +1961,9 @@ void print_WTask_Buffers(GPU_Data& dd)
     }
     cout << endl << endl;
 
-    delete wtasks_count;
-    delete wtasks_offset;
-    delete wtasks_vertices;
+    delete[] wtasks_count;
+    delete[] wtasks_offset;
+    delete[] wtasks_vertices;
 }
 
 void print_WClique_Buffers(GPU_Data& dd)
@@ -1993,9 +1993,9 @@ void print_WClique_Buffers(GPU_Data& dd)
     }
     cout << endl << endl;
 
-    delete wcliques_count;
-    delete wcliques_offset;
-    delete wcliques_vertex;
+    delete[] wcliques_count;
+    delete[] wcliques_offset;
+    delete[] wcliques_vertex;
 }
 
 void print_GPU_Cliques(GPU_Data& dd)
@@ -2025,8 +2025,8 @@ void print_GPU_Cliques(GPU_Data& dd)
     }
 
     delete cliques_count;
-    delete cliques_offset;
-    delete cliques_vertex;
+    delete[] cliques_offset;
+    delete[] cliques_vertex;
 
     return;
 
