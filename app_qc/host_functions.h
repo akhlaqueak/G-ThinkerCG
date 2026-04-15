@@ -611,6 +611,7 @@ int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int&
     // helper variables
     int mindeg;
     bool failed_found;
+    int removed_vertexid;
 
 
 
@@ -619,11 +620,13 @@ int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int&
     // remove one vertex
     num_cand--;
     tot_vert--;
+    removed_vertexid = read_vertices[start + tot_vert].vertexid;
 
     // initialize vertex order map
     for (int i = 0; i < tot_vert; i++) {
         hd.vertex_order_map[read_vertices[start + i].vertexid] = i;
     }
+    hd.vertex_order_map[removed_vertexid] = -1;
 
     failed_found = false;
 
@@ -648,6 +651,7 @@ int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int&
     for (int i = 0; i < tot_vert; i++) {
         hd.vertex_order_map[read_vertices[start + i].vertexid] = -1;
     }
+    hd.vertex_order_map[removed_vertexid] = -1;
 
     if (failed_found) {
         return 1;
@@ -678,9 +682,7 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
     number_of_members++;
     number_of_candidates--;
 
-    // initialize vertex order map for only the vertices in this subproblem
-    // and clear it afterwards. Entries for vertices outside the subproblem
-    // must stay at -1 or later lookups can return stale indices.
+    // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
     }
@@ -707,8 +709,8 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
     // DEGREE-BASED PRUNING
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
 
-    for (int i = 0; i < hg.number_of_vertices; i++) {
-        hd.vertex_order_map[i] = -1;
+    for (int i = 0; i < total_vertices; i++) {
+        hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
     // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
@@ -736,7 +738,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
 
 
-    memset(hd.vertex_order_map, -1, sizeof(int) * hg.number_of_vertices);
     // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
@@ -922,7 +923,7 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
     for (int i = pneighbors_start; i < pneighbors_end; i++) {
         phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
 
-        if (phelper1 >= number_of_members && phelper1 < total_vertices) {
+        if (phelper1 >= number_of_members) {
             vertices[phelper1].label = 0;
             hd.candidate_indegs[(*hd.remaining_count)++] = vertices[phelper1].indeg;
         }
