@@ -678,7 +678,9 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
     number_of_members++;
     number_of_candidates--;
 
-    // initialize vertex order map
+    // initialize vertex order map for only the vertices in this subproblem
+    // and clear it afterwards. Entries for vertices outside the subproblem
+    // must stay at -1 or later lookups can return stale indices.
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
     }
@@ -734,6 +736,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
 
 
+    memset(hd.vertex_order_map, -1, sizeof(int) * hg.number_of_vertices);
     // initialize vertex order map
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
@@ -919,7 +922,7 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
     for (int i = pneighbors_start; i < pneighbors_end; i++) {
         phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
 
-        if (phelper1 >= number_of_members) {
+        if (phelper1 >= number_of_members && phelper1 < total_vertices) {
             vertices[phelper1].label = 0;
             hd.candidate_indegs[(*hd.remaining_count)++] = vertices[phelper1].indeg;
         }
