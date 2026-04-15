@@ -26,5 +26,5 @@ debug_p100:
 p100:
 	$(NVCC) $(ARCH_SM60) $(REGFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET)
 
-debug_a100:
+debug:
 	$(NVCC) $(ARCH_SM80) $(REGFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) $(DEBUGFLAGS) -o $(TARGET)
