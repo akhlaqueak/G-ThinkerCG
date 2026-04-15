@@ -835,7 +835,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             for (int i = 0; i < total_vertices; i++) {
                 hd.vertex_order_map[vertices[i].vertexid] = -1;
             }
-            delete adj_counters;
+            delete[] adj_counters;
             return 2;
         }
 
@@ -851,7 +851,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             for (int i = 0; i < total_vertices; i++) {
                 hd.vertex_order_map[vertices[i].vertexid] = -1;
             }
-            delete adj_counters;
+            delete[] adj_counters;
             return 2;
         }
 
@@ -888,7 +888,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
         hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
-    delete adj_counters;
+    delete[] adj_counters;
 
     // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
     if (method_return) {
