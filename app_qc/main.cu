@@ -277,7 +277,6 @@ public:
 
         // set to false later if task is generated indicating non-maximal expansion
         (*hd.maximal_expansion) = true;
-        size_t sum = 0;
         // CURRENT LEVEL
         // for (int i = 0; i < *read_count; i++)
         {
@@ -311,6 +310,7 @@ public:
             method_return = h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start);
             if (method_return)
             {
+                delete[] read_vertices;
                 return;
             }
 
@@ -396,18 +396,17 @@ public:
 
                 if (number_of_candidates > 0)
                 {
-                    // h_write_to_tasks(hd, vertices, total_vertices, write_vertices, write_offsets, write_count);
                     for (int k = 0; k < total_vertices; k++)
                         vertices[k].lvl2adj = 0;
-                    QCTask *new_task = new QCTask();
-                    new_task->context.assign_from_vertices(vertices, total_vertices);
-                    add_task(new_task);
-                    sum ++;
+                    h_expand_level(hg, hd, hc, vertices, total_vertices);
                 }
-                delete[] vertices;
+                else
+                {
+                    delete[] vertices;
+                }
             }
         }
-        std::cout << "created " << sum << " first level tasks" << endl;
+        delete[] read_vertices;
         // (*hd.current_level)++;
     }
   
@@ -492,27 +491,6 @@ public:
 
         // GPU DATA
         chkerr(cudaMalloc((void **)&dd.current_level, sizeof(uint64_t)));
-
-        // chkerr(cudaMalloc((void**)&dd.tasks1_count, sizeof(uint64_t)));
-        // chkerr(cudaMalloc((void**)&dd.tasks1_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-        // chkerr(cudaMalloc((void**)&dd.tasks1_vertices, sizeof(Vertex) * TASKS_SIZE));
-
-        // chkerr(cudaMemset(dd.tasks1_offset, 0, sizeof(uint64_t)));
-        // chkerr(cudaMemset(dd.tasks1_count, 0, sizeof(uint64_t)));
-
-        // chkerr(cudaMalloc((void**)&dd.tasks2_count, sizeof(uint64_t)));
-        // chkerr(cudaMalloc((void**)&dd.tasks2_offset, sizeof(uint64_t) * (EXPAND_THRESHOLD + 1)));
-        // chkerr(cudaMalloc((void**)&dd.tasks2_vertices, sizeof(Vertex) * TASKS_SIZE));
-
-        // chkerr(cudaMemset(dd.tasks2_offset, 0, sizeof(uint64_t)));
-        // chkerr(cudaMemset(dd.tasks2_count, 0, sizeof(uint64_t)));
-
-        // chkerr(cudaMalloc((void **)&dd.buffer_count, sizeof(uint64_t)));
-        // chkerr(cudaMalloc((void **)&dd.buffer_offset, sizeof(uint64_t) * BUFFER_OFFSET_SIZE));
-        // chkerr(cudaMalloc((void **)&dd.buffer_vertices, sizeof(Vertex) * BUFFER_SIZE));
-
-        // chkerr(cudaMemset(dd.buffer_offset, 0, sizeof(uint64_t)));
-        // chkerr(cudaMemset(dd.buffer_count, 0, sizeof(uint64_t)));
 
         chkerr(cudaMalloc((void **)&dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
         chkerr(cudaMalloc((void **)&dd.wtasks_offset, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
