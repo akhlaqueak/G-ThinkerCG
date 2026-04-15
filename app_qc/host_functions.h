@@ -665,6 +665,7 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 {
     // helper variables
     bool method_return;
+    int mapped_vertices;
 
     // intersection
     int pvertexid;
@@ -686,6 +687,8 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
     }
+    mapped_vertices = total_vertices;
+    mapped_vertices = total_vertices;
 
     pneighbors_start = hg.onehop_offsets[pvertexid];
     pneighbors_end = hg.onehop_offsets[pvertexid + 1];
@@ -709,7 +712,7 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
     // DEGREE-BASED PRUNING
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
 
-    for (int i = 0; i < total_vertices; i++) {
+    for (int i = 0; i < mapped_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
@@ -733,6 +736,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
     bool critical_fail;
     int number_of_crit_adj;
     int* adj_counters;
+    int mapped_vertices;
 
     bool method_return;
 
@@ -839,9 +843,9 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
         if (critical_fail) {
             // reset vertex order map
-            for (int i = 0; i < total_vertices; i++) {
-                hd.vertex_order_map[vertices[i].vertexid] = -1;
-            }
+                for (int i = 0; i < mapped_vertices; i++) {
+                    hd.vertex_order_map[vertices[i].vertexid] = -1;
+                }
             delete[] adj_counters;
             return 2;
         }
@@ -855,9 +859,9 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
         if (critical_fail) {
             // reset vertex order map
-            for (int i = 0; i < total_vertices; i++) {
-                hd.vertex_order_map[vertices[i].vertexid] = -1;
-            }
+                for (int i = 0; i < mapped_vertices; i++) {
+                    hd.vertex_order_map[vertices[i].vertexid] = -1;
+                }
             delete[] adj_counters;
             return 2;
         }
@@ -891,7 +895,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
 
     // reset vertex order map
-    for (int i = 0; i < total_vertices; i++) {
+    for (int i = 0; i < mapped_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
