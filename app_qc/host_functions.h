@@ -568,8 +568,7 @@ int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* re
         for (int j = pneighbors_start; j < pneighbors_end; j++) {
             phelper1 = hd.vertex_order_map[hg.twohop_neighbors[j]];
 
-            if (phelper1 >= num_mem && phelper1 < tot_vert &&
-                read_vertices[start + phelper1].vertexid == hg.twohop_neighbors[j]) {
+            if (phelper1 >= num_mem) {
                 read_vertices[start + phelper1].lvl2adj++;
             }
         }
@@ -638,8 +637,7 @@ int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int&
     for (int i = pneighbors_start; i < pneighbors_end; i++) {
         phelper1 = hd.vertex_order_map[hg.onehop_neighbors[i]];
 
-        if (phelper1 > -1 && phelper1 < tot_vert &&
-            read_vertices[start + phelper1].vertexid == hg.onehop_neighbors[i]) {
+        if (phelper1 > -1) {
             read_vertices[start + phelper1].exdeg--;
 
             if (phelper1 < num_mem && read_vertices[start + phelper1].indeg + read_vertices[start + phelper1].exdeg < mindeg) {
@@ -667,8 +665,6 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 {
     // helper variables
     bool method_return;
-    int mapped_vertices;
-
     // intersection
     int pvertexid;
     uint64_t pneighbors_start;
@@ -689,16 +685,13 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
     for (int i = 0; i < total_vertices; i++) {
         hd.vertex_order_map[vertices[i].vertexid] = i;
     }
-    mapped_vertices = total_vertices;
-
     pneighbors_start = hg.onehop_offsets[pvertexid];
     pneighbors_end = hg.onehop_offsets[pvertexid + 1];
     pneighbors_count = pneighbors_end - pneighbors_start;
     for (int i = 0; i < pneighbors_count; i++) {
         phelper1 = hd.vertex_order_map[hg.onehop_neighbors[pneighbors_start + i]];
 
-        if (phelper1 > -1 && phelper1 < total_vertices &&
-            vertices[phelper1].vertexid == hg.onehop_neighbors[pneighbors_start + i]) {
+        if (phelper1 > -1) {
             vertices[phelper1].indeg++;
             vertices[phelper1].exdeg--;
         }
@@ -713,10 +706,6 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 
     // DEGREE-BASED PRUNING
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
-
-    for (int i = 0; i < mapped_vertices; i++) {
-        hd.vertex_order_map[vertices[i].vertexid] = -1;
-    }
 
     // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
     if (method_return) {
@@ -738,7 +727,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
     bool critical_fail;
     int number_of_crit_adj;
     int* adj_counters;
-    int mapped_vertices;
 
     bool method_return;
 
@@ -768,8 +756,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
                 phelper1 = hd.vertex_order_map[hg.onehop_neighbors[l]];
 
                 // if neighbor is cand
-                if (phelper1 >= number_of_members && phelper1 < total_vertices &&
-                    vertices[phelper1].vertexid == hg.onehop_neighbors[l]) {
+                if (phelper1 >= number_of_members) {
                     vertices[phelper1].label = 4;
                 }
             }
@@ -799,13 +786,14 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
 
 
+    // initialize vertex order map for the post-sort layout used below
+    for (int i = 0; i < total_vertices; i++) {
+        hd.vertex_order_map[vertices[i].vertexid] = i;
+    }
+
     // if there were any neighbors of critical vertices
     if (number_of_crit_adj > 0)
     {
-        // initialize vertex order map
-        for (int i = 0; i < total_vertices; i++) {
-            hd.vertex_order_map[vertices[i].vertexid] = i;
-        }
 
         // iterate through all neighbors
         for (int i = number_of_members; i < number_of_members + number_of_crit_adj; i++) {
@@ -817,8 +805,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
                 phelper1 = hd.vertex_order_map[hg.onehop_neighbors[k]];
 
-                if (phelper1 > -1 && phelper1 < total_vertices &&
-                    vertices[phelper1].vertexid == hg.onehop_neighbors[k]) {
+                if (phelper1 > -1) {
                     vertices[phelper1].indeg++;
                     vertices[phelper1].exdeg--;
                 }
@@ -830,8 +817,7 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
             for (uint64_t k = pneighbors_start; k < pneighbors_end; k++) {
                 phelper1 = hd.vertex_order_map[hg.twohop_neighbors[k]];
 
-                if (phelper1 > -1 && phelper1 < total_vertices &&
-                    vertices[phelper1].vertexid == hg.twohop_neighbors[k]) {
+                if (phelper1 > -1) {
                     adj_counters[phelper1]++;
                 }
             }
@@ -848,9 +834,9 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
         if (critical_fail) {
             // reset vertex order map
-                for (int i = 0; i < mapped_vertices; i++) {
-                    hd.vertex_order_map[vertices[i].vertexid] = -1;
-                }
+            for (int i = 0; i < total_vertices; i++) {
+                hd.vertex_order_map[vertices[i].vertexid] = -1;
+            }
             delete[] adj_counters;
             return 2;
         }
@@ -864,9 +850,9 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
 
         if (critical_fail) {
             // reset vertex order map
-                for (int i = 0; i < mapped_vertices; i++) {
-                    hd.vertex_order_map[vertices[i].vertexid] = -1;
-                }
+            for (int i = 0; i < total_vertices; i++) {
+                hd.vertex_order_map[vertices[i].vertexid] = -1;
+            }
             delete[] adj_counters;
             return 2;
         }
@@ -899,11 +885,6 @@ int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int
     // DEGREE-BASED PRUNING
     method_return = h_degree_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
 
-    // reset vertex order map
-    for (int i = 0; i < mapped_vertices; i++) {
-        hd.vertex_order_map[vertices[i].vertexid] = -1;
-    }
-
     delete[] adj_counters;
 
     // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
@@ -932,8 +913,7 @@ void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvert
     for (int i = pneighbors_start; i < pneighbors_end; i++) {
         phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
 
-        if (phelper1 >= number_of_members && phelper1 < total_vertices &&
-            vertices[phelper1].vertexid == hg.twohop_neighbors[i]) {
+        if (phelper1 >= number_of_members) {
             vertices[phelper1].label = 0;
             hd.candidate_indegs[(*hd.remaining_count)++] = vertices[phelper1].indeg;
         }
@@ -956,12 +936,18 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
     // if invalid bounds found while calculating lower and upper bounds
     if (h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_deg, vertices, number_of_members, (*hd.remaining_count))) {
+        for (int i = 0; i < total_vertices; i++) {
+            hd.vertex_order_map[vertices[i].vertexid] = -1;
+        }
         return true;
     }
 
     // check for failed vertices
     for (int k = 0; k < number_of_members; k++) {
         if (!h_vert_isextendable_LU(vertices[k], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+            for (int i = 0; i < total_vertices; i++) {
+                hd.vertex_order_map[vertices[i].vertexid] = -1;
+            }
             return true;
         }
     }
@@ -994,8 +980,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
                 for (int j = pneighbors_start; j < pneighbors_end; j++) {
                     phelper1 = hd.vertex_order_map[hg.onehop_neighbors[j]];
 
-                    if (phelper1 > -1 && phelper1 < total_vertices &&
-                        vertices[phelper1].vertexid == hg.onehop_neighbors[j]) {
+                    if (phelper1 > -1) {
                         vertices[phelper1].exdeg++;
                     }
                 }
@@ -1009,8 +994,7 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
                 for (int j = pneighbors_start; j < pneighbors_end; j++) {
                     phelper1 = hd.vertex_order_map[hg.onehop_neighbors[j]];
 
-                    if (phelper1 > -1 && phelper1 < total_vertices &&
-                        vertices[phelper1].vertexid == hg.onehop_neighbors[j]) {
+                    if (phelper1 > -1) {
                         vertices[phelper1].exdeg--;
                     }
                 }
@@ -1029,12 +1013,18 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
 
         // if invalid bounds found while calculating lower and upper bounds
         if (h_calculate_LU_bounds(hd, upper_bound, lower_bound, min_ext_deg, vertices, number_of_members, num_val_cands)) {
+            for (int i = 0; i < total_vertices; i++) {
+                hd.vertex_order_map[vertices[i].vertexid] = -1;
+            }
             return true;
         }
 
         // check for failed vertices
         for (int k = 0; k < number_of_members; k++) {
             if (!h_vert_isextendable_LU(vertices[k], number_of_members, upper_bound, lower_bound, min_ext_deg)) {
+                for (int i = 0; i < total_vertices; i++) {
+                    hd.vertex_order_map[vertices[i].vertexid] = -1;
+                }
                 return true;
             }
         }
@@ -1053,6 +1043,10 @@ bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_
         }
 
         (*hd.remaining_count) = num_val_cands;
+    }
+
+    for (int i = 0; i < total_vertices; i++) {
+        hd.vertex_order_map[vertices[i].vertexid] = -1;
     }
 
     for (int i = 0; i < (*hd.remaining_count); i++) {
