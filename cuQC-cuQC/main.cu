@@ -4835,6 +4835,9 @@ void SearchSubset(int* pset, int nset_len, TREE_NODE* proot, TREE_NODE** pstack,
 
 void RmNonMax(TREE_NODE* proot, int nmax_len)
 {
+    if (proot == NULL || nmax_len <= 0)
+        return;
+
     TREE_NODE* pnode, ** pstack, ** psearch_stack;
     int* pset, ntop, i, * ppos;
 
@@ -4904,6 +4907,12 @@ void OutputMaxSet(TREE_NODE* proot, int nmax_len, char* szoutput_filename)
         return;
     }
 
+    if (proot == NULL || nmax_len <= 0)
+    {
+        fclose(fp);
+        return;
+    }
+
     pstack = new TREE_NODE * [nmax_len];
     pset = new int[nmax_len];
 
@@ -4962,6 +4971,15 @@ void RemoveNonMax(const char* szset_filename, char* szoutput_filename)
     gntotal_max_cliques = 0;
 
     nmax_len = BuildTree(szset_filename, proot);
+    if (proot == NULL || nmax_len <= 0)
+    {
+        FILE* fp = fopen(szoutput_filename, "wt");
+        if (fp != NULL)
+            fclose(fp);
+        DelTNodeBuf();
+        printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
+        return;
+    }
     RmNonMax(proot, nmax_len);
     OutputMaxSet(proot, nmax_len, szoutput_filename);
 
