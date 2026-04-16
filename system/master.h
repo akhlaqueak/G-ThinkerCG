@@ -99,8 +99,10 @@ public:
                 if (not data_array.empty())
                     for (ui i = 0; i < worker->tasks_per_fetch && data_array.size(); i++)
                     {
-                        worker->Lv.push_back(*(data_array.front()));
+                        VertexID *item = data_array.front();
+                        worker->Lv.push_back(*item);
                         data_array.pop_front();
+                        delete item;
                     }
                 // else if (SC_size()>worker->tasks_per_fetch)
                 else if (not is_SC_empty())
@@ -131,8 +133,10 @@ public:
                 {
                     for (ui i = 0; i < worker->tasks_per_fetch && data_array.size(); i++)
                     {
-                        worker->Lv.push_back(*(data_array.back()));
+                        VertexID *item = data_array.back();
+                        worker->Lv.push_back(*item);
                         data_array.pop_back();
+                        delete item;
                     }
                 }
             }

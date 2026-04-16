@@ -125,6 +125,38 @@ public:
             }
         }
     }
+
+    void cleanup_runtime()
+    {
+        auto workers = workers_list.queue_;
+        while (!workers.empty())
+        {
+            WorkerT *w = (WorkerT *)workers.front();
+            workers.pop();
+
+            if (w->main_thread.joinable())
+                w->main_thread.join();
+            delete w;
+        }
+        workers_list.clear();
+
+        while (!data_array.empty())
+        {
+            delete data_array.front();
+            data_array.pop_front();
+        }
+
+        while (!SC->empty())
+        {
+            delete SC->top();
+            SC->pop();
+        }
+        delete SC;
+        SC = nullptr;
+        global_SC = nullptr;
+
+        free_memory(hd, dd, hc);
+    }
       // processes 0th level of expansion
     void initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
     {
@@ -452,7 +484,7 @@ int main(int argc, char *argv[])
     QCApp app;
     Timer t;
     app.run();
-    // app.merge_cpu_cliques();
+    app.merge_cpu_cliques();
     chkerr(cudaDeviceSynchronize());
 
     dump_cliques(hc, dd, temp_results);
@@ -473,6 +505,7 @@ int main(int argc, char *argv[])
 
     ull cliques_count = 0;
     chkerr(cudaMemcpy(&cliques_count, dd.cliques_count, sizeof(ull), cudaMemcpyDeviceToHost));
+    app.cleanup_runtime();
 
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << cliques_count << endl;
