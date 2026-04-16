@@ -25,11 +25,8 @@ public:
 
         memset(local_hd.vertex_order_map, -1, sizeof(int) * hg->number_of_vertices);
 
-        local_hc.cliques_count = new uint64_t;
-        local_hc.cliques_vertex = new int[CLIQUES_SIZE];
-        local_hc.cliques_offset = new uint64_t[CLIQUES_OFFSET_SIZE];
-        (*local_hc.cliques_count) = 0;
-        local_hc.cliques_offset[0] = 0;
+        local_hc.cliques_vertex.clear();
+        local_hc.cliques_offset.assign(1, 0);
     }
 
     ~QCCPUWorker() override
@@ -49,40 +46,27 @@ public:
         delete local_hd.maximal_expansion;
         local_hd.maximal_expansion = nullptr;
 
-        delete local_hc.cliques_count;
-        local_hc.cliques_count = nullptr;
-        delete[] local_hc.cliques_vertex;
-        local_hc.cliques_vertex = nullptr;
-        delete[] local_hc.cliques_offset;
-        local_hc.cliques_offset = nullptr;
+        local_hc.cliques_vertex.clear();
+        local_hc.cliques_vertex.shrink_to_fit();
+        local_hc.cliques_offset.clear();
+        local_hc.cliques_offset.shrink_to_fit();
     }
 
     void merge_local_cliques_into(CPU_Cliques &dst)
     {
-        if ((*local_hc.cliques_count) == 0)
+        if (local_hc.cliques_offset.size() <= 1)
             return;
 
-        uint64_t global_count = *dst.cliques_count;
-        uint64_t local_count = *local_hc.cliques_count;
-        uint64_t global_write = dst.cliques_offset[global_count];
-        uint64_t local_vertices = local_hc.cliques_offset[local_count];
+        uint64_t global_write = dst.cliques_vertex.size();
+        dst.cliques_vertex.insert(dst.cliques_vertex.end(), local_hc.cliques_vertex.begin(), local_hc.cliques_vertex.end());
 
-        if (global_count + local_count >= CLIQUES_OFFSET_SIZE || global_write + local_vertices > CLIQUES_SIZE)
-            throw std::runtime_error("CPU clique buffer overflow while merging worker results");
-
-        for (uint64_t i = 0; i < local_vertices; i++)
+        for (size_t i = 1; i < local_hc.cliques_offset.size(); i++)
         {
-            dst.cliques_vertex[global_write + i] = local_hc.cliques_vertex[i];
+            dst.cliques_offset.push_back(global_write + local_hc.cliques_offset[i]);
         }
 
-        for (uint64_t i = 1; i <= local_count; i++)
-        {
-            dst.cliques_offset[global_count + i] = global_write + local_hc.cliques_offset[i];
-        }
-
-        *dst.cliques_count = global_count + local_count;
-        *local_hc.cliques_count = 0;
-        local_hc.cliques_offset[0] = 0;
+        local_hc.cliques_vertex.clear();
+        local_hc.cliques_offset.assign(1, 0);
     }
     void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, Vertex *read_vertices, size_t read_vertices_count)
     {

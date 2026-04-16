@@ -161,9 +161,8 @@ struct CPU_Data
 // CPU CLIQUES
 struct CPU_Cliques
 {
-    uint64_t* cliques_count;
-    uint64_t* cliques_offset;
-    int* cliques_vertex;
+    std::vector<uint64_t> cliques_offset;
+    std::vector<int> cliques_vertex;
 };
 
 // DEVICE DATA
@@ -310,6 +309,7 @@ int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_v
 void h_diameter_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int pvertexid, int& total_vertices, int& number_of_candidates, int number_of_members);
 bool h_degree_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
 bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int& min_ext_deg, Vertex* vertices, int number_of_members, int number_of_candidates);
+void h_write_clique(CPU_Cliques& hc, Vertex* vertices, int clique_size);
 void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members);
 int h_critical_vertex_pruning(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
 void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count);
@@ -421,23 +421,42 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     // flush CPU cliques first; otherwise they get overwritten by the GPU copy below
     flush_cliques(hc, temp_results);
 
-    // gpu cliques to cpu cliques
-    chkerr(cudaMemcpy(hc.cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(hc.cliques_offset, dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(hc.cliques_vertex, dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE, cudaMemcpyDeviceToHost));
+    uint64_t gpu_cliques_count = 0;
+    chkerr(cudaMemcpy(&gpu_cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
 
-    // DEBUG
-    // print_CPU_Cliques(hc);
+    if (gpu_cliques_count == 0)
+    {
+        cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
+        return;
+    }
 
-    flush_cliques(hc, temp_results);
+    std::vector<uint64_t> gpu_cliques_offset(gpu_cliques_count + 1);
+    chkerr(cudaMemcpy(gpu_cliques_offset.data(), dd.cliques_offset, sizeof(uint64_t) * (gpu_cliques_count + 1), cudaMemcpyDeviceToHost));
+
+    std::vector<int> gpu_cliques_vertex(gpu_cliques_offset[gpu_cliques_count]);
+    if (!gpu_cliques_vertex.empty())
+    {
+        chkerr(cudaMemcpy(gpu_cliques_vertex.data(), dd.cliques_vertex, sizeof(int) * gpu_cliques_vertex.size(), cudaMemcpyDeviceToHost));
+    }
+    cudaDeviceSynchronize();
+
+    for (uint64_t i = 0; i < gpu_cliques_count; i++) {
+        uint64_t start = gpu_cliques_offset[i];
+        uint64_t end = gpu_cliques_offset[i + 1];
+        temp_results << end - start << " ";
+        for (uint64_t j = start; j < end; j++) {
+            temp_results << gpu_cliques_vertex[j] << " ";
+        }
+        temp_results << "\n";
+    }
 
     cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
 }
 
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results) 
 {
-    for (int i = 0; i < ((*hc.cliques_count)); i++) {
+    for (size_t i = 0; i + 1 < hc.cliques_offset.size(); i++) {
         uint64_t start = hc.cliques_offset[i];
         uint64_t end = hc.cliques_offset[i + 1];
         temp_results << end - start << " ";
@@ -446,7 +465,8 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
         }
         temp_results << "\n";
     }
-    ((*hc.cliques_count)) = 0;
+    hc.cliques_vertex.clear();
+    hc.cliques_offset.assign(1, 0);
 }
 
 void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
@@ -531,9 +551,10 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     chkerr(cudaFree(dd.total_tasks));
 
     // CPU CLIQUES
-    delete hc.cliques_count;
-    delete[] hc.cliques_vertex;
-    delete[] hc.cliques_offset;
+    hc.cliques_vertex.clear();
+    hc.cliques_vertex.shrink_to_fit();
+    hc.cliques_offset.clear();
+    hc.cliques_offset.shrink_to_fit();
 
     // GPU CLIQUES
     chkerr(cudaFree(dd.cliques_count));
@@ -606,16 +627,7 @@ int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* re
         }
     }
 
-    // write to cliques
-    uint64_t start_write = hc.cliques_offset[(*hc.cliques_count)];
-    if ((*hc.cliques_count) + 1 >= CLIQUES_OFFSET_SIZE || start_write + tot_vert > CLIQUES_SIZE) {
-        throw std::runtime_error("CPU clique buffer overflow during DFS expansion");
-    }
-    for (int j = 0; j < tot_vert; j++) {
-        hc.cliques_vertex[start_write + j] = read_vertices[start + j].vertexid;
-    }
-    (*hc.cliques_count)++;
-    hc.cliques_offset[(*hc.cliques_count)] = start_write + tot_vert;
+    h_write_clique(hc, read_vertices + start, tot_vert);
     return 1;
 }
 
@@ -1196,6 +1208,15 @@ bool h_calculate_LU_bounds(CPU_Data& hd, int& upper_bound, int& lower_bound, int
     return invalid_bounds;
 }
 
+void h_write_clique(CPU_Cliques& hc, Vertex* vertices, int clique_size)
+{
+    uint64_t start_write = hc.cliques_vertex.size();
+    for (int i = 0; i < clique_size; i++) {
+        hc.cliques_vertex.push_back(vertices[i].vertexid);
+    }
+    hc.cliques_offset.push_back(start_write + clique_size);
+}
+
 void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members)
 {
     bool clique = true;
@@ -1210,15 +1231,7 @@ void h_check_for_clique(CPU_Cliques& hc, Vertex* vertices, int number_of_members
 
     // if clique write to cliques array
     if (clique) {
-        uint64_t start_write = hc.cliques_offset[(*hc.cliques_count)];
-        if ((*hc.cliques_count) + 1 >= CLIQUES_OFFSET_SIZE || start_write + number_of_members > CLIQUES_SIZE) {
-            throw std::runtime_error("CPU clique buffer overflow during DFS expansion");
-        }
-        for (int k = 0; k < number_of_members; k++) {
-            hc.cliques_vertex[start_write + k] = vertices[k].vertexid;
-        }
-        (*hc.cliques_count)++;
-        hc.cliques_offset[(*hc.cliques_count)] = start_write + number_of_members;
+        h_write_clique(hc, vertices, number_of_members);
     }
 }
 
@@ -1904,9 +1917,11 @@ bool print_Data_Sizes(GPU_Data& dd)
 
 void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
 {
+    uint64_t hc_count = hc.cliques_offset.empty() ? 0 : static_cast<uint64_t>(hc.cliques_offset.size() - 1);
+    uint64_t hc_size = hc.cliques_offset.empty() ? 0 : hc.cliques_offset.back();
     cout << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
         (*(hd.tasks2_offset + (*hd.tasks2_count))) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 
-        (*hc.cliques_count) << " " << (*(hc.cliques_offset + (*hc.cliques_count))) << endl;
+        hc_count << " " << hc_size << endl;
 
     if ((*(hd.tasks1_offset + (*hd.tasks1_count))) > mts) {
         mts = (*(hd.tasks1_offset + (*hd.tasks1_count)));
@@ -1920,11 +1935,11 @@ void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
     if ((*hd.buffer_count) > mbo) {
         mbo = (*hd.buffer_count);
     }
-    if ((*(hc.cliques_offset + (*hc.cliques_count))) > mcs) {
-        mcs = (*(hc.cliques_offset + (*hc.cliques_count)));
+    if (hc_size > mcs) {
+        mcs = hc_size;
     }
-    if ((*hc.cliques_count) > mco) {
-        mco = (*hc.cliques_count);
+    if (hc_count > mco) {
+        mco = hc_count;
     }
 }
 
@@ -2053,14 +2068,15 @@ void print_GPU_Cliques(GPU_Data& dd)
 
 void print_CPU_Cliques(CPU_Cliques& hc)
 {
+    uint64_t hc_count = hc.cliques_offset.empty() ? 0 : static_cast<uint64_t>(hc.cliques_offset.size() - 1);
     cout << endl << " --- (CPU_Cliques)host_cliques details --- " << endl;
-    cout << endl << "Cliques: " << "Size: " << (*(hc.cliques_count)) << endl;
+    cout << endl << "Cliques: " << "Size: " << hc_count << endl;
     cout << endl << "Offsets:" << endl;
-    for (uint64_t i = 0; i <= (*(hc.cliques_count)); i++) {
+    for (uint64_t i = 0; i < hc.cliques_offset.size(); i++) {
         cout << hc.cliques_offset[i] << " ";
     }
     cout << endl << "Vertex:" << endl;
-    for (uint64_t i = 0; i < hc.cliques_offset[(*(hc.cliques_count))]; i++) {
+    for (uint64_t i = 0; i < hc.cliques_vertex.size(); i++) {
         cout << hc.cliques_vertex[i] << " ";
     }
     cout << endl;

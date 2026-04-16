@@ -438,12 +438,8 @@ public:
         chkerr(cudaMemset(dd.total_tasks, 0, sizeof(int)));
 
         // CPU CLIQUES
-        hc.cliques_count = new uint64_t;
-        hc.cliques_vertex = new int[CLIQUES_SIZE];
-        hc.cliques_offset = new uint64_t[CLIQUES_OFFSET_SIZE];
-
-        hc.cliques_offset[0] = 0;
-        (*(hc.cliques_count)) = 0;
+        hc.cliques_vertex.clear();
+        hc.cliques_offset.assign(1, 0);
 
         // GPU CLIQUES
         chkerr(cudaMalloc((void **)&dd.cliques_count, sizeof(uint64_t)));
