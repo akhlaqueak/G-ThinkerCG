@@ -555,7 +555,7 @@ public:
             {
                 Brd.exdeg[wd.start[WIB_IDX] + i]--;
 
-                if (phelper1 < wd.num_mem[WIB_IDX] && Brd.indeg[wd.start[WIB_IDX] + phelper1] + Brd.exdeg[wd.start[WIB_IDX] + phelper1] < mindeg)
+                if (i < wd.num_mem[WIB_IDX] && Brd.indeg[wd.start[WIB_IDX] + i] + Brd.exdeg[wd.start[WIB_IDX] + i] < mindeg)
                 {
                     wd.success[WIB_IDX] = true;
                     break;
