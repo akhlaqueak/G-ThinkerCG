@@ -421,9 +421,11 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     // flush CPU cliques first; otherwise they get overwritten by the GPU copy below
     flush_cliques(hc, temp_results);
 
+    chkerr(cudaDeviceSynchronize());
+
     uint64_t gpu_cliques_count = 0;
     chkerr(cudaMemcpy(&gpu_cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    cudaDeviceSynchronize();
+    chkerr(cudaDeviceSynchronize());
 
     if (gpu_cliques_count == 0)
     {
@@ -431,15 +433,35 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
         return;
     }
 
+    if (gpu_cliques_count >= CLIQUES_OFFSET_SIZE)
+    {
+        throw std::runtime_error("GPU clique count exceeds CLIQUES_OFFSET_SIZE");
+    }
+
+    uint64_t gpu_cliques_size = 0;
+    chkerr(cudaMemcpy(&gpu_cliques_size, dd.cliques_offset + gpu_cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaDeviceSynchronize());
+
+    if (gpu_cliques_size > CLIQUES_SIZE)
+    {
+        throw std::runtime_error("GPU clique vertex size exceeds CLIQUES_SIZE");
+    }
+
     std::vector<uint64_t> gpu_cliques_offset(gpu_cliques_count + 1);
     chkerr(cudaMemcpy(gpu_cliques_offset.data(), dd.cliques_offset, sizeof(uint64_t) * (gpu_cliques_count + 1), cudaMemcpyDeviceToHost));
 
-    std::vector<int> gpu_cliques_vertex(gpu_cliques_offset[gpu_cliques_count]);
+    for (uint64_t i = 0; i < gpu_cliques_count; i++) {
+        if (gpu_cliques_offset[i] > gpu_cliques_offset[i + 1] || gpu_cliques_offset[i + 1] > gpu_cliques_size) {
+            throw std::runtime_error("GPU clique offsets are corrupted");
+        }
+    }
+
+    std::vector<int> gpu_cliques_vertex(gpu_cliques_size);
     if (!gpu_cliques_vertex.empty())
     {
         chkerr(cudaMemcpy(gpu_cliques_vertex.data(), dd.cliques_vertex, sizeof(int) * gpu_cliques_vertex.size(), cudaMemcpyDeviceToHost));
     }
-    cudaDeviceSynchronize();
+    chkerr(cudaDeviceSynchronize());
 
     for (uint64_t i = 0; i < gpu_cliques_count; i++) {
         uint64_t start = gpu_cliques_offset[i];
