@@ -2700,11 +2700,6 @@ __global__ void transfer_cliques(GPU_Data dd)
         dd.cliques_vertex[(*(dd.cliques_start)) + cliques_write[WIB_IDX] + i] = dd.wcliques_vertex[(WCLIQUES_SIZE * WARP_IDX) + i];
     }
 
-    if (LANE_IDX == 0) {
-        dd.wcliques_count[WARP_IDX] = 0;
-        dd.wcliques_offset[WCLIQUES_OFFSET_SIZE * WARP_IDX] = 0;
-    }
-
     if (IDX == 0) {
         // handle tasks and buffer counts
         (*(dd.cliques_count)) += (*(dd.total_cliques));

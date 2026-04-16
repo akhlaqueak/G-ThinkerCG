@@ -257,6 +257,8 @@ public:
     {
         transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
         chkerr(cudaDeviceSynchronize());
+        chkerr(cudaMemset(dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+        chkerr(cudaMemset(dd.wcliques_offset, 0, sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE * NUMBER_OF_WARPS));
     }
     __device__ virtual void extend(QCBuffer &Brd, QCBuffer &Bwr, QCBuffer &H, ull *row_ptrs, VertexID *cols)
     {
