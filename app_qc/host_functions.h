@@ -152,6 +152,10 @@ struct CPU_Data
     int* remaining_count;
     int* removed_count;
     int* candidate_indegs;
+
+    Vertex* initial_vertices;
+    size_t initial_vertices_count;
+    int* initial_order_map;
 };
 
 // CPU CLIQUES
@@ -185,6 +189,9 @@ struct GPU_Data
     Vertex* wtasks_vertices;
 
     Vertex* global_vertices;
+    Vertex* initial_vertices;
+    uint64_t* initial_vertices_count;
+    int* initial_order_map;
 
     int* removed_candidates;
     int* lane_removed_candidates;
@@ -296,6 +303,7 @@ void RemoveNonMax(const char* szset_filename, char* szoutput_filename);
 
 // expansion
 void h_expand_level(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc);
+Vertex* h_build_initial_task(CPU_Graph& hg, CPU_Data& hd, CPU_Cliques& hc, size_t root_index, size_t& task_vertices_count);
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start);
 int h_remove_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* read_vertices, int& tot_vert, int& num_cand, int& num_vert, uint64_t start);
 int h_add_one_vertex(CPU_Graph& hg, CPU_Data& hd, Vertex* vertices, int& total_vertices, int& number_of_candidates, int& number_of_members, int& upper_bound, int& lower_bound, int& min_ext_deg);
@@ -471,6 +479,11 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     delete[] hd.removed_candidates;
     delete hd.removed_count;
     delete[] hd.candidate_indegs;
+    delete[] hd.initial_vertices;
+    delete[] hd.initial_order_map;
+    hd.initial_vertices = nullptr;
+    hd.initial_vertices_count = 0;
+    hd.initial_order_map = nullptr;
 
     // GPU DATA
     chkerr(cudaFree(dd.current_level));
@@ -492,6 +505,9 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     chkerr(cudaFree(dd.wtasks_vertices));
 
     chkerr(cudaFree(dd.global_vertices));
+    chkerr(cudaFree(dd.initial_vertices));
+    chkerr(cudaFree(dd.initial_vertices_count));
+    chkerr(cudaFree(dd.initial_order_map));
 
     chkerr(cudaFree(dd.remaining_candidates));
     chkerr(cudaFree(dd.lane_remaining_candidates));
@@ -537,6 +553,7 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
 
 
 // --- HOST EXPANSION METHODS ---
+
 
 // returns 1 if lookahead was a success, else 0
 int h_lookahead_pruning(CPU_Graph& hg, CPU_Cliques& hc, CPU_Data& hd, Vertex* read_vertices, int tot_vert, int num_mem, int num_cand, uint64_t start)

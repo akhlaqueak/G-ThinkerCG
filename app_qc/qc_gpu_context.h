@@ -86,8 +86,167 @@ public:
     {
     }
 
+    __device__ bool d_build_initial_task(GPU_Data &dd, ull root_index, Warp_Data &wd, Local_Data &ld)
+    {
+        if (root_index >= (*(dd.initial_vertices_count))) {
+            return false;
+        }
+
+        Vertex root;
+        int candidate_count = 0;
+
+        if (LANE_IDX == 0) {
+            root = dd.initial_vertices[root_index];
+        }
+        root.vertexid = __shfl_sync(0xFFFFFFFF, root.vertexid, 0);
+        root.label = __shfl_sync(0xFFFFFFFF, root.label, 0);
+        root.indeg = __shfl_sync(0xFFFFFFFF, root.indeg, 0);
+        root.exdeg = __shfl_sync(0xFFFFFFFF, root.exdeg, 0);
+        root.lvl2adj = __shfl_sync(0xFFFFFFFF, root.lvl2adj, 0);
+
+        for (uint64_t i = dd.twohop_offsets[root.vertexid] + LANE_IDX; i < dd.twohop_offsets[root.vertexid + 1]; i += WARP_SIZE) {
+            int vertexid = dd.twohop_neighbors[i];
+            int source_index = dd.initial_order_map[vertexid];
+
+            if (source_index > -1 && static_cast<ull>(source_index) < root_index) {
+                candidate_count++;
+            }
+        }
+        for (int i = 1; i < WARP_SIZE; i *= 2) {
+            candidate_count += __shfl_xor_sync(0xFFFFFFFF, candidate_count, i);
+        }
+
+        if (LANE_IDX == 0) {
+            wd.number_of_members[WIB_IDX] = 1;
+            wd.number_of_candidates[WIB_IDX] = candidate_count;
+            wd.total_vertices[WIB_IDX] = candidate_count + 1;
+        }
+        __syncwarp();
+
+        if (candidate_count == 0 || wd.total_vertices[WIB_IDX] > WVERTICES_SIZE) {
+            return false;
+        }
+
+        if (wd.total_vertices[WIB_IDX] <= VERTICES_SIZE) {
+            ld.vertices = wd.shared_vertices + (VERTICES_SIZE * WIB_IDX);
+        } else {
+            ld.vertices = dd.global_vertices + (WVERTICES_SIZE * WARP_IDX);
+        }
+
+        if (LANE_IDX == 0) {
+            ld.vertices[0] = root;
+            ld.vertices[0].label = 1;
+            ld.vertices[0].indeg = 0;
+            ld.vertices[0].exdeg = 0;
+            ld.vertices[0].lvl2adj = 0;
+        }
+        __syncwarp();
+
+        if (LANE_IDX == 0) {
+            int write_pos = 1;
+            for (uint64_t i = dd.twohop_offsets[root.vertexid]; i < dd.twohop_offsets[root.vertexid + 1]; i++) {
+                int vertexid = dd.twohop_neighbors[i];
+                int source_index = dd.initial_order_map[vertexid];
+
+                if (source_index > -1 && static_cast<ull>(source_index) < root_index) {
+                    ld.vertices[write_pos] = dd.initial_vertices[source_index];
+                    ld.vertices[write_pos].label = 0;
+                    ld.vertices[write_pos].indeg = 0;
+                    ld.vertices[write_pos].exdeg = 0;
+                    ld.vertices[write_pos].lvl2adj = 0;
+                    write_pos++;
+                }
+            }
+        }
+        __syncwarp();
+
+        for (int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
+            int vertexid = ld.vertices[i].vertexid;
+            int indeg = 0;
+            int exdeg = 0;
+            uint64_t pneighbors_start = dd.onehop_offsets[vertexid];
+            uint64_t pneighbors_end = dd.onehop_offsets[vertexid + 1];
+
+            for (int j = 0; j < wd.total_vertices[WIB_IDX]; j++) {
+                if (i == j) {
+                    continue;
+                }
+                int phelper = d_bsearch_array(dd.onehop_neighbors + pneighbors_start,
+                                              pneighbors_end - pneighbors_start,
+                                              ld.vertices[j].vertexid);
+                if (phelper > -1) {
+                    if (j < wd.number_of_members[WIB_IDX]) {
+                        indeg++;
+                    } else {
+                        exdeg++;
+                    }
+                }
+            }
+
+            ld.vertices[i].indeg = indeg;
+            ld.vertices[i].exdeg = exdeg;
+            ld.vertices[i].lvl2adj = 0;
+        }
+        __syncwarp();
+
+        wd.remaining_count[WIB_IDX] = wd.number_of_candidates[WIB_IDX];
+        for (int i = LANE_IDX; i < wd.number_of_candidates[WIB_IDX]; i += WARP_SIZE) {
+            dd.candidate_indegs[(WVERTICES_SIZE * WARP_IDX) + i] = ld.vertices[wd.number_of_members[WIB_IDX] + i].indeg;
+        }
+        __syncwarp();
+
+        int method_return = d_degree_pruning(dd, wd, ld) ? 1 : 0;
+        if (method_return == 1) {
+            if (wd.number_of_members[WIB_IDX] >= (*dd.minimum_clique_size)) {
+                d_check_for_clique(dd, wd, ld);
+            }
+            return false;
+        }
+
+        method_return = d_critical_vertex_pruning(dd, wd, ld);
+        if (method_return == 2) {
+            return false;
+        }
+
+        if (wd.number_of_members[WIB_IDX] >= (*dd.minimum_clique_size)) {
+            d_check_for_clique(dd, wd, ld);
+        }
+
+        if (method_return == 1 || wd.number_of_candidates[WIB_IDX] <= 0) {
+            return false;
+        }
+
+        d_sort(ld.vertices, wd.total_vertices[WIB_IDX], d_sort_vert_Q);
+        for (int i = LANE_IDX; i < wd.total_vertices[WIB_IDX]; i += WARP_SIZE) {
+            ld.vertices[i].lvl2adj = 0;
+        }
+        __syncwarp();
+
+        return true;
+    }
+
     __device__ virtual void generateInitialTasks(VertexID *sources, ull *sources_num, ull *v_proc, QCBuffer &Bwr, ull *row_ptrs, VertexID *cols)
     {
+        __shared__ Warp_Data wd;
+        Local_Data ld;
+
+        while (true)
+        {
+            unsigned int vp;
+            if (LANE_IDX == 0)
+                vp = atomicAdd(v_proc, 1);
+            vp = __shfl_sync(0xFFFFFFFF, vp, 0);
+            if (vp >= sources_num[0])
+                return;
+
+            // QC sources are interpreted as indices into the root frontier built by initialize_tasks().
+            ull root_index = sources[vp];
+            bool valid_task = d_build_initial_task(dd, root_index, wd, ld);
+            if (!valid_task)
+                continue;
+
+            d_write_to_tasks(dd, wd, ld);
+        }
     }
 
 public:

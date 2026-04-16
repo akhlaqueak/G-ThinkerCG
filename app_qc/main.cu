@@ -9,6 +9,7 @@ ull spilled_tasks;
 CPU_Data hd;
 GPU_Data dd;
 CPU_Cliques hc;
+CPU_Graph *hg = nullptr;
 
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
@@ -72,26 +73,60 @@ public:
 
         // GRAPH / MINDEGS
         cout << ">:PRE-PROCESSING" << endl;
-        CPU_Graph hg(graph_stream);
-        cout << "|V| = " << hg.number_of_vertices << endl;
-        cout << "|E| = " << hg.number_of_edges << endl;
+        hg = new CPU_Graph(graph_stream);
+        CPU_Graph &graph = *hg;
+        cout << "|V| = " << graph.number_of_vertices << endl;
+        cout << "|E| = " << graph.number_of_edges << endl;
         graph_stream.close();
-        calculate_minimum_degrees(hg);
+        calculate_minimum_degrees(graph);
 
         // TIME
         auto stop = chrono::high_resolution_clock::now();
         auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
 
-        allocate_memory(hd, dd, hc, hg);
+        allocate_memory(hd, dd, hc, graph);
         cudaDeviceSynchronize();
 
-        auto [initial_vertices, initial_total_vertices] = initialize_tasks(hg, hd);
+        initialize_tasks(graph, hd);
+
+        for(ui i=0;i<hd.initial_vertices_count; i++){
+            data_array.push_back(i);
+        }
+        
+        chkerr(cudaMalloc((void **)&dd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count));
+        chkerr(cudaMemcpy(dd.initial_vertices, hd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count, cudaMemcpyHostToDevice));
+        chkerr(cudaMalloc((void **)&dd.initial_vertices_count, sizeof(uint64_t)));
+        uint64_t initial_vertices_count_u64 = hd.initial_vertices_count;
+        chkerr(cudaMemcpy(dd.initial_vertices_count, &initial_vertices_count_u64, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMalloc((void **)&dd.initial_order_map, sizeof(int) * graph.number_of_vertices));
+        chkerr(cudaMemcpy(dd.initial_order_map, hd.initial_order_map, sizeof(int) * graph.number_of_vertices, cudaMemcpyHostToDevice));
 
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
-        h_expand_level(hg, hd, hc, initial_vertices, initial_total_vertices);
+        // h_expand_level(graph, hd, hc, hd.initial_vertices, hd.initial_vertices_count);
+    }
+    ~QCApp()
+    {
+        delete hg;
+        hg = nullptr;
+    }
+
+    void merge_cpu_cliques()
+    {
+        auto workers = workers_list.queue_;
+        while (!workers.empty())
+        {
+            WorkerT *w = (WorkerT *)workers.front();
+            workers.pop();
+
+            QCCPUWorker *cw = dynamic_cast<QCCPUWorker *>(w);
+            if (cw)
+            {
+                cw->merge_local_cliques_into(hc);
+            }
+        }
     }
       // processes 0th level of expansion
-    std::pair<Vertex *, size_t> initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
+    void initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
     {
         // intersection
         int pvertexid;
@@ -241,175 +276,15 @@ public:
         total_vertices = number_of_candidates;
         for (int j = 0; j < total_vertices; j++)
             vertices[j].lvl2adj = 0;
-        return {vertices, static_cast<size_t>(total_vertices)};
-    }
-    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, Vertex *read_vertices, size_t read_vertices_count)
-    {
-        // initiate the variables containing the location of the read and write task vectors, done in an alternating, odd-even manner like the c-intersection of cuTS
-        uint64_t *read_count;
-        uint64_t *read_offsets;
-        uint64_t *write_count;
-        uint64_t *write_offsets;
-        Vertex *write_vertices;
-
-        // old vertices information
-        uint64_t start;
-        uint64_t end;
-        int tot_vert;
-        int num_mem;
-        int num_cand;
-        int expansions;
-        int number_of_covered;
-
-        // new vertices information
-        Vertex *vertices;
-        int number_of_members;
-        int number_of_candidates;
-        int total_vertices;
-
-        // calculate lower-upper bounds
-        int min_ext_deg;
-        int lower_bound;
-        int upper_bound;
-
-        int method_return;
-        int index;
-
-        // set to false later if task is generated indicating non-maximal expansion
-        (*hd.maximal_expansion) = true;
-        // CURRENT LEVEL
-        // for (int i = 0; i < *read_count; i++)
+        hd.initial_vertices = vertices;
+        hd.initial_vertices_count = static_cast<size_t>(total_vertices);
+        memset(hd.initial_order_map, -1, sizeof(int) * hg.number_of_vertices);
+        for (int i = 0; i < total_vertices; i++)
         {
-
-            // get information of vertices being handled within tasks
-            start = 0;
-            end = read_vertices_count;
-            tot_vert = end - start;
-            num_mem = 0;
-            for (uint64_t j = start; j < end; j++)
-            {
-                if (read_vertices[j].label != 1)
-                {
-                    break;
-                }
-                num_mem++;
-            }
-            number_of_covered = 0;
-            for (uint64_t j = start + num_mem; j < end; j++)
-            {
-                if (read_vertices[j].label != 2)
-                {
-                    break;
-                }
-                number_of_covered++;
-            }
-            num_cand = tot_vert - num_mem;
-            expansions = num_cand;
-
-            // LOOKAHEAD PRUNING
-            method_return = h_lookahead_pruning(hg, hc, hd, read_vertices, tot_vert, num_mem, num_cand, start);
-            if (method_return)
-            {
-                delete[] read_vertices;
-                return;
-            }
-
-            // NEXT LEVEL
-            for (int j = number_of_covered; j < expansions; j++)
-            {
-
-                // REMOVE ONE VERTEX
-                if (j != number_of_covered)
-                {
-                    method_return = h_remove_one_vertex(hg, hd, read_vertices, tot_vert, num_cand, num_mem, start);
-                    if (method_return)
-                    {
-                        break;
-                    }
-                }
-
-                // NEW VERTICES
-                vertices = new Vertex[tot_vert];
-                number_of_members = num_mem;
-                number_of_candidates = num_cand;
-                total_vertices = tot_vert;
-                for (index = 0; index < number_of_members; index++)
-                {
-                    vertices[index] = read_vertices[start + index];
-                }
-                vertices[number_of_members] = read_vertices[start + total_vertices - 1];
-                for (; index < total_vertices - 1; index++)
-                {
-                    vertices[index + 1] = read_vertices[start + index];
-                }
-
-                if (number_of_covered > 0)
-                {
-                    // set all covered vertices from previous level as candidates
-                    for (int j = num_mem + 1; j <= num_mem + number_of_covered; j++)
-                    {
-                        vertices[j].label = 0;
-                    }
-                }
-
-                // ADD ONE VERTEX
-                method_return = h_add_one_vertex(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
-
-                // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
-                if (method_return == 1)
-                {
-                    if (number_of_members >= minimum_clique_size)
-                    {
-                        h_check_for_clique(hc, vertices, number_of_members);
-                    }
-
-                    delete[] vertices;
-                    continue;
-                }
-
-                // CRITICAL VERTEX PRUNING
-                method_return = h_critical_vertex_pruning(hg, hd, vertices, total_vertices, number_of_candidates, number_of_members, upper_bound, lower_bound, min_ext_deg);
-
-                // if critical fail continue onto next iteration
-                if (method_return == 2)
-                {
-                    delete[] vertices;
-                    continue;
-                }
-
-                // CHECK FOR CLIQUE
-                if (number_of_members >= minimum_clique_size)
-                {
-                    h_check_for_clique(hc, vertices, number_of_members);
-                }
-
-                // if vertex in x found as not extendable, check if current set is clique and continue to next iteration
-                if (method_return == 1)
-                {
-                    delete[] vertices;
-                    continue;
-                }
-
-                // WRITE TO TASKS
-                // sort vertices so that lowest degree vertices are first in enumeration order before writing to tasks
-                qsort(vertices, total_vertices, sizeof(Vertex), h_sort_vert_Q);
-
-                if (number_of_candidates > 0)
-                {
-                    for (int k = 0; k < total_vertices; k++)
-                        vertices[k].lvl2adj = 0;
-                    h_expand_level(hg, hd, hc, vertices, total_vertices);
-                }
-                else
-                {
-                    delete[] vertices;
-                }
-            }
+            hd.initial_order_map[hd.initial_vertices[i].vertexid] = i;
         }
-        delete[] read_vertices;
-        // (*hd.current_level)++;
     }
-  
+
 
     ui get_results()
     {
@@ -486,8 +361,12 @@ public:
         hd.remaining_count = new int;
         hd.removed_count = new int;
         hd.candidate_indegs = new int[hg.number_of_vertices];
+        hd.initial_order_map = new int[hg.number_of_vertices];
+        hd.initial_vertices = nullptr;
+        hd.initial_vertices_count = 0;
 
         memset(hd.vertex_order_map, -1, sizeof(int) * hg.number_of_vertices);
+        memset(hd.initial_order_map, -1, sizeof(int) * hg.number_of_vertices);
 
         // GPU DATA
         chkerr(cudaMalloc((void **)&dd.current_level, sizeof(uint64_t)));
@@ -573,6 +452,7 @@ int main(int argc, char *argv[])
     QCApp app;
     Timer t;
     app.run();
+    app.merge_cpu_cliques();
     chkerr(cudaDeviceSynchronize());
 
     dump_cliques(hc, dd, temp_results);
