@@ -484,6 +484,8 @@ int main(int argc, char *argv[])
     chkerr(cudaDeviceSynchronize());
 
     dump_cliques(hc, dd, temp_results);
+    temp_results.flush();
+    temp_results.close();
 
     //     // TIME
     // auto start1 = chrono::high_resolution_clock::now();
