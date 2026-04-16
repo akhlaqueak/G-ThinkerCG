@@ -1223,7 +1223,7 @@ void move_to_gpu(CPU_Data& hd, GPU_Data& dd)
 
     chkerr(cudaMemcpy(dd.buffer_count, hd.buffer_count, sizeof(uint64_t), cudaMemcpyHostToDevice));
     chkerr(cudaMemcpy(dd.buffer_offset, hd.buffer_offset, (BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyHostToDevice));
-    chkerr(cudaMemcpy(dd.buffer_vertices, hd.buffer_vertices, (BUFFER_SIZE) * sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(dd.buffer_vertices, hd.buffer_vertices, (BUFFER_SIZE) * sizeof(Vertex), cudaMemcpyHostToDevice));
 
     chkerr(cudaMemcpy(dd.current_level, hd.current_level, sizeof(uint64_t), cudaMemcpyHostToDevice));
 }
@@ -3512,7 +3512,7 @@ __device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld)
         if (phelper2 > -1) {
             dd.read_vertices[wd.start[WIB_IDX] + i].exdeg--;
 
-            if (phelper1 < wd.num_mem[WIB_IDX] && dd.read_vertices[wd.start[WIB_IDX] + phelper1].indeg + dd.read_vertices[wd.start[WIB_IDX] + phelper1].exdeg < mindeg) {
+            if (i < wd.num_mem[WIB_IDX] && dd.read_vertices[wd.start[WIB_IDX] + i].indeg + dd.read_vertices[wd.start[WIB_IDX] + i].exdeg < mindeg) {
                 wd.success[WIB_IDX] = true;
                 break;
             }
