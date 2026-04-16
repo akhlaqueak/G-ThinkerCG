@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
     QCApp app;
     Timer t;
     app.run();
-    app.merge_cpu_cliques();
+    // app.merge_cpu_cliques();
     chkerr(cudaDeviceSynchronize());
 
     dump_cliques(hc, dd, temp_results);
