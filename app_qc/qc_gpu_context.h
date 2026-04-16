@@ -506,6 +506,14 @@ public:
 
         if (wd.success[WIB_IDX])
         {
+            if (LANE_IDX == 0)
+            {
+                uint64_t local_count = dd.wcliques_count[WARP_IDX];
+                uint64_t local_size = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + local_count];
+                assert(local_count + 1 < WCLIQUES_OFFSET_SIZE);
+                assert(local_size + wd.tot_vert[WIB_IDX] <= WCLIQUES_SIZE);
+            }
+            __syncwarp();
             // write to cliques
             uint64_t start_write = (WCLIQUES_SIZE * WARP_IDX) + dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])];
             for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE)
@@ -1461,6 +1469,14 @@ public:
         // if clique write to warp buffer for cliques
         if (clique)
         {
+            if (LANE_IDX == 0)
+            {
+                uint64_t local_count = dd.wcliques_count[WARP_IDX];
+                uint64_t local_size = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + local_count];
+                assert(local_count + 1 < WCLIQUES_OFFSET_SIZE);
+                assert(local_size + wd.number_of_members[WIB_IDX] <= WCLIQUES_SIZE);
+            }
+            __syncwarp();
             uint64_t start_write = (WCLIQUES_SIZE * WARP_IDX) + dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])];
             for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE)
             {

@@ -2658,6 +2658,16 @@ __global__ void transfer_cliques(GPU_Data dd)
     }
     __syncwarp();
     
+    if (LANE_IDX == 0 && dd.wcliques_count[WARP_IDX] > 0)
+    {
+        uint64_t global_vertex_end = (*(dd.cliques_start)) + cliques_write[WIB_IDX] +
+            dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd.wcliques_count[WARP_IDX]];
+        uint64_t global_offset_end = (*(dd.cliques_offset_start)) + cliques_offset_write[WIB_IDX] +
+            dd.wcliques_count[WARP_IDX] - 1;
+        assert(global_vertex_end <= CLIQUES_SIZE);
+        assert(global_offset_end < CLIQUES_OFFSET_SIZE);
+    }
+    __syncwarp();
 
     //move to cliques
     for (int i = LANE_IDX + 1; i <= dd.wcliques_count[WARP_IDX]; i += WARP_SIZE) {
