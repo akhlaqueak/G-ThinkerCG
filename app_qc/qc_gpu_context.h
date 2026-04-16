@@ -1732,11 +1732,26 @@ public:
             ui sz = task->context.num_vertices;
             SubgraphOffsets so = this->Bwr.append_host_to_device(sz);
             ull loc = so.st;
-            chkerr(cudaMemcpy(this->Bwr.vertices + loc, task->context.vertices, sizeof(VertexID) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.label + loc, task->context.label, sizeof(Label) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.indeg + loc, task->context.indeg, sizeof(int) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.exdeg + loc, task->context.exdeg, sizeof(int) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.lvl2adj + loc, task->context.lvl2adj, sizeof(int) * sz, cudaMemcpyHostToDevice));
+            std::vector<VertexID> vertices(sz);
+            std::vector<Label> labels(sz);
+            std::vector<int> indegs(sz);
+            std::vector<int> exdegs(sz);
+            std::vector<int> lvl2adjs(sz);
+
+            for (ui i = 0; i < sz; i++)
+            {
+                vertices[i] = task->context.vertices[i].vertexid;
+                labels[i] = task->context.vertices[i].label;
+                indegs[i] = task->context.vertices[i].indeg;
+                exdegs[i] = task->context.vertices[i].exdeg;
+                lvl2adjs[i] = task->context.vertices[i].lvl2adj;
+            }
+
+            chkerr(cudaMemcpy(this->Bwr.vertices + loc, vertices.data(), sizeof(VertexID) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.label + loc, labels.data(), sizeof(Label) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.indeg + loc, indegs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.exdeg + loc, exdegs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->Bwr.lvl2adj + loc, lvl2adjs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
             delete task;
         }
         src_tasks.clear();

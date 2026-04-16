@@ -9,13 +9,11 @@ class QCCPUWorker : public CPUWorker<QCTask>
 public:
     CPU_Data local_hd;
     CPU_Cliques local_hc;
-    CPU_Graph local_hg;
 
     QCCPUWorker() : CPUWorker<QCTask>()
     {
         local_hd = hd;
         local_hc = hc;
-        local_hg = *hg;
 
         local_hd.vertex_order_map = new int[hg->number_of_vertices];
         local_hd.remaining_candidates = new int[hg->number_of_vertices];
@@ -398,7 +396,7 @@ public:
     virtual QCTask *task_spawn(VertexID &index)
     {
         size_t task_vertices_count;
-        Vertex *vertices = h_build_initial_task(local_hg, local_hd, local_hc, index, task_vertices_count);
+        Vertex *vertices = h_build_initial_task(*hg, local_hd, local_hc, index, task_vertices_count);
         QCTask *t = new QCTask();
         if (vertices != nullptr)
             t->context = QCContext(vertices, task_vertices_count);
@@ -409,7 +407,7 @@ public:
     {
         if (context.vertices == nullptr || context.num_vertices == 0)
             return;
-        h_expand_level(local_hg, local_hd, local_hc, context.vertices, context.num_vertices);
+        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices);
     }
 };
 
