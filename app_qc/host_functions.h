@@ -418,6 +418,9 @@ void calculate_minimum_degrees(CPU_Graph& hg)
 
 void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
 {
+    // flush CPU cliques first; otherwise they get overwritten by the GPU copy below
+    flush_cliques(hc, temp_results);
+
     // gpu cliques to cpu cliques
     chkerr(cudaMemcpy(hc.cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(hc.cliques_offset, dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
@@ -2481,6 +2484,9 @@ void RmNonMax(TREE_NODE* proot, int nmax_len)
 {
     TREE_NODE* pnode, ** pstack, ** psearch_stack;
     int* pset, ntop, i, * ppos;
+
+    if (proot == NULL || nmax_len <= 0)
+        return;
 
     pset = new int[nmax_len];
     pstack = new TREE_NODE * [nmax_len];
