@@ -357,21 +357,6 @@ public:
         chkerr(cudaMemcpy(dd.twohop_neighbors, hg.twohop_neighbors, sizeof(int) * hg.number_of_lvl2adj, cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.twohop_offsets, hg.twohop_offsets, sizeof(uint64_t) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
 
-        // CPU DATA
-        hd.tasks1_count = new uint64_t;
-        hd.tasks1_offset = new uint64_t[EXPAND_THRESHOLD + 1];
-        hd.tasks1_vertices = new Vertex[TASKS_SIZE];
-
-        hd.tasks1_offset[0] = 0;
-        (*(hd.tasks1_count)) = 0;
-
-        hd.tasks2_count = new uint64_t;
-        hd.tasks2_offset = new uint64_t[EXPAND_THRESHOLD + 1];
-        hd.tasks2_vertices = new Vertex[TASKS_SIZE];
-
-        hd.tasks2_offset[0] = 0;
-        (*(hd.tasks2_count)) = 0;
-
         hd.buffer_count = new uint64_t;
         hd.buffer_offset = new uint64_t[BUFFER_OFFSET_SIZE];
         hd.buffer_vertices = new Vertex[BUFFER_SIZE];

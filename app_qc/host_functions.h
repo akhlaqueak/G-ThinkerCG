@@ -130,14 +130,6 @@ class CPU_Graph
 // CPU DATA
 struct CPU_Data
 {
-    uint64_t* tasks1_count;
-    uint64_t* tasks1_offset;
-    Vertex* tasks1_vertices;
-
-    uint64_t* tasks2_count;
-    uint64_t* tasks2_offset;
-    Vertex* tasks2_vertices;
-
     uint64_t* buffer_count;
     uint64_t* buffer_offset;
     Vertex* buffer_vertices;
@@ -170,14 +162,6 @@ struct GPU_Data
 {
     // GPU DATA
     uint64_t* current_level;
-
-    uint64_t* tasks1_count;
-    uint64_t* tasks1_offset;
-    Vertex* tasks1_vertices;
-
-    uint64_t* tasks2_count;
-    uint64_t* tasks2_offset;
-    Vertex* tasks2_vertices;
 
     uint64_t* buffer_count;
     uint64_t* buffer_offset;
@@ -502,14 +486,6 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     chkerr(cudaFree(dd.twohop_offsets));
 
     // CPU DATA
-    delete hd.tasks1_count;
-    delete[] hd.tasks1_offset;
-    delete[] hd.tasks1_vertices;
-
-    delete hd.tasks2_count;
-    delete[] hd.tasks2_offset;
-    delete[] hd.tasks2_vertices;
-
     delete hd.buffer_count;
     delete[] hd.buffer_offset;
     delete[] hd.buffer_vertices;
@@ -532,14 +508,6 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
 
     // GPU DATA
     chkerr(cudaFree(dd.current_level));
-
-    chkerr(cudaFree(dd.tasks1_count));
-    chkerr(cudaFree(dd.tasks1_offset));
-    chkerr(cudaFree(dd.tasks1_vertices));
-
-    chkerr(cudaFree(dd.tasks2_count));
-    chkerr(cudaFree(dd.tasks2_offset));
-    chkerr(cudaFree(dd.tasks2_vertices));
 
     chkerr(cudaFree(dd.buffer_count));
     chkerr(cudaFree(dd.buffer_offset));
@@ -1535,59 +1503,7 @@ void print_GPU_Graph(GPU_Data& dd, CPU_Graph& hg)
 void print_CPU_Data(CPU_Data& hd)
 {
     cout << endl << " --- (CPU_Data)host_data details --- " << endl;
-    cout << endl << "Tasks1: " << "Size: " << (*(hd.tasks1_count)) << endl;
-    cout << endl << "Offsets:" << endl;
-    for (uint64_t i = 0; i <= (*(hd.tasks1_count)); i++) {
-        cout << hd.tasks1_offset[i] << " ";
-    }
-    cout << endl << "Vertex:" << endl;
-    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-        cout << hd.tasks1_vertices[i].vertexid << " ";
-    }
-    cout << endl << "Label:" << endl;
-    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-        cout << hd.tasks1_vertices[i].label << " ";
-    }
-    cout << endl << "Indeg:" << endl;
-    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-        cout << hd.tasks1_vertices[i].indeg << " ";
-    }
-    cout << endl << "Exdeg:" << endl;
-    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-        cout << hd.tasks1_vertices[i].exdeg << " ";
-    }
-    cout << endl << "Lvl2adj:" << endl;
-    for (uint64_t i = 0; i < hd.tasks1_offset[(*(hd.tasks1_count))]; i++) {
-        cout << hd.tasks1_vertices[i].lvl2adj << " ";
-    }
-
-    cout << endl << endl << "Tasks2: " << "Size: " << (*(hd.tasks2_count)) << endl;
-    cout << endl << "Offsets:" << endl;
-    for (uint64_t i = 0; i <= (*(hd.tasks2_count)); i++) {
-        cout << hd.tasks2_offset[i] << " ";
-    }
-    cout << endl << "Vertex:" << endl;
-    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-        cout << hd.tasks2_vertices[i].vertexid << " ";
-    }
-    cout << endl << "Label:" << endl;
-    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-        cout << hd.tasks2_vertices[i].label << " ";
-    }
-    cout << endl << "Indeg:" << endl;
-    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-        cout << hd.tasks2_vertices[i].indeg << " ";
-    }
-    cout << endl << "Exdeg:" << endl;
-    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-        cout << hd.tasks2_vertices[i].exdeg << " ";
-    }
-    cout << endl << "Lvl2adj:" << endl;
-    for (uint64_t i = 0; i < hd.tasks2_offset[(*(hd.tasks2_count))]; i++) {
-        cout << hd.tasks2_vertices[i].lvl2adj << " ";
-    }
-
-    cout << endl << endl << "Buffer: " << "Size: " << (*(hd.buffer_count)) << endl;
+    cout << endl << "Buffer: " << "Size: " << (*(hd.buffer_count)) << endl;
     cout << endl << "Offsets:" << endl;
     for (uint64_t i = 0; i <= (*(hd.buffer_count)); i++) {
         cout << hd.buffer_offset[i] << " ";
@@ -1618,91 +1534,17 @@ void print_CPU_Data(CPU_Data& hd)
 void print_GPU_Data(GPU_Data& dd)
 {
     uint64_t* current_level = new uint64_t;
-
-    uint64_t* tasks1_count = new uint64_t;
-    uint64_t* tasks1_offset = new uint64_t[EXPAND_THRESHOLD + 1];
-    Vertex* tasks1_vertices = new Vertex[TASKS_SIZE];
-
-    uint64_t* tasks2_count = new uint64_t;
-    uint64_t* tasks2_offset = new uint64_t[EXPAND_THRESHOLD + 1];
-    Vertex* tasks2_vertices = new Vertex[TASKS_SIZE];
-
-
     uint64_t* buffer_count = new uint64_t;
     uint64_t* buffer_offset = new uint64_t[BUFFER_OFFSET_SIZE];
     Vertex* buffer_vertices = new Vertex[BUFFER_SIZE];
 
-
     chkerr(cudaMemcpy(current_level, dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-
-    chkerr(cudaMemcpy(tasks1_count, dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_offset, dd.tasks1_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_vertices, dd.tasks1_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
-
-    chkerr(cudaMemcpy(tasks2_count, dd.tasks2_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_offset, dd.tasks2_offset, (EXPAND_THRESHOLD + 1) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_vertices, dd.tasks2_vertices, (TASKS_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
-
     chkerr(cudaMemcpy(buffer_count, dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_offset, dd.buffer_offset, (BUFFER_OFFSET_SIZE) * sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_vertices, dd.buffer_vertices, (BUFFER_SIZE) * sizeof(Vertex), cudaMemcpyDeviceToHost));
 
     cout << " --- (GPU_Data)device_data details --- " << endl;
-    cout << endl << "Tasks1: Level: " << (*current_level) << " Size: " << (*tasks1_count) << endl;
-    cout << endl << "Offsets:" << endl;
-    for (int i = 0; i <= (*tasks1_count); i++) {
-        cout << tasks1_offset[i] << " " << flush;
-    }
-    cout << endl << "Vertex:" << endl;
-    for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-        cout << tasks1_vertices[i].vertexid << " " << flush;
-    }
-    cout << endl << "Label:" << endl;
-    for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-        cout << tasks1_vertices[i].label << " " << flush;
-    }
-    cout << endl << "Indeg:" << endl;
-    for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-        cout << tasks1_vertices[i].indeg << " " << flush;
-    }
-    cout << endl << "Exdeg:" << endl;
-    for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-        cout << tasks1_vertices[i].exdeg << " " << flush;
-    }
-    cout << endl << "Lvl2adj:" << endl;
-    for (int i = 0; i < tasks1_offset[*tasks1_count]; i++) {
-        cout << tasks1_vertices[i].lvl2adj << " " << flush;
-    }
-    cout << endl;
-
-    cout << endl << "Tasks2: " << "Size: " << (*tasks2_count) << endl;
-    cout << endl << "Offsets:" << endl;
-    for (int i = 0; i <= (*tasks2_count); i++) {
-        cout << tasks2_offset[i] << " " << flush;
-    }
-    cout << endl << "Vertex:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].vertexid << " " << flush;
-    }
-    cout << endl << "Label:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].label << " " << flush;
-    }
-    cout << endl << "Indeg:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].indeg << " " << flush;
-    }
-    cout << endl << "Exdeg:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].exdeg << " " << flush;
-    }
-    cout << endl << "Lvl2adj:" << endl;
-    for (int i = 0; i < tasks2_offset[*tasks2_count]; i++) {
-        cout << tasks2_vertices[i].lvl2adj << " " << flush;
-    }
-    cout << endl << endl;
-
-    cout << endl << "Buffer: " << "Size: " << (*buffer_count) << endl;
+    cout << endl << "Buffer: Level: " << (*current_level) << " Size: " << (*buffer_count) << endl;
     cout << endl << "Offsets:" << endl;
     for (int i = 0; i <= (*buffer_count); i++) {
         cout << buffer_offset[i] << " " << flush;
@@ -1730,15 +1572,6 @@ void print_GPU_Data(GPU_Data& dd)
     cout << endl;
 
     delete current_level;
-
-    delete tasks1_count;
-    delete[] tasks1_offset;
-    delete[] tasks1_vertices;
-
-    delete tasks2_count;
-    delete[] tasks2_offset;
-    delete[] tasks2_vertices;
-
     delete buffer_count;
     delete[] buffer_offset;
     delete[] buffer_vertices;
@@ -1877,34 +1710,20 @@ bool print_Data_Sizes_Every(GPU_Data& dd, int every)
 bool print_Data_Sizes(GPU_Data& dd)
 {
     uint64_t* current_level = new uint64_t;
-    uint64_t* tasks1_count = new uint64_t;
-    uint64_t* tasks2_count = new uint64_t;
     uint64_t* buffer_count = new uint64_t;
     uint64_t* cliques_count = new uint64_t;
-    uint64_t* tasks1_size = new uint64_t;
-    uint64_t* tasks2_size = new uint64_t;
     uint64_t* buffer_size = new uint64_t;
     uint64_t* cliques_size = new uint64_t;
 
     chkerr(cudaMemcpy(current_level, dd.current_level, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_count, dd.tasks1_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_count, dd.tasks2_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_count, dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks1_size, dd.tasks1_offset + (*tasks1_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(tasks2_size, dd.tasks2_offset + (*tasks2_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_size, dd.buffer_offset + (*buffer_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_size, dd.cliques_offset + (*cliques_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
-    cout << "L: " << (*current_level) << " T1: " << (*tasks1_count) << " " << (*tasks1_size) << " T2: " << (*tasks2_count) << " " << (*tasks2_size) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << 
+    cout << "L: " << (*current_level) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << 
         (*cliques_count) << " " << (*cliques_size) << endl << endl;
 
-    if (*tasks1_size > mts) {
-        mts = *tasks1_size;
-    }
-    if (*tasks2_size > mts) {
-        mts = *tasks2_size;
-    }
     if (*buffer_size > mbs) {
         mbs = *buffer_size;
     }
@@ -1918,19 +1737,15 @@ bool print_Data_Sizes(GPU_Data& dd)
         mco = *cliques_count;
     }
 
-    if ((*tasks1_count) > EXPAND_THRESHOLD || (*tasks1_size) > TASKS_SIZE || (*tasks2_count) > EXPAND_THRESHOLD || (*tasks2_size) > TASKS_SIZE || (*buffer_count) > BUFFER_OFFSET_SIZE || (*buffer_size) > BUFFER_SIZE || (*cliques_count) > CLIQUES_OFFSET_SIZE ||
+    if ((*buffer_count) > BUFFER_OFFSET_SIZE || (*buffer_size) > BUFFER_SIZE || (*cliques_count) > CLIQUES_OFFSET_SIZE ||
         (*cliques_size) > CLIQUES_SIZE) {
         cout << "!!! ARRAY SIZE ERROR !!!" << endl;
         return true;
     }
 
     delete current_level;
-    delete tasks1_count;
-    delete tasks2_count;
     delete buffer_count;
     delete cliques_count;
-    delete tasks1_size;
-    delete tasks2_size;
     delete buffer_size;
     delete cliques_size;
     
@@ -1941,16 +1756,9 @@ void h_print_Data_Sizes(CPU_Data& hd, CPU_Cliques& hc)
 {
     uint64_t hc_count = hc.cliques_offset.empty() ? 0 : static_cast<uint64_t>(hc.cliques_offset.size() - 1);
     uint64_t hc_size = hc.cliques_offset.empty() ? 0 : hc.cliques_offset.back();
-    cout << "L: " << (*hd.current_level) << " T1: " << (*hd.tasks1_count) << " " << (*(hd.tasks1_offset + (*hd.tasks1_count))) << " T2: " << (*hd.tasks2_count) << " " << 
-        (*(hd.tasks2_offset + (*hd.tasks2_count))) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 
+    cout << "L: " << (*hd.current_level) << " B: " << (*hd.buffer_count) << " " << (*(hd.buffer_offset + (*hd.buffer_count))) << " C: " << 
         hc_count << " " << hc_size << endl;
 
-    if ((*(hd.tasks1_offset + (*hd.tasks1_count))) > mts) {
-        mts = (*(hd.tasks1_offset + (*hd.tasks1_count)));
-    }
-    if ((*(hd.tasks2_offset + (*hd.tasks2_count))) > mts) {
-        mts = (*(hd.tasks2_offset + (*hd.tasks2_count)));
-    }
     if ((*(hd.buffer_offset + (*hd.buffer_count))) > mbs) {
         mbs = (*(hd.buffer_offset + (*hd.buffer_count)));
     }
