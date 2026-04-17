@@ -76,7 +76,7 @@
 #define DEV __device__
 #define DEVHOST __device__ __host__
 
-typedef unsigned int Index;
+typedef unsigned long long int Index;
 typedef unsigned int VertexID;
 typedef char Label;
 
