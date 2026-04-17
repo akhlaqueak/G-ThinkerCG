@@ -102,7 +102,6 @@ public:
         chkerr(cudaMemcpy(dd.initial_order_map, hd.initial_order_map, sizeof(int) * graph.number_of_vertices, cudaMemcpyHostToDevice));
 
         cout << "--->:LOADING TIME: " << duration.count() << " ms" << endl;
-        // h_expand_level(graph, hd, hc, hd.initial_vertices, hd.initial_vertices_count);
     }
     ~QCApp()
     {
@@ -140,17 +139,6 @@ public:
         }
         workers_list.clear();
 
-        while (!data_array.empty())
-        {
-            delete data_array.front();
-            data_array.pop_front();
-        }
-
-        while (!SC->empty())
-        {
-            delete SC->top();
-            SC->pop();
-        }
         delete SC;
         SC = nullptr;
         global_SC = nullptr;

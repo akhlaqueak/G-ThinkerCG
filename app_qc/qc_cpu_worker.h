@@ -70,6 +70,13 @@ public:
     }
 
 private:
+    void enqueue_task(Vertex *vertices, size_t num_vertices)
+    {
+        QCTask *new_task = new QCTask();
+        new_task->context = QCContext(vertices, num_vertices);
+        this->add_task(new_task);
+    }
+
     void h_write_clique(CPU_Cliques &hc, Vertex *vertices, int clique_size)
     {
         uint64_t start_write = hc.cliques_vertex.size();
@@ -741,7 +748,8 @@ private:
         return 0;
     }
 
-    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, Vertex *read_vertices, size_t read_vertices_count)
+    void h_expand_level(CPU_Graph &hg, CPU_Data &hd, CPU_Cliques &hc, Vertex *read_vertices, size_t read_vertices_count,
+                        std::chrono::steady_clock::time_point st)
     {
         uint64_t start;
         uint64_t end;
@@ -865,8 +873,16 @@ private:
                     {
                         vertices[k].lvl2adj = 0;
                     }
-                    h_expand_level(hg, hd, hc, vertices, total_vertices);
-                    delete[] vertices;
+
+                    if (TIME_OVER(st))
+                    {
+                        enqueue_task(vertices, total_vertices);
+                    }
+                    else
+                    {
+                        h_expand_level(hg, hd, hc, vertices, total_vertices, st);
+                        delete[] vertices;
+                    }
                 }
                 else
                 {
@@ -1040,7 +1056,7 @@ public:
     {
         if (context.vertices == nullptr || context.num_vertices == 0)
             return;
-        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices);
+        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices, TIME_NOW);
     }
 };
 

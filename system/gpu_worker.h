@@ -57,12 +57,12 @@ public:
             gc.sources_num[0] = 0;
         if (this->Lv.size())
         {
-            // cout<<"Lv: "<<this->Lv.size()<<endl;
+            cout<<"Lv: "<<this->Lv.size()<<endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
         else
         {
-            // cout << "Lt: " << this->Lt.size() << endl;
+            cout << "Lt: " << this->Lt.size() << endl;
             gc.move_tasks_from_Sc(this->Lt, gc.H);
         }
 
