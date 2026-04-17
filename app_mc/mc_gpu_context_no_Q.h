@@ -173,7 +173,7 @@ public:
                 // no need to intersect R nodes
                 pred = (label == R) || binarySearch(cols, qst, qen, v);
             }
-            __syncwarp();
+            // __syncwarp();
             sglen = writeToTemp(v, label, pred, sglen); // appply sum scan and store in temp...
             // sglen is passed by reference to this function, and it gets the length of subgraph
         }
