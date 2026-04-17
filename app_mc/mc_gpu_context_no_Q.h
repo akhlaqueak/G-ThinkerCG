@@ -49,8 +49,7 @@ class MCGPUContext : public GPUContext<MCBuffer, MCTask>
 public:
     ull *total_counts; // can be accessed on GPU
     ui *QBuff;
-    ui *qtail;
-    ui *qhead;
+
 
     ull get_results()
     {
@@ -71,8 +70,7 @@ public:
         chkerr(cudaMalloc(&(cols), sizeof(VertexID) * data_graph.GetEdgeCount()));
         cudaMemcpy(row_ptrs, data_graph.GetRowPtrs(), sizeof(ull) * (data_graph.GetVertexCount() + 1), cudaMemcpyHostToDevice);
         cudaMemcpy(cols, data_graph.GetCols(), sizeof(VertexID) * data_graph.GetEdgeCount(), cudaMemcpyHostToDevice);
-        qtail[0] = 0;
-        qhead[0] = 0;
+
         for (ui i = 0; i < N_WARPS; i++)
             total_counts[i] = 0;
     }
@@ -368,10 +366,7 @@ public:
             }
         }
     }
-    __device__ bool isLevelFilledQ()
-    {
-        return (qtail[0] > 3 * eta);
-    }
+
 
 public:
     __device__ virtual void process(MCBuffer &Brd, ull *row_ptrs, VertexID *cols)
@@ -399,28 +394,12 @@ public:
     }
     virtual void init_level()
     {
-        qhead[0] = 0;
-        qtail[0] = 0;
+
     }
     __device__ virtual void extend(MCBuffer &Brd, MCBuffer &Bwr, MCBuffer &H, ull *row_ptrs, VertexID *cols)
 
     {
-        // while (true)
-        // {
-        //     ui qh;
-        //     if (LANEID == 0)
-        //         qh = atomicAdd(qhead, 3);
-        //     qh = __shfl_sync(FULL, qh, 0);
-        //     if (qh >= qtail[0])
-        //         return;
-        //     ui u = QBuff[qh];
-        //     // ui u = Brd.vertices[QBuff[qh]];
-        //     SubgraphOffsets so{QBuff[qh + 1], QBuff[qh + 2]};
-        //     if (isOverflow())
-        //         generateSubgraphs(&so, u, &(H));
-        //     else
-        //         generateSubgraphs(&so, u, &(Bwr));
-        // }
+
     }
 
     __device__ void markQ(SubgraphOffsets *so, VertexID pivot)
