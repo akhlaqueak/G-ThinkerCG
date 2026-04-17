@@ -2,7 +2,6 @@
 #define MC_GPU_APP
 
 #define TEMPSIZE 200'000
-#define QBuff_SIZE 100'000'000
 
 class MCBuffer : public BufferBase
 {
@@ -67,9 +66,6 @@ public:
         chkerr(cudaMalloc((void **)&tempv, TEMPSIZE * N_WARPS * sizeof(VertexID)));
         chkerr(cudaMalloc((void **)&templ, TEMPSIZE * N_WARPS * sizeof(Label)));
         chkerr(cudaMallocManaged((void **)&total_counts, N_WARPS * sizeof(ull)));
-        chkerr(cudaMallocManaged((void **)&QBuff, QBuff_SIZE * sizeof(ui)));
-        chkerr(cudaMallocManaged((void **)&qtail, sizeof(ui)));
-        chkerr(cudaMallocManaged((void **)&qhead, sizeof(ui)));
 
         chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (data_graph.GetVertexCount() + 1)));
         chkerr(cudaMalloc(&(cols), sizeof(VertexID) * data_graph.GetEdgeCount()));

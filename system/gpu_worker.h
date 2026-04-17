@@ -69,6 +69,7 @@ public:
         this->Lv.clear();
         this->Lt.clear();
         Timer prog_trigger;
+        gc.ping_pong_mode = true;
         while (true)
         {
             if (not gc.H.empty())
