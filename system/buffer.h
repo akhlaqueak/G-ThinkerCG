@@ -110,9 +110,7 @@ public:
         {
             ull ot = atomicAdd(otail, 3);
             vt = atomicAdd(vtail, sglen);
-            atomicAdd(n_tasks_proc, 1);
-            // todo check if threadfence is unnecessary... i think it's not useful.
-            // __threadfence();
+            // atomicAdd(n_tasks_proc, 1);
             // if it's a host buffer
             if (capacity[0] == HOST_BUFF_SZ)
             {
@@ -141,8 +139,7 @@ public:
         ull s;
         if (LANEID == 0)
         {
-            atomicAdd(n_tasks_proc, 1);
-            // __threadfence();
+            // atomicAdd(n_tasks_proc, 1);
             s = atomicAdd(ohead, 3);
         }
         s = __shfl_sync(FULL, s, 0);
