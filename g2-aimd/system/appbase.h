@@ -70,7 +70,7 @@ template <template <typename> class BuffType, class GraphType = Graph>
 class AppBase
 {
 public:
-    SubgraphContainer<BuffType<Index>> *sg;
+    SubgraphContainer<BuffType<ull>> *sg;
     SubgraphContainer<BuffType<ull>> *sgHost;
 
     // GraphType *dp;
