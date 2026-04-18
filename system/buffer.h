@@ -55,8 +55,8 @@ public:
      */
     void allocateMemory()
     {
-        chkerr(cudaMallocHost((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
-        chkerr(cudaMallocHost((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
+        offsets = new ull[HOST_OFFSET_SZ];
+        vertices = new VertexID[HOST_BUFF_SZ];
 
         allocateHostPtrs();
         capacity[0] = HOST_BUFF_SZ;
@@ -260,13 +260,13 @@ public:
     }
     void allocateHostPtrs()
     {
-        chkerr(cudaMallocHost((void **)&otail, sizeof(ull)));
-        chkerr(cudaMallocHost((void **)&vtail, sizeof(ull)));
-        chkerr(cudaMallocHost((void **)&ohead, sizeof(ull)));
-        chkerr(cudaMallocHost((void **)&capacity, sizeof(ull)));
-        chkerr(cudaMallocHost((void **)&n_tasks_proc, sizeof(ui)));
-        chkerr(cudaMallocHost((void **)&overflow, sizeof(bool)));
-        chkerr(cudaMallocHost((void **)&eta_filled, sizeof(bool)));
+        otail = new ull[1];
+        vtail = new ull[1];
+        ohead = new ull[1];
+        capacity = new ull[1];
+        n_tasks_proc = new ui[1];
+        overflow = new bool[1];
+        eta_filled = new bool[1];
         overflow[0] = false;
         eta_filled[0] = false;
         otail[0] = 0;
