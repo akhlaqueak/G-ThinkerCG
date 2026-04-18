@@ -63,6 +63,7 @@ typedef unsigned long long int uintE;
 #define GTHID (BLKID * N_THREADS + THID)
 
 __device__ ui eta=1000*N_WARPS;
+ui ETA = 1000*N_WARPS;
 bool ping_pong = true;
 
 #define HOST_BUFF_SZ 10'000'000'000ULL
