@@ -187,7 +187,7 @@ public:
         const ull src_ohead = gc.Brd.ohead[0];
         const ull src_otail = gc.Brd.otail[0];
         const ull offset_count = src_otail - src_ohead;
-
+        cout<<"moving D->H: "<<offset_count/3<<endl;
         if (offset_count == 0)
             return;
 
