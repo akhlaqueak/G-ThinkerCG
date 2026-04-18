@@ -56,8 +56,6 @@ public:
     {
         chkerr(cudaMallocManaged((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
         chkerr(cudaMallocManaged((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
-        chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
-        overflow[0] = false;
 
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;
@@ -247,6 +245,8 @@ public:
         chkerr(cudaMallocManaged((void **)&ohead, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&capacity, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&n_tasks_proc, sizeof(ui)));
+                chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
+        overflow[0] = false;
         otail[0] = 0;
         vtail[0] = 0;
         ohead[0] = 0;
