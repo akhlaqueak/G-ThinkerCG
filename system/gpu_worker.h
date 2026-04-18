@@ -217,7 +217,7 @@ public:
         if (available_tasks == 0)
             return;
 
-        const ull tasks_to_load = std::min<ull>(eta, available_tasks);
+        const ull tasks_to_load = std::min<ull>(ETA, available_tasks);
         const ull offset_count = tasks_to_load * 3;
         const ull offsets_start = src_otail - offset_count;
 
