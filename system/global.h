@@ -66,7 +66,7 @@ __device__ ui eta=1000*N_WARPS;
 bool ping_pong = true;
 
 #define HOST_BUFF_SZ 2'000'000'000ULL
-#define HOST_OFFSET_SZ 20'000'000ULL
+#define HOST_OFFSET_SZ 200'000'000ULL
 
 #define DEV __device__
 #define DEVHOST __device__ __host__
