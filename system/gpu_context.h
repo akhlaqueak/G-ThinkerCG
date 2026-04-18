@@ -192,7 +192,8 @@ public:
         if (not H.empty())
         {
             cout << "Host used Memory (%): " << std::fixed << std::setprecision(2) << (double)H.vtail[0] / HOST_BUFF_SZ * 100 << endl;
-            cout << "Host tasks: " << H.otail[0] - H.ohead[0] << endl;
+            // cout << "Host tasks: " << H.otail[0] - H.ohead[0] << endl;
+            H.print("H: ");
         }
     }
 

@@ -282,9 +282,9 @@ public:
     void print(string msg)
     {
         if (empty())
-            cout << msg << "- empty -";
+            cout << msg << "- empty -"<<endl;
         else
-            cout << msg << (otail[0]-ohead[0])/3<<" tasks "<< ohead[0] << "-" << otail[0] << "-" << vtail[0] << " " << endl;
+            cout << msg << (otail[0]-ohead[0])/3<<" tasks. ("<< ohead[0] << "-" << otail[0] << "-" << vtail[0] << ") " << endl;
     }
 
     __device__ ull append_batch(ull sglen, ui num, StoreStrategy mode)
