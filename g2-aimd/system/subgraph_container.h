@@ -75,10 +75,6 @@ public:
         chunk[0] = MAXCHUNK;
         recover = true;
         successCount = 0;
-
-        // chkerr(cudaMallocManaged((void **)&warpAssigned, sizeof(ui)));
-        // chkerr(cudaMallocManaged((void **)&warpCount, (N_WARPS+1) * sizeof(int)));
-        // chkerr(cudaMallocManaged((void **)&warpCountMoving, (N_WARPS+1) * sizeof(int)));
     }
     /**
      * @brief Allocated Memory to host. This version is called for Ho
@@ -101,10 +97,6 @@ public:
         chkerr(cudaMallocManaged((void **)&chunk, sizeof(int)));
         overflow[0] = false;
         chunk[0] = HOSTCHUNK;
-
-        // chkerr(cudaMallocManaged((void **)&warpAssigned, sizeof(ui)));
-        // chkerr(cudaMallocManaged((void **)&warpCount, (N_WARPS+1) * sizeof(int)));
-        // chkerr(cudaMallocManaged((void **)&warpCountMoving, (N_WARPS+1) * sizeof(int)));
     }
     /**
      * @brief Swaps the reading and writing buffers
