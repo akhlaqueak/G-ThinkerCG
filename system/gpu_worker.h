@@ -115,7 +115,7 @@ public:
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
-        
+
         gc.init_level();
 
         auto tick = chrono::steady_clock::now();
@@ -152,7 +152,7 @@ public:
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
-        
+
         gc.init_level();
 
         auto tick = chrono::steady_clock::now();
@@ -166,7 +166,7 @@ public:
             gc.incrementLevel(); // switch Bwr => Brd
             dump_to_host();      // now dump Brd to host...
             gc.set_layered_mode();
-        show_progress("pingpong overflow done ");
+            show_progress("pingpong overflow done ");
             move_tasks_to_cpu();
             return false;
         }
