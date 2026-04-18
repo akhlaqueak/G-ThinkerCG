@@ -167,7 +167,7 @@ public:
             gc.incrementLevel(); // switch Bwr => Brd
             dump_to_host();      // now dump Brd to host...
             gc.set_layered_mode();
-            // move_tasks_to_cpu();
+            move_tasks_to_cpu();
             return false;
         }
         gc.incrementLevel();
@@ -202,7 +202,7 @@ public:
     }
     void move_tasks_to_cpu()
     {
-        // return; // disabling spilling...
+        return; // disabling spilling...
         if (workers_list.size() > num_cpu_workers / 2 and SC_size() < gpu_to_host_transfer_size_g)
         {
             if (gc.H.otail[0])
