@@ -229,6 +229,7 @@ public:
     }
 
     DEVHOST bool isOverflow(){
+        return false;
        return vtail[0] >= 0.9 * capacity[0] or otail[0] >= 0.9 * capacity[0];
     }
 
