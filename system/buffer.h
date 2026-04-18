@@ -278,13 +278,25 @@ public:
     {
         vertices[i] = src.vertices[j];
     }
+    void copy_host_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        if (len == 0)
+            return;
+        chkerr(cudaMemcpy(vertices + dst, src.vertices + src_st, sizeof(VertexID) * len, cudaMemcpyDeviceToHost));
+    }
+    void copy_host_to_device_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        if (len == 0)
+            return;
+        chkerr(cudaMemcpy(vertices + dst, src.vertices + src_st, sizeof(VertexID) * len, cudaMemcpyHostToDevice));
+    }
 
     void print(string msg)
     {
         if (empty())
             cout << msg << "- empty -"<<endl;
         else
-            cout << msg << (otail[0]-ohead[0])/3<<" tasks. ("<< ohead[0] << "-" << otail[0] << "-" << vtail[0] << ") " << endl;
+            cout << msg << (otail[0]-ohead[0])/3<<" tasks (oh:"<< ohead[0] << " ot:" << otail[0] << " vt:" << vtail[0] << ") " << endl;
     }
 
     __device__ ull append_batch(ull sglen, ui num, StoreStrategy mode)

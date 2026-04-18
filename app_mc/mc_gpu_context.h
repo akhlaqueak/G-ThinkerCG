@@ -30,6 +30,20 @@ public:
         BufferBase::copy(src, i, j);
         labels[i] = src.labels[j];
     }
+    void copy_host_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        BufferBase::copy_host_range(src, dst, src_st, len);
+        if (len == 0)
+            return;
+        chkerr(cudaMemcpy(labels + dst, src.labels + src_st, sizeof(Label) * len, cudaMemcpyDeviceToHost));
+    }
+    void copy_host_to_device_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        BufferBase::copy_host_to_device_range(src, dst, src_st, len);
+        if (len == 0)
+            return;
+        chkerr(cudaMemcpy(labels + dst, src.labels + src_st, sizeof(Label) * len, cudaMemcpyHostToDevice));
+    }
     /**
      * @brief This version is used to allocate memory on host. Call it only for HOST_BUFF_SZ
      *

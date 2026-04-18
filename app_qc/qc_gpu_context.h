@@ -43,6 +43,26 @@ public:
         exdeg[i] = src.exdeg[j];
         lvl2adj[i] = src.lvl2adj[j];
     }
+    void copy_host_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        BufferBase::copy_host_range(src, dst, src_st, len);
+        if (len == 0)
+            return;
+        chkerr(cudaMemcpy(label + dst, src.label + src_st, sizeof(Label) * len, cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(indeg + dst, src.indeg + src_st, sizeof(int) * len, cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(exdeg + dst, src.exdeg + src_st, sizeof(int) * len, cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(lvl2adj + dst, src.lvl2adj + src_st, sizeof(int) * len, cudaMemcpyDeviceToHost));
+    }
+    void copy_host_to_device_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        BufferBase::copy_host_to_device_range(src, dst, src_st, len);
+        if (len == 0)
+            return;
+        chkerr(cudaMemcpy(label + dst, src.label + src_st, sizeof(Label) * len, cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(indeg + dst, src.indeg + src_st, sizeof(int) * len, cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(exdeg + dst, src.exdeg + src_st, sizeof(int) * len, cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(lvl2adj + dst, src.lvl2adj + src_st, sizeof(int) * len, cudaMemcpyHostToDevice));
+    }
     /**
      * @brief This version is used to allocate memory on host. Call it only for HOST_BUFF_SZ
      *

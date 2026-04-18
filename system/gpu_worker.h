@@ -77,8 +77,7 @@ public:
         {
             if (not gc.H.empty())
             {
-                loadFromHost<<<BLK_NUMS, BLK_DIM>>>(gc);
-                deviceSynch();
+                load_from_host();
                 move_tasks_to_cpu();
             }
             else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
@@ -182,8 +181,60 @@ public:
     void dump_to_host()
     {
         show_progress(" ** host dump ** ");
-        dumpToHost<<<BLK_NUMS, BLK_DIM>>>(gc);
-        deviceSynch();
+        if (gc.Brd.empty())
+            return;
+
+        const ull src_ohead = gc.Brd.ohead[0];
+        const ull src_otail = gc.Brd.otail[0];
+        const ull offset_count = src_otail - src_ohead;
+
+        if (offset_count == 0)
+            return;
+
+        ull *offsets = new ull[offset_count];
+        chkerr(cudaMemcpy(offsets, gc.Brd.offsets + src_ohead, sizeof(ull) * offset_count, cudaMemcpyDeviceToHost));
+
+        for (ull i = 0; i < offset_count; i += 3)
+        {
+            const ull src_vstart = offsets[i];
+            const ull src_vend = offsets[i + 2];
+            const ull sglen = src_vend - src_vstart;
+            ull dst_vstart = gc.H.append_host(sglen);
+            gc.H.copy_host_range(gc.Brd, dst_vstart, src_vstart, sglen);
+        }
+        delete[] offsets;
+    }
+
+    void load_from_host()
+    {
+        if (gc.H.empty())
+            return;
+
+        const ull src_ohead = gc.H.ohead[0];
+        const ull src_otail = gc.H.otail[0];
+        const ull available_tasks = (src_otail - src_ohead) / 3;
+
+        if (available_tasks == 0)
+            return;
+
+        const ull tasks_to_load = std::min<ull>(eta, available_tasks);
+        const ull offset_count = tasks_to_load * 3;
+        const ull offsets_start = src_otail - offset_count;
+
+        ull *offsets = new ull[offset_count];
+        std::copy(gc.H.offsets + offsets_start, gc.H.offsets + src_otail, offsets);
+
+        for (ull i = offset_count; i > 0; i -= 3)
+        {
+            const ull idx = i - 3;
+            SubgraphOffsets so{offsets[idx], offsets[idx + 1], offsets[idx + 2]};
+            const ull sglen = so.en - so.st;
+            ull dst_vstart = gc.Bwr.append_host_to_device(sglen, so.md == 0 ? 0 : so.md - so.st).st;
+            gc.Bwr.copy_host_to_device_range(gc.H, dst_vstart, so.st, sglen);
+        }
+
+        gc.H.otail[0] = offsets_start;
+        delete[] offsets;
     }
 
     void show_progress(std::string msg = "Progress Report")
