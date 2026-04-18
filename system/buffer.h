@@ -110,7 +110,7 @@ public:
             ull ot = atomicAdd(otail, 3);
             vt = atomicAdd(vtail, sglen);
             atomicAdd(n_tasks_proc, 1);
-            if (vtail[0] >= 0.9 * capacity[0] or otail[0] >= 0.9 * capacity[0])
+            if (ot >= 0.9 * capacity[0] or vt >= 0.9 * capacity[0])
                 overflow[0] = true;
 
             // if it's a host buffer
