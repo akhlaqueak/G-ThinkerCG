@@ -187,21 +187,38 @@ public:
         const ull src_ohead = gc.Brd.ohead[0];
         const ull src_otail = gc.Brd.otail[0];
         const ull offset_count = src_otail - src_ohead;
-        cout<<"moving D->H: "<<offset_count/3<<endl;
+        cout << "moving D->H: " << offset_count / 3 << endl;
         if (offset_count == 0)
             return;
 
         ull *offsets = new ull[offset_count];
         chkerr(cudaMemcpy(offsets, gc.Brd.offsets + src_ohead, sizeof(ull) * offset_count, cudaMemcpyDeviceToHost));
 
+        ull min_src_vstart = offsets[0];
+        ull max_src_vend = offsets[2];
+        for (ull i = 3; i < offset_count; i += 3)
+        {
+            min_src_vstart = std::min(min_src_vstart, offsets[i]);
+            max_src_vend = std::max(max_src_vend, offsets[i + 2]);
+        }
+
+        const ull dst_vstart = gc.H.vtail[0];
+        const ull total_vertices = max_src_vend - min_src_vstart;
+
         for (ull i = 0; i < offset_count; i += 3)
         {
-            const ull src_vstart = offsets[i];
-            const ull src_vend = offsets[i + 2];
-            const ull sglen = src_vend - src_vstart;
-            ull dst_vstart = gc.H.append_host(sglen);
-            gc.H.copy_host_range(gc.Brd, dst_vstart, src_vstart, sglen);
+            const ull sg_st = offsets[i];
+            const ull sg_md = offsets[i + 1];
+            const ull sg_en = offsets[i + 2];
+
+            gc.H.offsets[gc.H.otail[0]] = dst_vstart + (sg_st - min_src_vstart);
+            gc.H.offsets[gc.H.otail[0] + 1] = (sg_md == 0) ? 0 : dst_vstart + (sg_md - min_src_vstart);
+            gc.H.offsets[gc.H.otail[0] + 2] = dst_vstart + (sg_en - min_src_vstart);
+            gc.H.otail[0] += 3;
         }
+
+        gc.H.copy_host_range(gc.Brd, dst_vstart, min_src_vstart, total_vertices);
+        gc.H.vtail[0] += total_vertices;
         delete[] offsets;
     }
 
