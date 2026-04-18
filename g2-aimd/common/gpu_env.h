@@ -11,7 +11,8 @@
 // P100
 // #define BLK_NUMS 56
 // #define BLK_DIM 1024
-// // A100
+
+// A100
 #define BLK_NUMS 108 
 #define BLK_DIM 1024
 

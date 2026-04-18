@@ -373,9 +373,7 @@ public:
     {
         while (true)
         {
-
-            // if (isLevelFilled()) // source only
-            if (isLevelFilled()) // dst or both
+            if (isLevelFilled()) 
                 break;
             SubgraphOffsets so = Brd.next();
             if (so.empty())
