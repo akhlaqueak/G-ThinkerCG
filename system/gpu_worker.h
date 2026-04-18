@@ -69,8 +69,8 @@ public:
         this->Lv.clear();
         this->Lt.clear();
         Timer prog_trigger;
-        gc.set_ping_pong_mode();
-        // gc.set_layered_mode();
+        // gc.set_ping_pong_mode();
+        gc.set_layered_mode();
         while (true)
         {
             if (not gc.H.empty())
