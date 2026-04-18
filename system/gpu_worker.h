@@ -79,7 +79,7 @@ public:
                 deviceSynch();
                 move_tasks_to_cpu();
             }
-            else if ((!gc.topLevelWorkExist()) && gc.Brd.empty())
+            else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
                 break;
             if (gc.sources_num[0] > 0)
             {
@@ -145,12 +145,13 @@ public:
     {
         gc.resetLevel();
         gc.init_level();
-        show_progress(" ** ping pong ** ");
+        show_progress(" before ");
         // cout<<gc.Brd.size()<<endl;
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
-
         deviceSynch();
+        
+        show_progress(" after ");
 
         if (gc.isOverflow())
         {
