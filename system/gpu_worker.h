@@ -57,7 +57,7 @@ public:
             gc.sources_num[0] = 0;
         if (this->Lv.size())
         {
-            cout<<"Lv: "<<this->Lv.size()<<endl;
+            cout << "Lv: " << this->Lv.size() << endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
         else
@@ -69,8 +69,10 @@ public:
         this->Lv.clear();
         this->Lt.clear();
         Timer prog_trigger;
-        // gc.set_ping_pong_mode();
-        gc.set_layered_mode();
+        if (ping_pong)
+            gc.set_ping_pong_mode();
+        else
+            gc.set_layered_mode();
         while (true)
         {
             if (not gc.H.empty())
@@ -150,16 +152,16 @@ public:
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
-        
+
         show_progress(" after ");
 
         if (gc.isOverflow())
         {
-            dump_to_host();// dumps remaining unxpanded Brd tasks to H
+            dump_to_host();      // dumps remaining unxpanded Brd tasks to H
             gc.incrementLevel(); // switch Bwr => Brd
-            dump_to_host();// now dump Brd to host... 
+            dump_to_host();      // now dump Brd to host...
             gc.set_layered_mode();
-            move_tasks_to_cpu(); 
+            move_tasks_to_cpu();
             return false;
         }
         gc.incrementLevel();
@@ -170,9 +172,8 @@ public:
         return true;
     }
 
-
     void dump_to_host()
-    {        
+    {
         show_progress(" ** host dump ** ");
         dumpToHost<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
