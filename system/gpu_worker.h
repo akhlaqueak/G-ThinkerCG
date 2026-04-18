@@ -129,6 +129,9 @@ public:
             {
                 dump_to_host();
                 move_tasks_to_cpu();
+                if (!gc.decrementLevel())
+                    return false;
+                show_progress(" ** dump done ** ");
             }
         }
         else if (gc.Brd.empty())
@@ -215,7 +218,6 @@ public:
         gc.H.copy_host_range(gc.Brd, dst_vstart, min_src_vstart, total_vertices);
         gc.H.vtail[0] += total_vertices;
         delete[] offsets;
-        show_progress(" ** dump complete ** ");
     }
 
     void load_from_host()
