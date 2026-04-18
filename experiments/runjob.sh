@@ -12,10 +12,7 @@
 
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_dir="$(cd "$script_dir/.." && pwd)"
-cd "$repo_dir"
-mkdir -p "$script_dir/logs"
+mkdir -p "logs"
 
 datasets="wikipedia_link_sr
 wikipedia_link_sh
