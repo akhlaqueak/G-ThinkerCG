@@ -241,16 +241,42 @@ public:
         ull *offsets = new ull[offset_count];
         std::copy(gc.H.offsets + offsets_start, gc.H.offsets + src_otail, offsets);
 
+        ull min_src_vstart = offsets[0];
+        ull max_src_vend = offsets[2];
+        for (ull i = 3; i < offset_count; i += 3)
+        {
+            min_src_vstart = std::min(min_src_vstart, offsets[i]);
+            max_src_vend = std::max(max_src_vend, offsets[i + 2]);
+        }
+
+        const ull total_vertices = max_src_vend - min_src_vstart;
+        const ull dst_otail = gc.Bwr.otail[0];
+        const ull dst_vstart = gc.Bwr.vtail[0];
+
+        if (dst_otail + offset_count > gc.Bwr.capacity[0] || dst_vstart + total_vertices > gc.Bwr.capacity[0])
+            throw std::runtime_error("Device buffer overflow");
+
+        ull *translated_offsets = new ull[offset_count];
+        ull write_idx = 0;
         for (ull i = offset_count; i > 0; i -= 3)
         {
             const ull idx = i - 3;
-            SubgraphOffsets so{offsets[idx], offsets[idx + 1], offsets[idx + 2]};
-            const ull sglen = so.en - so.st;
-            ull dst_vstart = gc.Bwr.append_host_to_device(sglen, so.md == 0 ? 0 : so.md - so.st).st;
-            gc.Bwr.copy_host_to_device_range(gc.H, dst_vstart, so.st, sglen);
+            const ull sg_st = offsets[idx];
+            const ull sg_md = offsets[idx + 1];
+            const ull sg_en = offsets[idx + 2];
+
+            translated_offsets[write_idx] = dst_vstart + (sg_st - min_src_vstart);
+            translated_offsets[write_idx + 1] = (sg_md == 0) ? 0 : dst_vstart + (sg_md - min_src_vstart);
+            translated_offsets[write_idx + 2] = dst_vstart + (sg_en - min_src_vstart);
+            write_idx += 3;
         }
 
+        chkerr(cudaMemcpy(gc.Bwr.offsets + dst_otail, translated_offsets, sizeof(ull) * offset_count, cudaMemcpyHostToDevice));
+        gc.Bwr.copy_host_to_device_range(gc.H, dst_vstart, min_src_vstart, total_vertices);
+        gc.Bwr.otail[0] = dst_otail + offset_count;
+        gc.Bwr.vtail[0] = dst_vstart + total_vertices;
         gc.H.otail[0] = offsets_start;
+        delete[] translated_offsets;
         delete[] offsets;
     }
 
