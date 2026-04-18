@@ -144,6 +144,7 @@ public:
     {
         gc.resetLevel();
         gc.init_level();
+        show_progress(" ** ping pong ** ");
         // cout<<gc.Brd.size()<<endl;
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
