@@ -120,14 +120,15 @@ public:
             // if it's a host buffer
             if (capacity[0] == HOST_BUFF_SZ)
             {
-                assert(ot + 3 < HOST_OFFSET_SZ && vt + sglen < capacity[0]);
+                assert(ot + 3 < HOST_OFFSET_SZ)
+                assert(vt + sglen < capacity[0]);
                 // printf("Host overflow\n");
             }
             else
             {
                 // this is device buffer
-                assert(vt + sglen < capacity[0]);
                 assert(ot + 3 < capacity[0]);
+                assert(vt + sglen < capacity[0]);
             }
             offsets[ot] = vt;
             offsets[ot + 1] = md;
