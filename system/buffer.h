@@ -252,11 +252,10 @@ public:
         ohead[0] = 0;
     }
 
-    void reset_pointers(bool sb = false)
+    void reset_pointers()
     {
-        if (sb or second_buffer)
+        if (second_buffer)
         {
-            second_buffer = true;
             otail[0] = capacity[0] / 2;
             vtail[0] = capacity[0] / 2;
             ohead[0] = capacity[0] / 2;

@@ -72,9 +72,6 @@ public:
         Bwr.allocatePtrs();
         Brd.allocatePtrs();
 
-        Brd.capacity[0] = sz / 2;
-        Bwr.capacity[0] = sz;
-        Bwr.reset_pointers(true); // Bwr is the second buffer, its starting point is sz/2
         // this version allocates on host memory
         H.allocateMemory();
         chkerr(cudaMemAdvise(H.offsets, sizeof(ull) * HOST_OFFSET_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
@@ -154,14 +151,31 @@ public:
         return Bwr.isOverflow();
     }
 
-    void change_expansion_mode()
+    void set_ping_pong_mode()
+    {
+        ping_pong_mode = true;  
+
+        Brd.capacity[0] = sz / 2;
+        Bwr.capacity[0] = sz;
+
+        Brd.second_buffer = false;
+        Bwr.second_buffer = true;
+
+        Bwr.reset_pointers(); // Bwr is the second buffer, its starting point is sz/2
+        Brd.reset_pointers();
+    }
+    void clear_ping_pong_mode()
     {
         ping_pong_mode = false;
-        Brd.capacity[0] = Bwr.capacity[0] = B.capacity[0];
 
+        Brd.capacity[0] = sz;
+        Bwr.capacity[0] = sz;
+
+        Brd.second_buffer = false;
+        Bwr.second_buffer = false;
+        
         Brd.reset_pointers();
         Bwr.reset_pointers();
-
         resetLevel();
     }
 
