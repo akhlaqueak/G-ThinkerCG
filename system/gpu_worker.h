@@ -215,6 +215,7 @@ public:
         gc.H.copy_host_range(gc.Brd, dst_vstart, min_src_vstart, total_vertices);
         gc.H.vtail[0] += total_vertices;
         delete[] offsets;
+        show_progress(" ** dump complete ** ");
     }
 
     void load_from_host()
