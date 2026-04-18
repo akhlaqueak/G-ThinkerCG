@@ -25,7 +25,7 @@ public:
     DEVHOST SubgraphOffsets() : st(0), md(0), en(0) {}
     DEVHOST bool empty()
     {
-        return st == 0 && md == 0 && en ==0;
+        return st == 0 && md == 0 && en == 0;
     }
 };
 
@@ -41,8 +41,8 @@ public:
     ull *ohead;
     ull *capacity;
     ui *n_tasks_proc;
-    bool second_buffer = false; // the second buffer in ping-pong mode. 
-
+    bool second_buffer = false; // the second buffer in ping-pong mode.
+    volatile bool *overflow;
 
     static ull sizeOf()
     {
@@ -56,7 +56,9 @@ public:
     {
         chkerr(cudaMallocManaged((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
         chkerr(cudaMallocManaged((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
-        // todo HOST_BUFF_SZ should be small in final release
+        chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
+        overflow[0] = false;
+
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;
         n_tasks_proc[0] = 0;
@@ -72,7 +74,6 @@ public:
         capacity[0] = sz;
         std::cout << "Device allocated Buffer: " << capacity[0] << std::endl;
     }
-
 
     ull append_host(ull sglen, ull md = 0)
     {
@@ -111,6 +112,9 @@ public:
             ull ot = atomicAdd(otail, 3);
             vt = atomicAdd(vtail, sglen);
             atomicAdd(n_tasks_proc, 1);
+            if (vtail[0] >= 0.9 * capacity[0] or otail[0] >= 0.9 * capacity[0])
+                overflow[0] = true;
+
             // if it's a host buffer
             if (capacity[0] == HOST_BUFF_SZ)
             {
@@ -216,9 +220,11 @@ public:
         return (ohead[0] >= otail[0]);
     }
 
-    ull size(){
-        if(empty()) return 0;
-        return (otail[0]-ohead[0])/3;
+    ull size()
+    {
+        if (empty())
+            return 0;
+        return (otail[0] - ohead[0]) / 3;
     }
 
     void clear()
@@ -228,9 +234,10 @@ public:
         ohead[0] = 0;
     }
 
-    DEVHOST bool isOverflow(){
-        return false;
-       return vtail[0] >= 0.9 * capacity[0] or otail[0] >= 0.9 * capacity[0];
+    DEVHOST bool isOverflow()
+    {
+        return overflow[0];
+        // return vtail[0] >= 0.9 * capacity[0] or otail[0] >= 0.9 * capacity[0];
     }
 
     void allocatePtrs()
@@ -244,15 +251,18 @@ public:
         vtail[0] = 0;
         ohead[0] = 0;
     }
-    
-    void reset_pointers(bool sb=false){
-        if(sb or second_buffer){
+
+    void reset_pointers(bool sb = false)
+    {
+        if (sb or second_buffer)
+        {
             second_buffer = true;
-            otail[0] = capacity[0]/2;
-            vtail[0] = capacity[0]/2;
-            ohead[0] = capacity[0]/2;
+            otail[0] = capacity[0] / 2;
+            vtail[0] = capacity[0] / 2;
+            ohead[0] = capacity[0] / 2;
         }
-        else{
+        else
+        {
             otail[0] = 0;
             vtail[0] = 0;
             ohead[0] = 0;
@@ -265,7 +275,7 @@ public:
 
     void print(string msg)
     {
-        cout << msg << ohead[0] << "-" << otail[0] << "-" << vtail[0] << " "<<endl;
+        cout << msg << ohead[0] << "-" << otail[0] << "-" << vtail[0] << " " << endl;
     }
 
     __device__ ull append_batch(ull sglen, ui num, StoreStrategy mode)
@@ -294,7 +304,7 @@ public:
             if (LANEID == 0)
             {
                 ot = atomicAdd(otail, 3);
-                vt = atomicAdd(vtail, sglen + num); 
+                vt = atomicAdd(vtail, sglen + num);
                 atomicAdd(n_tasks_proc, num);
 
                 offsets[ot] = vt;
@@ -310,7 +320,6 @@ public:
             return 0;
         }
     }
-
 };
 
 #endif

@@ -99,6 +99,7 @@ public:
     }
     void incrementLevel()
     {
+        Bwr.overflow[0]=false;
         if (ping_pong_mode)
         {
             swap_buffers();
