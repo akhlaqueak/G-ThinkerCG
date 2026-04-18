@@ -110,8 +110,7 @@ public:
     bool layered_mode_expansion()
     {
         gc.resetLevel();
-        // cout<<gc.Brd.size()<<endl;
-        show_progress("layered before ");
+        // show_progress("layered before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
@@ -120,12 +119,8 @@ public:
 
         auto tick = chrono::steady_clock::now();
         deviceSynch();
-        show_progress("layered after ");
+        // show_progress("layered after ");
 
-        // if (prog_trigger.elapsed() / 1e6 > 10)
-        // {
-        //     prog_trigger.restart();
-        // }
 
         if (!gc.Bwr.empty())
         {
