@@ -88,7 +88,15 @@ public:
     {
         Brd.n_tasks_proc[0] = 0;
         Bwr.n_tasks_proc[0] = 0;
+        
+        Brd.eta_filled[0] = false;
+        Bwr.eta_filled[0] = false;
+
+        Brd.overflow[0] = false;
+        Bwr.overflow[0] = false;
+
         H.n_tasks_proc[0] = 0;
+
     }
     void swap_buffers()
     {
@@ -96,14 +104,13 @@ public:
     }
     void incrementLevel()
     {
-        Bwr.overflow[0]=false;
+        resetLevel();
         if (ping_pong_mode)
         {
             swap_buffers();
             Bwr.reset_pointers();
             return;
         }
-        resetLevel();
         if (!Brd.empty())
             SL.push({Brd.ohead[0], Brd.otail[0], Brd.vtail[0]});
 

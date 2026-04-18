@@ -43,6 +43,7 @@ public:
     ui *n_tasks_proc;
     bool second_buffer = false; // the second buffer in ping-pong mode.
     volatile bool *overflow;
+    volatile bool *eta_filled;
 
     static ull sizeOf()
     {
@@ -109,9 +110,12 @@ public:
         {
             ull ot = atomicAdd(otail, 3);
             vt = atomicAdd(vtail, sglen);
-            atomicAdd(n_tasks_proc, 1);
+            ui et = atomicAdd(n_tasks_proc, 1);
             if (ot >= 0.9 * capacity[0] or vt >= 0.9 * capacity[0])
                 overflow[0] = true;
+
+            if (et > eta)
+                eta_filled[0] = true;
 
             // if it's a host buffer
             if (capacity[0] == HOST_BUFF_SZ)
@@ -245,8 +249,10 @@ public:
         chkerr(cudaMallocManaged((void **)&ohead, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&capacity, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&n_tasks_proc, sizeof(ui)));
-                chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
+        chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
+        chkerr(cudaMallocManaged((void **)&eta_filled, sizeof(bool)));
         overflow[0] = false;
+        eta_filled[0] = false;
         otail[0] = 0;
         vtail[0] = 0;
         ohead[0] = 0;
