@@ -120,7 +120,7 @@ public:
             // if it's a host buffer
             if (capacity[0] == HOST_BUFF_SZ)
             {
-                assert(ot + 3 < HOST_OFFSET_SZ)
+                assert(ot + 3 < HOST_OFFSET_SZ);
                 assert(vt + sglen < capacity[0]);
                 // printf("Host overflow\n");
             }
