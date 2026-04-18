@@ -79,7 +79,7 @@ public:
                 deviceSynch();
                 move_tasks_to_cpu();
             }
-            else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
+            else if ((!gc.topLevelWorkExist()) && gc.Brd.empty())
                 break;
             if (gc.sources_num[0] > 0)
             {
