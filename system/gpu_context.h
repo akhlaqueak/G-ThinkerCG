@@ -155,25 +155,25 @@ public:
     {
         ping_pong_mode = true;  
 
-        Brd.capacity[0] = sz / 2;
-        Bwr.capacity[0] = sz;
+        Brd.capacity[0] = B.capacity[0] / 2;
+        Bwr.capacity[0] = B.capacity[0];
 
         Brd.second_buffer = false;
         Bwr.second_buffer = true;
 
-        Bwr.reset_pointers(); // Bwr is the second buffer, its starting point is sz/2
+        Bwr.reset_pointers(); // Bwr is the second buffer, its starting point is B.capacity[0]/2
         Brd.reset_pointers();
     }
     void clear_ping_pong_mode()
     {
         ping_pong_mode = false;
 
-        Brd.capacity[0] = sz;
-        Bwr.capacity[0] = sz;
+        Brd.capacity[0] = B.capacity[0];
+        Bwr.capacity[0] = B.capacity[0];
 
         Brd.second_buffer = false;
         Bwr.second_buffer = false;
-        
+
         Brd.reset_pointers();
         Bwr.reset_pointers();
         resetLevel();
