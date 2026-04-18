@@ -100,7 +100,7 @@ public:
                 }
                 else
                 {
-                    bool next_expansion = leveled_mode_expansion();
+                    bool next_expansion = layered_mode_expansion();
                     if (!next_expansion)
                         break;
                 }
@@ -108,7 +108,7 @@ public:
         }
     }
 
-    bool leveled_mode_expansion()
+    bool layered_mode_expansion()
     {
         gc.resetLevel();
         // cout<<gc.Brd.size()<<endl;
