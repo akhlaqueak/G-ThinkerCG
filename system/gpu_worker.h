@@ -112,7 +112,7 @@ public:
     {
         gc.resetLevel();
         // cout<<gc.Brd.size()<<endl;
-        // show_progress("layered before ");
+        show_progress("layered before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
@@ -121,7 +121,7 @@ public:
 
         auto tick = chrono::steady_clock::now();
         deviceSynch();
-        // show_progress("layered after ");
+        show_progress("layered after ");
 
         // if (prog_trigger.elapsed() / 1e6 > 10)
         // {
@@ -149,7 +149,7 @@ public:
     {
         gc.resetLevel();
         // cout<<gc.Brd.size()<<endl;
-        // show_progress("pingpong before ");
+        show_progress("pingpong before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
@@ -159,7 +159,7 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        // show_progress("pingpong after ");
+        show_progress("pingpong after ");
 
         if (gc.isOverflow())
         {
