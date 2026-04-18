@@ -50,7 +50,7 @@ public:
     void allocateMemory()
     {
         BufferBase::allocateMemory();
-        chkerr(cudaMallocManaged((void **)&labels, HOST_BUFF_SZ * sizeof(Label)));
+        chkerr(cudaMallocHost((void **)&labels, HOST_BUFF_SZ * sizeof(Label)));
     }
 };
 

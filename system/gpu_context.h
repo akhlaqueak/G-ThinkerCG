@@ -20,7 +20,7 @@ public:
     bool ping_pong_mode = true;
 
     // memory is allocated only to B and H buffers, Brd, Bwr are just pointers hovering over B
-    // managed memory for H
+    // host spill buffer
     BufferT B;
     BufferT H;
 
@@ -72,10 +72,8 @@ public:
         Bwr.allocatePtrs();
         Brd.allocatePtrs();
 
-        // this version allocates on host memory
+        // this version allocates pinned host memory
         H.allocateMemory();
-        // chkerr(cudaMemAdvise(H.offsets, sizeof(ull) * HOST_OFFSET_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
-        // chkerr(cudaMemAdvise(H.vertices, sizeof(VertexID) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
     }
 
     void move_vertices_to_gpu(vector<ui> &data_items)

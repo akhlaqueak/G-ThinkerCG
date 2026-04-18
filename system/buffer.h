@@ -55,10 +55,10 @@ public:
      */
     void allocateMemory()
     {
-        chkerr(cudaMallocManaged((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
-        chkerr(cudaMallocManaged((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
+        chkerr(cudaMallocHost((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
+        chkerr(cudaMallocHost((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
 
-        allocatePtrs();
+        allocateHostPtrs();
         capacity[0] = HOST_BUFF_SZ;
         n_tasks_proc[0] = 0;
         std::cout << "Host allocated Buffer: " << capacity[0] << std::endl;
@@ -252,6 +252,21 @@ public:
         chkerr(cudaMallocManaged((void **)&n_tasks_proc, sizeof(ui)));
         chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
         chkerr(cudaMallocManaged((void **)&eta_filled, sizeof(bool)));
+        overflow[0] = false;
+        eta_filled[0] = false;
+        otail[0] = 0;
+        vtail[0] = 0;
+        ohead[0] = 0;
+    }
+    void allocateHostPtrs()
+    {
+        chkerr(cudaMallocHost((void **)&otail, sizeof(ull)));
+        chkerr(cudaMallocHost((void **)&vtail, sizeof(ull)));
+        chkerr(cudaMallocHost((void **)&ohead, sizeof(ull)));
+        chkerr(cudaMallocHost((void **)&capacity, sizeof(ull)));
+        chkerr(cudaMallocHost((void **)&n_tasks_proc, sizeof(ui)));
+        chkerr(cudaMallocHost((void **)&overflow, sizeof(bool)));
+        chkerr(cudaMallocHost((void **)&eta_filled, sizeof(bool)));
         overflow[0] = false;
         eta_filled[0] = false;
         otail[0] = 0;
