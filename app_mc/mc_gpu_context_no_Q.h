@@ -426,9 +426,9 @@ public:
         for (ui i = st; i < en; i ++)
         {
             if (Brd.labels[i] == Q)
-                // if (isOverflow())
-                //     generateSubgraphs(so, Brd.vertices[i], H);
-                // else
+                if (isOverflow())
+                    generateSubgraphs(so, Brd.vertices[i], H);
+                else
                     generateSubgraphs(so, Brd.vertices[i], Bwr);
         }
     }
