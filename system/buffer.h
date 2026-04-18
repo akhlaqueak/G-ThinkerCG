@@ -240,9 +240,10 @@ public:
     DEVHOST bool isOverflow()
     {
         return overflow[0];
-        // return vtail[0] >= 0.9 * capacity[0] or otail[0] >= 0.9 * capacity[0];
     }
-
+    bool isApprochingEnd(){
+        return vtail[0] >= 0.8 * capacity[0] or otail[0] >= 0.8 * capacity[0];
+    }
     void allocatePtrs()
     {
         chkerr(cudaMallocManaged((void **)&otail, sizeof(ull)));

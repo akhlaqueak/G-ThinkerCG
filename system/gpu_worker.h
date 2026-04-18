@@ -130,7 +130,7 @@ public:
         if (!gc.Bwr.empty())
         {
             gc.incrementLevel();
-            if (gc.isOverflow())
+            if (gc.isOverflow() or gc.Bwr.isApprochingEnd())
             {
                 dump_to_host();
                 move_tasks_to_cpu();
