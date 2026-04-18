@@ -164,7 +164,7 @@ public:
         Bwr.reset_pointers(); // Bwr is the second buffer, its starting point is B.capacity[0]/2
         Brd.reset_pointers();
     }
-    void clear_ping_pong_mode()
+    void set_layered_mode()
     {
         ping_pong_mode = false;
 

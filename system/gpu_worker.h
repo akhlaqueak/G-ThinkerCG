@@ -69,7 +69,7 @@ public:
         this->Lv.clear();
         this->Lt.clear();
         Timer prog_trigger;
-        gc.ping_pong_mode = true;
+        gc.set_ping_pong_mode();
         while (true)
         {
             if (not gc.H.empty())
@@ -91,13 +91,13 @@ public:
             {
                 if (gc.ping_pong_mode)
                 {
-                    bool next_expansion = ping_pong_style_expansion();
+                    bool next_expansion = ping_pong_mode_expansion();
                     if (!next_expansion)
                         break;
                 }
                 else
                 {
-                    bool next_expansion = level_style_expansion();
+                    bool next_expansion = leveled_mode_expansion();
                     if (!next_expansion)
                         break;
                 }
@@ -105,7 +105,7 @@ public:
         }
     }
 
-    bool level_style_expansion()
+    bool leveled_mode_expansion()
     {
         gc.resetLevel();
         // cout<<gc.Brd.size()<<endl;
@@ -140,7 +140,7 @@ public:
         return true;
     }
 
-    bool ping_pong_style_expansion()
+    bool ping_pong_mode_expansion()
     {
         gc.resetLevel();
         gc.init_level();
@@ -155,7 +155,7 @@ public:
             dump_to_host();// dumps remaining unxpanded Brd tasks to H
             gc.incrementLevel(); // switch Bwr => Brd
             dump_to_host();// now dump Brd to host... 
-            gc.change_expansion_mode();
+            gc.set_layered_mode();
             move_tasks_to_cpu(); 
             return false;
         }
