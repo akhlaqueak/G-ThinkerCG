@@ -112,14 +112,16 @@ public:
     {
         gc.resetLevel();
         // cout<<gc.Brd.size()<<endl;
+        show_progress("layered before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
-
         deviceSynch();
+        
         gc.init_level();
 
         auto tick = chrono::steady_clock::now();
         deviceSynch();
+        show_progress("layered after ");
 
         // if (prog_trigger.elapsed() / 1e6 > 10)
         // {
@@ -146,14 +148,18 @@ public:
     bool ping_pong_mode_expansion()
     {
         gc.resetLevel();
-        gc.init_level();
-        show_progress(" before ");
         // cout<<gc.Brd.size()<<endl;
+        show_progress("pingpong before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
+        
+        gc.init_level();
 
-        show_progress(" after ");
+        auto tick = chrono::steady_clock::now();
+        deviceSynch();
+
+        show_progress("pingpong after ");
 
         if (gc.isOverflow())
         {
