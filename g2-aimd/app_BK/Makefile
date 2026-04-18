@@ -6,6 +6,8 @@ P100_TARGET := run_p100
 PTXAS_P100_TARGET := run_ptxas_p100
 DEBUG_P100_TARGET := run_debug_p100
 SRC := main.cu
+DEPFLAGS := -MMD -MP
+DEPS := $(TARGET).d $(PTXAS_TARGET).d $(DEBUG_TARGET).d $(P100_TARGET).d $(PTXAS_P100_TARGET).d $(DEBUG_P100_TARGET).d
 INC := -I.. -I../third_party/MPMCQueue/include -I../third_party/bliss-0.73 -I../system/ -I../common
 CFLAGS := -std=c++20 -O3 -Xcompiler -fopenmp -lgomp -lpthread -DOPENMP
 PTXASFLAGS := -Xptxas -v -lineinfo
@@ -18,32 +20,34 @@ BLISS_LIB = -L${BLISS_DIR}/bliss -lbliss
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
+	$(NVCC) $(DEPFLAGS) -MF $@.d -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
 
 ptxas: $(PTXAS_TARGET)
 
 $(PTXAS_TARGET): $(SRC)
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
+	$(NVCC) $(DEPFLAGS) -MF $@.d -arch=sm_80 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
 
 debug: $(DEBUG_TARGET)
 
 $(DEBUG_TARGET): $(SRC)
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -g -G -Xcompiler -gdwarf-4 -o $@
+	$(NVCC) $(DEPFLAGS) -MF $@.d -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -g -G -Xcompiler -gdwarf-4 -o $@
 
 p100: $(P100_TARGET)
 
 $(P100_TARGET): $(SRC)
-	$(NVCC) -arch=sm_60 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
+	$(NVCC) $(DEPFLAGS) -MF $@.d -arch=sm_60 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
 
 ptxas_p100: $(PTXAS_P100_TARGET)
 
 $(PTXAS_P100_TARGET): $(SRC)
-	$(NVCC) -arch=sm_60 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
+	$(NVCC) $(DEPFLAGS) -MF $@.d -arch=sm_60 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $< -o $@
 
 debug_p100: $(DEBUG_P100_TARGET)
 
 $(DEBUG_P100_TARGET): $(SRC)
-	$(NVCC) -arch=sm_60 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -g -G -Xcompiler -gdwarf-4 -o $@
+	$(NVCC) $(DEPFLAGS) -MF $@.d -arch=sm_60 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $< -g -G -Xcompiler -gdwarf-4 -o $@
 
 clean:
-	rm -f $(TARGET) $(PTXAS_TARGET) $(DEBUG_TARGET) $(P100_TARGET) $(PTXAS_P100_TARGET) $(DEBUG_P100_TARGET)
+	rm -f $(TARGET) $(PTXAS_TARGET) $(DEBUG_TARGET) $(P100_TARGET) $(PTXAS_P100_TARGET) $(DEBUG_P100_TARGET) $(DEPS)
+
+-include $(DEPS)
