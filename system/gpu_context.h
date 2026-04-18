@@ -74,8 +74,8 @@ public:
 
         // this version allocates on host memory
         H.allocateMemory();
-        chkerr(cudaMemAdvise(H.offsets, sizeof(ull) * HOST_OFFSET_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
-        chkerr(cudaMemAdvise(H.vertices, sizeof(VertexID) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        // chkerr(cudaMemAdvise(H.offsets, sizeof(ull) * HOST_OFFSET_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        // chkerr(cudaMemAdvise(H.vertices, sizeof(VertexID) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
     }
 
     void move_vertices_to_gpu(vector<ui> &data_items)
