@@ -70,5 +70,5 @@ soc-pokec"
 
 ds_path="/home/akhlaque.ak@gmail.com/graphs/data/kcore"
 for ds in $datasets; do 
-    ./g2aimd -dg "$ds_path/$ds.bin" > "$script_dir/logs/$ds.log"
+    ./g2aimd -dg "$ds_path/$ds.bin" > "logs/$ds.log"
 done
