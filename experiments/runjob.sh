@@ -90,7 +90,7 @@ for ds in $datasets; do
     for algo in no-pingpong with-pingpong; do
         cliques=$(grep "Total count" "logs/$ds.$algo" | awk '{print $NF}')
         time_taken=$(grep "Total time" "logs/$ds.$algo" | awk '{print $NF}')
-        printf "%s %s" "$cliques" "$time_taken" >> "$output"
+        printf " %s %s" "$cliques" "$time_taken" >> "$output"
     done
     printf "\n" >> "$output"
 done

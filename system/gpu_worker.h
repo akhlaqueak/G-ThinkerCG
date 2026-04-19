@@ -121,7 +121,6 @@ public:
         deviceSynch();
         // show_progress("layered after ");
 
-
         if (!gc.Bwr.empty())
         {
             gc.incrementLevel();
@@ -252,7 +251,10 @@ public:
         const ull dst_vstart = gc.Bwr.vtail[0];
 
         if (dst_otail + offset_count > gc.Bwr.capacity[0] || dst_vstart + total_vertices > gc.Bwr.capacity[0])
+        {
+            cout << dst_otail << " " << offset_count << " " << gc.Bwr.capacity[0] << " " << dst_vstart << " " <<total_vertices << " "<< gc.Bwr.capacity[0] << endl;
             throw std::runtime_error("Device buffer overflow");
+        }
 
         ull *translated_offsets = new ull[offset_count];
         ull write_idx = 0;
