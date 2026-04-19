@@ -69,16 +69,28 @@ edit-mgwiktionary
 soc-pokec"
 
 ds_path="/home/akhlaque.ak@gmail.com/graphs/data/kcore"
-for ds in $datasets; do 
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 0 > "logs/$ds.no-pingpong" 2>&1 || rc=$?
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 > "logs/$ds.with-pingpong" 2>&1 || rc=$?
-    rc=${rc:-0}
-    if [ "$rc" -ne 0 ]; then
-        echo "Dataset failed: $ds (exit code: $rc)" | tee -a "logs/failed.log"
+mkdir -p logs
+: > logs/failed.log
+
+for ds in $datasets; do
+    rc_no_pingpong=0
+    rc_pingpong=0
+
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 0 \
+        > "logs/$ds.no-pingpong" 2>&1 || rc_no_pingpong=$?
+
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 \
+        > "logs/$ds.with-pingpong" 2>&1 || rc_pingpong=$?
+
+    if [ "$rc_no_pingpong" -ne 0 ]; then
+        echo "Dataset failed (no-pingpong): $ds (exit code: $rc_no_pingpong)" | tee -a "logs/failed.log"
     fi
 
-    unset rc
+    if [ "$rc_pingpong" -ne 0 ]; then
+        echo "Dataset failed (with-pingpong): $ds (exit code: $rc_pingpong)" | tee -a "logs/failed.log"
+    fi
 done
+
 
 output="results.txt"
 : > "$output"

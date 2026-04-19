@@ -44,6 +44,20 @@ public:
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols) = 0;
     virtual void initialize() = 0;
     virtual void init_level() {};
+    virtual ~GPUContext()
+    {
+        delete[] H.offsets;
+        delete[] H.vertices;
+
+        if (B.offsets)
+            chkerr(cudaFree(B.offsets));
+        if (B.vertices)
+            chkerr(cudaFree(B.vertices));
+        Bwr.offsets = nullptr;
+        Bwr.vertices = nullptr;
+        Brd.offsets = nullptr;
+        Brd.vertices = nullptr;
+    }
 
     bool topLevelWorkExist()
     {

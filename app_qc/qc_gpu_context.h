@@ -76,35 +76,6 @@ public:
         lvl2adj = new int[HOST_BUFF_SZ];
     }
 
-    void freeDeviceStorage()
-    {
-        BufferBase::freeDeviceStorage();
-        if (label)
-            chkerr(cudaFree(label));
-        if (indeg)
-            chkerr(cudaFree(indeg));
-        if (exdeg)
-            chkerr(cudaFree(exdeg));
-        if (lvl2adj)
-            chkerr(cudaFree(lvl2adj));
-        label = nullptr;
-        indeg = nullptr;
-        exdeg = nullptr;
-        lvl2adj = nullptr;
-    }
-
-    void freeHostStorage()
-    {
-        BufferBase::freeHostStorage();
-        delete[] label;
-        delete[] indeg;
-        delete[] exdeg;
-        delete[] lvl2adj;
-        label = nullptr;
-        indeg = nullptr;
-        exdeg = nullptr;
-        lvl2adj = nullptr;
-    }
 };
 
 class QCGPUContext : public GPUContext<QCBuffer, QCTask>
@@ -130,6 +101,30 @@ public:
     virtual void initialize()
     {
         this->dd = ::dd;
+    }
+
+    ~QCGPUContext()
+    {
+        delete[] H.label;
+        delete[] H.indeg;
+        delete[] H.exdeg;
+        delete[] H.lvl2adj;
+        if (B.label)
+            chkerr(cudaFree(B.label));
+        if (B.indeg)
+            chkerr(cudaFree(B.indeg));
+        if (B.exdeg)
+            chkerr(cudaFree(B.exdeg));
+        if (B.lvl2adj)
+            chkerr(cudaFree(B.lvl2adj));
+        Bwr.label = nullptr;
+        Bwr.indeg = nullptr;
+        Bwr.exdeg = nullptr;
+        Bwr.lvl2adj = nullptr;
+        Brd.label = nullptr;
+        Brd.indeg = nullptr;
+        Brd.exdeg = nullptr;
+        Brd.lvl2adj = nullptr;
     }
 
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)

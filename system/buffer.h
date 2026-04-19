@@ -58,7 +58,7 @@ public:
         offsets = new ull[HOST_OFFSET_SZ];
         vertices = new VertexID[HOST_BUFF_SZ];
 
-        allocateHostPtrs();
+        allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;
         n_tasks_proc[0] = 0;
         std::cout << "Host allocated Buffer: " << capacity[0] << std::endl;
@@ -241,7 +241,8 @@ public:
     {
         return overflow[0];
     }
-    bool isApprochingEnd(){
+    bool isApprochingEnd()
+    {
         return vtail[0] >= 0.8 * capacity[0] or otail[0] >= 0.8 * capacity[0];
     }
     void allocatePtrs()
@@ -259,83 +260,6 @@ public:
         vtail[0] = 0;
         ohead[0] = 0;
     }
-    void allocateHostPtrs()
-    {
-        otail = new ull[1];
-        vtail = new ull[1];
-        ohead = new ull[1];
-        capacity = new ull[1];
-        n_tasks_proc = new ui[1];
-        overflow = new bool[1];
-        eta_filled = new bool[1];
-        overflow[0] = false;
-        eta_filled[0] = false;
-        otail[0] = 0;
-        vtail[0] = 0;
-        ohead[0] = 0;
-    }
-
-    void freeDeviceStorage()
-    {
-        if (offsets)
-            chkerr(cudaFree(offsets));
-        if (vertices)
-            chkerr(cudaFree(vertices));
-        offsets = nullptr;
-        vertices = nullptr;
-    }
-
-    void freeHostStorage()
-    {
-        delete[] offsets;
-        delete[] vertices;
-        offsets = nullptr;
-        vertices = nullptr;
-    }
-
-    void freeManagedPtrs()
-    {
-        if (otail)
-            chkerr(cudaFree(otail));
-        if (vtail)
-            chkerr(cudaFree(vtail));
-        if (ohead)
-            chkerr(cudaFree(ohead));
-        if (capacity)
-            chkerr(cudaFree(capacity));
-        if (n_tasks_proc)
-            chkerr(cudaFree(n_tasks_proc));
-        if (overflow)
-            chkerr(cudaFree(const_cast<bool *>(overflow)));
-        if (eta_filled)
-            chkerr(cudaFree(const_cast<bool *>(eta_filled)));
-        otail = nullptr;
-        vtail = nullptr;
-        ohead = nullptr;
-        capacity = nullptr;
-        n_tasks_proc = nullptr;
-        overflow = nullptr;
-        eta_filled = nullptr;
-    }
-
-    void freeHostPtrs()
-    {
-        delete[] otail;
-        delete[] vtail;
-        delete[] ohead;
-        delete[] capacity;
-        delete[] n_tasks_proc;
-        delete[] const_cast<bool *>(overflow);
-        delete[] const_cast<bool *>(eta_filled);
-        otail = nullptr;
-        vtail = nullptr;
-        ohead = nullptr;
-        capacity = nullptr;
-        n_tasks_proc = nullptr;
-        overflow = nullptr;
-        eta_filled = nullptr;
-    }
-
     void reset_pointers()
     {
         if (second_buffer)
@@ -371,9 +295,9 @@ public:
     void print(string msg)
     {
         if (empty())
-            cout << msg << "- empty -"<<endl;
+            cout << msg << "- empty -" << endl;
         else
-            cout << msg << (otail[0]-ohead[0])/3<<" tasks (oh:"<< ohead[0] << " ot:" << otail[0] << " vt:" << vtail[0] << ") " << endl;
+            cout << msg << (otail[0] - ohead[0]) / 3 << " tasks (oh:" << ohead[0] << " ot:" << otail[0] << " vt:" << vtail[0] << ") " << endl;
     }
 
     __device__ ull append_batch(ull sglen, ui num, StoreStrategy mode)
