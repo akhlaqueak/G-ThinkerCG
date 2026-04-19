@@ -70,7 +70,8 @@ soc-pokec"
 
 ds_path="/home/akhlaque.ak@gmail.com/graphs/data/kcore"
 for ds in $datasets; do 
-    ./g2aimd -dg "$ds_path/$ds.bin" > "logs/$ds.log" 2>&1 || rc=$?
+    ./gthinker -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 0 > "logs/$ds.no-pingpong" 2>&1 || rc=$?
+    ./gthinker -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 > "logs/$ds.with-pingpong" 2>&1 || rc=$?
     rc=${rc:-0}
     if [ "$rc" -ne 0 ]; then
         echo "Dataset failed: $ds (exit code: $rc)" | tee -a "logs/failed.log"
@@ -82,8 +83,14 @@ done
 output="results.txt"
 : > "$output"
 
+rm $output
+
 for ds in $datasets; do
-    cliques=$(grep "Total No. of Cliques" "logs/$ds.log" | awk '{print $NF}')
-    time_taken=$(grep "finish Total time" "logs/$ds.log" | awk '{print $NF}')
-    printf "%s %s %s\n" "$ds" "$cliques" "$time_taken" >> "$output"
+    printf "%s " "$ds" >> "$output"
+    for algo in no-pingpong with-pingpong; do
+        cliques=$(grep "Total count" "logs/$ds.$algo" | awk '{print $NF}')
+        time_taken=$(grep "Total time" "logs/$ds.$algo" | awk '{print $NF}')
+        printf "%s %s" "$cliques" "$time_taken" >> "$output"
+    done
+    printf "\n" >> "$output"
 done
