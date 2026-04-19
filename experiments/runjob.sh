@@ -70,5 +70,10 @@ soc-pokec"
 
 ds_path="/home/akhlaque.ak@gmail.com/graphs/data/kcore"
 for ds in $datasets; do 
-    ./g2aimd -dg "$ds_path/$ds.bin" > "logs/$ds.log"
+    ./g2aimd -dg "$ds_path/$ds.bin" > "logs/$ds.log" 2>&1 || rc=$?
+    rc=${rc:-0}
+    if [ "$rc" -ne 0 ]; then
+        echo "Dataset failed: $ds (exit code: $rc)" | tee -a "logs/failed.log"
+    fi
+    unset rc
 done
