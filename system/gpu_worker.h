@@ -146,7 +146,7 @@ public:
     {
         gc.resetLevel();
         // cout<<gc.Brd.size()<<endl;
-        show_progress("pingpong before ");
+        // show_progress("pingpong before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
@@ -156,7 +156,7 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        show_progress("pingpong after ");
+        // show_progress("pingpong after ");
 
         if (gc.isOverflow())
         {
@@ -164,7 +164,7 @@ public:
             gc.incrementLevel(); // switch Bwr => Brd
             dump_to_host();      // now dump Brd to host...
             gc.set_layered_mode();
-            show_progress("pingpong overflow done ");
+            // show_progress("pingpong overflow done ");
             move_tasks_to_cpu();
             return false;
         }
