@@ -44,15 +44,20 @@ public:
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols) = 0;
     virtual void initialize() = 0;
     virtual void init_level() {};
-    virtual ~GPUContext()
+
+    void cleanup()
     {
         delete[] H.offsets;
         delete[] H.vertices;
+        H.offsets = nullptr;
+        H.vertices = nullptr;
 
         if (B.offsets)
             chkerr(cudaFree(B.offsets));
         if (B.vertices)
             chkerr(cudaFree(B.vertices));
+        B.offsets = nullptr;
+        B.vertices = nullptr;
         Bwr.offsets = nullptr;
         Bwr.vertices = nullptr;
         Brd.offsets = nullptr;

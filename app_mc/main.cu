@@ -54,6 +54,7 @@ public:
             {
                 res += gw->getContext()->get_results();
                 spilled_tasks = gw->spilled_tasks;
+                gw->getContext()->cleanup();
             }
 
             delete w;

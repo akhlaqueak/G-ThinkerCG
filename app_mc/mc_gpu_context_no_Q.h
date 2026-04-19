@@ -90,27 +90,35 @@ public:
             total_counts[i] = 0;
     }
 
-    ~MCGPUContext()
-    {
-        delete[] H.labels;
-        if (B.labels)
-            chkerr(cudaFree(B.labels));
-        if (tempv)
-            chkerr(cudaFree(tempv));
-        if (templ)
-            chkerr(cudaFree(templ));
-        if (total_counts)
-            chkerr(cudaFree(total_counts));
-        Bwr.labels = nullptr;
-        Brd.labels = nullptr;
-    }
-
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
         chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (data_graph.GetVertexCount() + 1)));
         chkerr(cudaMalloc(&(cols), sizeof(VertexID) * data_graph.GetEdgeCount()));
         cudaMemcpy(row_ptrs, data_graph.GetRowPtrs(), sizeof(ull) * (data_graph.GetVertexCount() + 1), cudaMemcpyHostToDevice);
         cudaMemcpy(cols, data_graph.GetCols(), sizeof(VertexID) * data_graph.GetEdgeCount(), cudaMemcpyHostToDevice);
+    }
+
+    void cleanup()
+    {
+        GPUContext<MCBuffer, MCTask>::cleanup();
+
+        delete[] H.labels;
+        H.labels = nullptr;
+        if (B.labels)
+            chkerr(cudaFree(B.labels));
+        B.labels = nullptr;
+        Bwr.labels = nullptr;
+        Brd.labels = nullptr;
+
+        if (tempv)
+            chkerr(cudaFree(tempv));
+        if (templ)
+            chkerr(cudaFree(templ));
+        if (total_counts)
+            chkerr(cudaFree(total_counts));
+        tempv = nullptr;
+        templ = nullptr;
+        total_counts = nullptr;
     }
 
     __device__ bool examineClique(SubgraphOffsets *so)

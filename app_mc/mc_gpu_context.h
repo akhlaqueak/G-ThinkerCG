@@ -96,11 +96,22 @@ public:
             total_counts[i] = 0;
     }
 
-    ~MCGPUContext()
+    virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
+    }
+
+    void cleanup()
+    {
+        GPUContext<MCBuffer, MCTask>::cleanup();
+
         delete[] H.labels;
+        H.labels = nullptr;
         if (B.labels)
             chkerr(cudaFree(B.labels));
+        B.labels = nullptr;
+        Bwr.labels = nullptr;
+        Brd.labels = nullptr;
+
         if (tempv)
             chkerr(cudaFree(tempv));
         if (templ)
@@ -113,12 +124,12 @@ public:
             chkerr(cudaFree(qtail));
         if (qhead)
             chkerr(cudaFree(qhead));
-        Bwr.labels = nullptr;
-        Brd.labels = nullptr;
-    }
-
-    virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
-    {
+        tempv = nullptr;
+        templ = nullptr;
+        total_counts = nullptr;
+        QBuff = nullptr;
+        qtail = nullptr;
+        qhead = nullptr;
     }
 
     __device__ bool examineClique(SubgraphOffsets *so)

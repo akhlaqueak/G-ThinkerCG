@@ -103,12 +103,23 @@ public:
         this->dd = ::dd;
     }
 
-    ~QCGPUContext()
+    virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
+    }
+
+    void cleanup()
+    {
+        GPUContext<QCBuffer, QCTask>::cleanup();
+
         delete[] H.label;
         delete[] H.indeg;
         delete[] H.exdeg;
         delete[] H.lvl2adj;
+        H.label = nullptr;
+        H.indeg = nullptr;
+        H.exdeg = nullptr;
+        H.lvl2adj = nullptr;
+
         if (B.label)
             chkerr(cudaFree(B.label));
         if (B.indeg)
@@ -117,6 +128,10 @@ public:
             chkerr(cudaFree(B.exdeg));
         if (B.lvl2adj)
             chkerr(cudaFree(B.lvl2adj));
+        B.label = nullptr;
+        B.indeg = nullptr;
+        B.exdeg = nullptr;
+        B.lvl2adj = nullptr;
         Bwr.label = nullptr;
         Bwr.indeg = nullptr;
         Bwr.exdeg = nullptr;
@@ -125,10 +140,6 @@ public:
         Brd.indeg = nullptr;
         Brd.exdeg = nullptr;
         Brd.lvl2adj = nullptr;
-    }
-
-    virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
-    {
     }
 
     __device__ bool d_build_initial_task(GPU_Data &dd, ull root_index, Warp_Data &wd, Local_Data &ld)
