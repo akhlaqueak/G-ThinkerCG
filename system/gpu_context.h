@@ -45,28 +45,6 @@ public:
     virtual void initialize() = 0;
     virtual void init_level() {};
 
-    virtual ~GPUContext()
-    {
-        B.freeDeviceStorage();
-        H.freeHostStorage();
-
-        B.freeManagedPtrs();
-        Bwr.freeManagedPtrs();
-        Brd.freeManagedPtrs();
-        H.freeHostPtrs();
-
-        if (v_proc)
-            chkerr(cudaFree(v_proc));
-        if (sources)
-            chkerr(cudaFree(sources));
-        if (sources_num)
-            chkerr(cudaFree(sources_num));
-        if (row_ptrs)
-            chkerr(cudaFree(row_ptrs));
-        if (cols)
-            chkerr(cudaFree(cols));
-    }
-
     bool topLevelWorkExist()
     {
         return v_proc[0] < sources_num[0];

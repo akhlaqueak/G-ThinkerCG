@@ -28,26 +28,6 @@ public:
         global_end_label = false;
     }
 
-    ~Master()
-    {
-        while (!data_array.empty())
-        {
-            delete data_array.front();
-            data_array.pop_front();
-        }
-        if (SC)
-        {
-            while (!SC->empty())
-            {
-                delete SC->top();
-                SC->pop();
-            }
-            delete SC;
-            SC = nullptr;
-            global_SC = nullptr;
-        }
-    }
-
     void add_task(TaskT *t)
     {
         unique_lock<shared_timed_mutex> lock(SC_mtx);
