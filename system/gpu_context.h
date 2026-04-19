@@ -15,7 +15,7 @@ public:
     typedef typename TaskT::ContextType ContextT;
     typedef TaskT TaskType;
     using TaskContainer = vector<TaskT *>;
-    ull *v_proc;
+    ull *v_proc = nullptr;
     std::stack<BPointers> SL;
     bool ping_pong_mode = true;
 
@@ -27,12 +27,12 @@ public:
     BufferT Bwr;
     BufferT Brd;
 
-    ull *sources_num;  // size of Lv
-    VertexID *sources; // Lv copy on GPU
+    ull *sources_num = nullptr;  // size of Lv
+    VertexID *sources = nullptr; // Lv copy on GPU
 
     // graph in CSR on GPU
-    ull *row_ptrs;
-    VertexID *cols;
+    ull *row_ptrs = nullptr;
+    VertexID *cols = nullptr;
 
     // Device UDFs
     __device__ virtual void generateInitialTasks(VertexID *sources, ull *sources_num, ull *v_proc, BufferT &Bwr, ull *row_ptrs, VertexID *cols) = 0;
@@ -44,6 +44,28 @@ public:
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols) = 0;
     virtual void initialize() = 0;
     virtual void init_level() {};
+
+    virtual ~GPUContext()
+    {
+        B.freeDeviceStorage();
+        H.freeHostStorage();
+
+        B.freeManagedPtrs();
+        Bwr.freeManagedPtrs();
+        Brd.freeManagedPtrs();
+        H.freeHostPtrs();
+
+        if (v_proc)
+            chkerr(cudaFree(v_proc));
+        if (sources)
+            chkerr(cudaFree(sources));
+        if (sources_num)
+            chkerr(cudaFree(sources_num));
+        if (row_ptrs)
+            chkerr(cudaFree(row_ptrs));
+        if (cols)
+            chkerr(cudaFree(cols));
+    }
 
     bool topLevelWorkExist()
     {

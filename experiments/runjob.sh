@@ -70,8 +70,8 @@ soc-pokec"
 
 ds_path="/home/akhlaque.ak@gmail.com/graphs/data/kcore"
 for ds in $datasets; do 
-    ./gthinker -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 0 > "logs/$ds.no-pingpong" 2>&1 || rc=$?
-    ./gthinker -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 > "logs/$ds.with-pingpong" 2>&1 || rc=$?
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 0 > "logs/$ds.no-pingpong" 2>&1 || rc=$?
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 > "logs/$ds.with-pingpong" 2>&1 || rc=$?
     rc=${rc:-0}
     if [ "$rc" -ne 0 ]; then
         echo "Dataset failed: $ds (exit code: $rc)" | tee -a "logs/failed.log"

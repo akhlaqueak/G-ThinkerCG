@@ -32,18 +32,18 @@ public:
 class BufferBase
 {
 public:
-    ull *offsets;
-    VertexID *vertices;
+    ull *offsets = nullptr;
+    VertexID *vertices = nullptr;
 
     // should be transparent to the users
-    ull *otail;
-    ull *vtail;
-    ull *ohead;
-    ull *capacity;
-    ui *n_tasks_proc;
+    ull *otail = nullptr;
+    ull *vtail = nullptr;
+    ull *ohead = nullptr;
+    ull *capacity = nullptr;
+    ui *n_tasks_proc = nullptr;
     bool second_buffer = false; // the second buffer in ping-pong mode.
-    volatile bool *overflow;
-    volatile bool *eta_filled;
+    volatile bool *overflow = nullptr;
+    volatile bool *eta_filled = nullptr;
 
     static ull sizeOf()
     {
@@ -273,6 +273,67 @@ public:
         otail[0] = 0;
         vtail[0] = 0;
         ohead[0] = 0;
+    }
+
+    void freeDeviceStorage()
+    {
+        if (offsets)
+            chkerr(cudaFree(offsets));
+        if (vertices)
+            chkerr(cudaFree(vertices));
+        offsets = nullptr;
+        vertices = nullptr;
+    }
+
+    void freeHostStorage()
+    {
+        delete[] offsets;
+        delete[] vertices;
+        offsets = nullptr;
+        vertices = nullptr;
+    }
+
+    void freeManagedPtrs()
+    {
+        if (otail)
+            chkerr(cudaFree(otail));
+        if (vtail)
+            chkerr(cudaFree(vtail));
+        if (ohead)
+            chkerr(cudaFree(ohead));
+        if (capacity)
+            chkerr(cudaFree(capacity));
+        if (n_tasks_proc)
+            chkerr(cudaFree(n_tasks_proc));
+        if (overflow)
+            chkerr(cudaFree(const_cast<bool *>(overflow)));
+        if (eta_filled)
+            chkerr(cudaFree(const_cast<bool *>(eta_filled)));
+        otail = nullptr;
+        vtail = nullptr;
+        ohead = nullptr;
+        capacity = nullptr;
+        n_tasks_proc = nullptr;
+        overflow = nullptr;
+        eta_filled = nullptr;
+    }
+
+    void freeHostPtrs()
+    {
+        delete[] otail;
+        delete[] vtail;
+        delete[] ohead;
+        delete[] capacity;
+        delete[] n_tasks_proc;
+        delete[] const_cast<bool *>(overflow);
+        delete[] const_cast<bool *>(eta_filled);
+        otail = nullptr;
+        vtail = nullptr;
+        ohead = nullptr;
+        capacity = nullptr;
+        n_tasks_proc = nullptr;
+        overflow = nullptr;
+        eta_filled = nullptr;
     }
 
     void reset_pointers()

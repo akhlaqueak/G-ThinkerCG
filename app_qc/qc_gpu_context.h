@@ -8,10 +8,10 @@ class QCBuffer : public BufferBase
 {
 
 public:
-    Label *label;
-    int *indeg;
-    int *exdeg;
-    int *lvl2adj;
+    Label *label = nullptr;
+    int *indeg = nullptr;
+    int *exdeg = nullptr;
+    int *lvl2adj = nullptr;
 
     static ull sizeOf()
     {
@@ -74,6 +74,36 @@ public:
         indeg = new int[HOST_BUFF_SZ];
         exdeg = new int[HOST_BUFF_SZ];
         lvl2adj = new int[HOST_BUFF_SZ];
+    }
+
+    void freeDeviceStorage()
+    {
+        BufferBase::freeDeviceStorage();
+        if (label)
+            chkerr(cudaFree(label));
+        if (indeg)
+            chkerr(cudaFree(indeg));
+        if (exdeg)
+            chkerr(cudaFree(exdeg));
+        if (lvl2adj)
+            chkerr(cudaFree(lvl2adj));
+        label = nullptr;
+        indeg = nullptr;
+        exdeg = nullptr;
+        lvl2adj = nullptr;
+    }
+
+    void freeHostStorage()
+    {
+        BufferBase::freeHostStorage();
+        delete[] label;
+        delete[] indeg;
+        delete[] exdeg;
+        delete[] lvl2adj;
+        label = nullptr;
+        indeg = nullptr;
+        exdeg = nullptr;
+        lvl2adj = nullptr;
     }
 };
 

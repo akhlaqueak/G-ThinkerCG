@@ -8,7 +8,7 @@ class MCBuffer : public BufferBase
 {
 
 public:
-    Label *labels;
+    Label *labels = nullptr;
 
     static ull sizeOf()
     {
@@ -53,6 +53,21 @@ public:
         BufferBase::allocateMemory();
         labels = new Label[HOST_BUFF_SZ];
     }
+
+    void freeDeviceStorage()
+    {
+        BufferBase::freeDeviceStorage();
+        if (labels)
+            chkerr(cudaFree(labels));
+        labels = nullptr;
+    }
+
+    void freeHostStorage()
+    {
+        BufferBase::freeHostStorage();
+        delete[] labels;
+        labels = nullptr;
+    }
 };
 
 class MCGPUContext : public GPUContext<MCBuffer, MCTask>
@@ -93,6 +108,22 @@ public:
         qhead[0] = 0;
         for (ui i = 0; i < N_WARPS; i++)
             total_counts[i] = 0;
+    }
+
+    ~MCGPUContext()
+    {
+        if (tempv)
+            chkerr(cudaFree(tempv));
+        if (templ)
+            chkerr(cudaFree(templ));
+        if (total_counts)
+            chkerr(cudaFree(total_counts));
+        if (QBuff)
+            chkerr(cudaFree(QBuff));
+        if (qtail)
+            chkerr(cudaFree(qtail));
+        if (qhead)
+            chkerr(cudaFree(qhead));
     }
 
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)

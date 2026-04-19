@@ -30,8 +30,8 @@ public:
 
     virtual ~Worker()
     {
-        // fclose(gfpout);
-        // main_thread.join();
+        if (main_thread.joinable())
+            main_thread.join();
     }
 
     virtual void run() = 0;
