@@ -23,6 +23,7 @@ public:
     // Init files seq with 1 for each thread.
     Master()
     {
+        std::cout.imbue(std::locale(""));
         global_SC = SC = new stack<TaskT *>();
         global_end_label = false;
     }

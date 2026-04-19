@@ -129,9 +129,9 @@ public:
             {
                 dump_to_host();
                 move_tasks_to_cpu();
+                show_progress(" ** dump done ** ");
                 if (!gc.decrementLevel())
                     return false;
-                show_progress(" ** dump done ** ");
             }
         }
         else if (gc.Brd.empty())
