@@ -104,16 +104,6 @@ public:
             total_counts[i] = 0;
     }
 
-    ~MCGPUContext()
-    {
-        if (tempv)
-            chkerr(cudaFree(tempv));
-        if (templ)
-            chkerr(cudaFree(templ));
-        if (total_counts)
-            chkerr(cudaFree(total_counts));
-    }
-
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
         chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (data_graph.GetVertexCount() + 1)));

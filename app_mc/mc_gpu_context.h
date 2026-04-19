@@ -110,22 +110,6 @@ public:
             total_counts[i] = 0;
     }
 
-    ~MCGPUContext()
-    {
-        if (tempv)
-            chkerr(cudaFree(tempv));
-        if (templ)
-            chkerr(cudaFree(templ));
-        if (total_counts)
-            chkerr(cudaFree(total_counts));
-        if (QBuff)
-            chkerr(cudaFree(QBuff));
-        if (qtail)
-            chkerr(cudaFree(qtail));
-        if (qhead)
-            chkerr(cudaFree(qhead));
-    }
-
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
     }
