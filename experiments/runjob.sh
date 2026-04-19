@@ -75,5 +75,15 @@ for ds in $datasets; do
     if [ "$rc" -ne 0 ]; then
         echo "Dataset failed: $ds (exit code: $rc)" | tee -a "logs/failed.log"
     fi
+
     unset rc
+done
+
+output="results.txt"
+: > "$output"
+
+for ds in $datasets; do
+    cliques=$(grep "Total No. of Cliques" "logs/$ds.log" | awk '{print $NF}')
+    time_taken=$(grep "finish Total time" "logs/$ds.log" | awk '{print $NF}')
+    printf "%s %s %s\n" "$ds" "$cliques" "$time_taken" >> "$output"
 done
