@@ -17,7 +17,7 @@ public:
         tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 500000);
         tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 50);
         ping_pong = cmd.GetOptionIntValue("-pingpong", 1);
-        ui eta_ = cmd.GetOptionIntValue("-eta", 1000);
+        ETA = cmd.GetOptionIntValue("-eta", 1000);
         std::string fp = cmd.GetOptionValue("-dg", "./data/com-friendster.ungraph.txt.bin");
         std::cout.imbue(std::locale());
         cout << " ======= Parameters ========" << endl;
@@ -31,8 +31,8 @@ public:
 
         data_graph = Graph(fp);
 
-        eta_ *= N_WARPS;
-        cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
+        ETA *= N_WARPS;
+        cudaMemcpyToSymbol(eta, &ETA, sizeof(ui));
 
         for (int i = 0; i < data_graph.GetVertexCount(); ++i)
             data_array.push_back(new ui(i)); // data_array is member of Master
