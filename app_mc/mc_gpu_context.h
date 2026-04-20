@@ -250,7 +250,7 @@ public:
     generateSubgraphs(SubgraphOffsets *so, unsigned int q, MCBuffer& buff)
     {
         // let's find expected subgraph length...
-        ui sglen = min(so->en - so->st, row_ptrs[q + 1] - row_ptrs[q]);
+        ull sglen = min(so->en - so->st, row_ptrs[q + 1] - row_ptrs[q]);
 
         // this subgraph might not fit into temp area, so go for double intersection option
         if (sglen > TEMPSIZE)
@@ -348,7 +348,7 @@ public:
             auto v = sources[vp];
             auto st = row_ptrs[v];
             auto en = row_ptrs[v + 1];
-            ui sglen = en - st;
+            ull sglen = en - st;
             if (sglen == 0)
                 continue; // there was no neighbor for this vertex...
             // adding 1 as vertices in new graph are number of neighbors + v itself
