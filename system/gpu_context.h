@@ -52,6 +52,7 @@ public:
     void allocateMemory(ull reserved_mem = 0)
     {
         initialize(); // call UDF first, so that application specific memory is allocated
+        load_graph(row_ptrs, cols);
         chkerr(cudaMallocManaged((void **)&v_proc, sizeof(ull)));
         chkerr(cudaMalloc(&sources, sizeof(VertexID) * tasks_per_fetch_gpu_worker_g));
         chkerr(cudaMallocManaged((void **)&sources_num, sizeof(ull)));
