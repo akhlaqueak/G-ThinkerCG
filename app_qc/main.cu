@@ -23,7 +23,7 @@ public:
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
         num_cpu_workers = cmd.GetOptionIntValue("-cpu", 28);
         num_gpu_workers = cmd.GetOptionIntValue("-gpu", 1);
-        pingpong = cmd.GetOptionIntValue("-pingpong", 1);
+        ping_pong = cmd.GetOptionIntValue("-pingpong", 1);
         tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 500000);
         tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 50);
         ui eta_ = cmd.GetOptionIntValue("-eta", 1000);
