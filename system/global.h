@@ -44,11 +44,11 @@ typedef unsigned long long int uintE;
 #include "graph.h"
 #include "task.h"
 
-#define BLK_NUMS 56
-#define BLK_DIM 1024
-// // A100
-// #define BLK_NUMS 108
+// #define BLK_NUMS 56
 // #define BLK_DIM 1024
+// // A100
+#define BLK_NUMS 108
+#define BLK_DIM 1024
 
 #define WARPS_EACH_BLK (BLK_DIM >> 5)
 #define N_THREADS (BLK_DIM * BLK_NUMS)
