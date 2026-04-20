@@ -2,8 +2,8 @@
 Graph data_graph;
 #include "master.h"
 #include "mc_task.h"
-// #include "mc_gpu_context_no_Q.h"
-#include "mc_gpu_context.h"
+#include "mc_gpu_context_no_Q.h"
+// #include "mc_gpu_context.h"
 #include "mc_cpu_worker.h"
 CommandLine cmd;
 ull spilled_tasks;
