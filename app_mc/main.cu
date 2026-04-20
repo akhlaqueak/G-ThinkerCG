@@ -37,9 +37,9 @@ public:
             data_array.push_back(new ui(i)); // data_array is member of Master
     }
 
-    ui get_results()
+    ull get_results()
     {
-        ui res = 0;
+        ull res = 0;
         using GPUWorkerT = GPUWorker<MCGPUContext>;
         while (workers_list.size())
         {

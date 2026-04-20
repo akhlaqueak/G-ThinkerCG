@@ -49,9 +49,9 @@ class MCGPUContext : public GPUContext<MCBuffer, MCTask>
 
 public:
     ull *total_counts; // can be accessed on GPU
-    ui *QBuff;
-    ui *qtail;
-    ui *qhead;
+    ull *QBuff;
+    ull *qtail;
+    ull *qhead;
 
     ull get_results()
     {
@@ -67,9 +67,9 @@ public:
         chkerr(cudaMalloc((void **)&tempv, TEMPSIZE * N_WARPS * sizeof(VertexID)));
         chkerr(cudaMalloc((void **)&templ, TEMPSIZE * N_WARPS * sizeof(Label)));
         chkerr(cudaMallocManaged((void **)&total_counts, N_WARPS * sizeof(ull)));
-        chkerr(cudaMallocManaged((void **)&QBuff, QBuff_SIZE * sizeof(ui)));
-        chkerr(cudaMallocManaged((void **)&qtail, sizeof(ui)));
-        chkerr(cudaMallocManaged((void **)&qhead, sizeof(ui)));
+        chkerr(cudaMallocManaged((void **)&QBuff, QBuff_SIZE * sizeof(ull)));
+        chkerr(cudaMallocManaged((void **)&qtail, sizeof(ull)));
+        chkerr(cudaMallocManaged((void **)&qhead, sizeof(ull)));
         
         chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (data_graph.GetVertexCount() + 1)));
         chkerr(cudaMalloc(&(cols), sizeof(VertexID) * data_graph.GetEdgeCount()));
@@ -409,13 +409,13 @@ public:
     {
         while (true)
         {
-            ui qh;
+            ull qh;
             if (LANEID == 0)
                 qh = atomicAdd(qhead, 3);
             qh = __shfl_sync(FULL, qh, 0);
             if (qh >= qtail[0])
                 return;
-            ui u = QBuff[qh];
+            VertexID u = QBuff[qh];
             // ui u = Brd.vertices[QBuff[qh]];
             SubgraphOffsets so{QBuff[qh + 1], QBuff[qh + 2]};
             if (isOverflow())
@@ -443,7 +443,7 @@ public:
             bool pred = i < en && Brd.labels[i] == P && !binarySearch(cols, pst, pen, Brd.vertices[i]);
 
             if(pred){
-                ui loc=atomicAdd(qtail, 3);
+                ull loc = atomicAdd(qtail, 3);
                 assert(loc + 3 < QBuff_SIZE);
                 Brd.labels[i] = Q;
                 QBuff[loc] = Brd.vertices[i];
