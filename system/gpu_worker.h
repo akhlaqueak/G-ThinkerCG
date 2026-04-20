@@ -105,6 +105,8 @@ public:
                     gc.incrementLevel();
                     if(gc.isOverflow()){
                         dump_to_host();
+                        if (!gc.decrementLevel())
+                            break;
                         move_tasks_to_cpu();
                     }
                 }
