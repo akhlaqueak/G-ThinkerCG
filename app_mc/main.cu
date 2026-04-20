@@ -24,13 +24,13 @@ public:
         cout << "Graph: " << fp << endl;
         cout << "cpu workers: " << num_cpu_workers << endl;
         cout << "gpu workers: " << num_gpu_workers << endl;
-        cout << "eta: " << eta_ << endl;
+        cout << "eta: " << ETA << endl;
         cout << "cpu chunk: " << tasks_per_fetch_g << endl;
         cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
         cout << " ======= ********** ========" << endl;
-
+        
         data_graph = Graph(fp);
-
+        
         ETA *= N_WARPS;
         cudaMemcpyToSymbol(eta, &ETA, sizeof(ui));
 
