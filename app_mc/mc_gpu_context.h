@@ -503,7 +503,7 @@ public:
             SubgraphOffsets so = H.pop_host();
             if (so.empty())
                 break;
-            ui sglen = so.en - so.st;
+            ull sglen = so.en - so.st;
             MCTask *task = new MCTask();
             // approximate lengths
             task->context.R.reserve(sglen / 3);
