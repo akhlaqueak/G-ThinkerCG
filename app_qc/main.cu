@@ -466,7 +466,17 @@ int main(int argc, char *argv[])
 
     // // RM NON-MAX
     string out_file = cmd.GetOptionValue("-o", "output.txt");
-    RemoveNonMax(temp_filename.c_str(), out_file.c_str());
+    {
+        std::ifstream clique_input(temp_filename);
+        if (clique_input.peek() != std::ifstream::traits_type::eof())
+        {
+            RemoveNonMax(temp_filename.c_str(), out_file.c_str());
+        }
+        else
+        {
+            std::ofstream empty_output(out_file);
+        }
+    }
 
     // TIME
     // auto stop1 = chrono::high_resolution_clock::now();

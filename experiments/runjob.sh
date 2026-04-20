@@ -16,8 +16,6 @@ mkdir -p "logs"
 
 datasets="wikipedia_link_sr
 wikipedia_link_sh
-link-dynamic-dewiki
-wiki_talk_en
 wikipedia_link_fr
 web-wikipedia_link_en13-all
 wikipedia_link_de
@@ -34,7 +32,6 @@ wikipedia_link_it
 wikipedia_link_nl
 trackers
 edit-nlwiki
-aff-orkut-user2groups
 orkut-groupmemberships
 wikipedia_link_war
 edit-ptwiki
@@ -73,21 +70,13 @@ mkdir -p logs
 : > logs/failed.log
 
 for ds in $datasets; do
-    rc_no_pingpong=0
     rc_pingpong=0
 
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 0 \
-        > "logs/$ds.no-pingpong" 2>&1 || rc_no_pingpong=$?
-
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 \
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -gpuchunk 1000000 -pingpong 1 \
         > "logs/$ds.with-pingpong" 2>&1 || rc_pingpong=$?
 
-    if [ "$rc_no_pingpong" -ne 0 ]; then
-        echo "Dataset failed (no-pingpong): $ds (exit code: $rc_no_pingpong)" | tee -a "logs/failed.log"
-    fi
-
     if [ "$rc_pingpong" -ne 0 ]; then
-        echo "Dataset failed (with-pingpong): $ds (exit code: $rc_pingpong)" | tee -a "logs/failed.log"
+        echo "Dataset failed (no-pingpong): $ds (exit code: $rc_pingpong)" | tee -a "logs/failed.log"
     fi
 done
 
@@ -99,7 +88,7 @@ rm $output
 
 for ds in $datasets; do
     printf "%s " "$ds" >> "$output"
-    for algo in no-pingpong with-pingpong; do
+    for algo in with-pingpong; do
         cliques=$(grep "Total count" "logs/$ds.$algo" | awk '{print $NF}')
         time_taken=$(grep "Total time" "logs/$ds.$algo" | awk '{print $NF}')
         printf " %s %s" "$cliques" "$time_taken" >> "$output"
