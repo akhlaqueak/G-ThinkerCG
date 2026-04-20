@@ -437,7 +437,7 @@ public:
         // N(pivot) are in (pst, pen)
         // find Q=P-N(pivot)
         // for every q ∈ Q, generate a subgraph
-        for (ui i = st + LANEID; i < en; i += 32)
+        for (ull i = st + LANEID; i < en; i += 32)
         {
 
             if (Brd.labels[i] == P && !binarySearch(cols, pst, pen, Brd.vertices[i]))
@@ -448,7 +448,7 @@ public:
             }
         }
         
-        for (ui i = st; i < en; i ++)
+        for (ull i = st; i < en; i ++)
         {
             if (Brd.labels[i] == Q)
                 if (isOverflow())

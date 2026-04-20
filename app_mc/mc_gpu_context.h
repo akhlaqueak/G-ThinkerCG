@@ -439,7 +439,7 @@ public:
         // for every q ∈ Q, generate a subgraph
         for (; st < en; st += 32)
         {
-            ui i = st + LANEID;
+            ull i = st + LANEID;
             bool pred = i < en && Brd.labels[i] == P && !binarySearch(cols, pst, pen, Brd.vertices[i]);
 
             if(pred){
