@@ -133,14 +133,8 @@ public:
 
             assert(md == 0 || md <= sglen);
 
-            if (next_ot > offset_capacity[0] || next_vt > capacity[0])
-            {
-                atomicSub(otail, 3ULL);
-                atomicSub(vtail, sglen);
-                atomicSub(n_tasks_proc, 1U);
-                overflow[0] = true;
-                assert(false);
-            }
+            assert (next_ot > offset_capacity[0] || next_vt > capacity[0]);
+
 
             offsets[ot] = vt;
             offsets[ot + 1] = md;
