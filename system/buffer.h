@@ -124,8 +124,12 @@ public:
             ui et = atomicAdd(n_tasks_proc, 1);
             const ull next_ot = ot + 3;
             const ull next_vt = vt + sglen;
+            const ull offset_base = second_buffer ? offset_capacity[0] / 2 : 0;
+            const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
+            const ull offset_span = second_buffer ? offset_capacity[0] / 2 : offset_capacity[0];
+            const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
 
-            if (next_vt >= static_cast<ull>(0.9 * capacity[0]) || next_ot > offset_capacity[0])
+            if ((next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span) || (next_ot - offset_base) > offset_span)
                 overflow[0] = true;
 
             if (et + 1 > eta)
@@ -134,6 +138,8 @@ public:
             assert(md == 0 || md <= sglen);
 
             if (capacity[0] == HOST_BUFF_SZ)
+                assert(next_ot <= offset_capacity[0] && next_vt <= capacity[0]);
+            else if (second_buffer)
                 assert(next_ot <= offset_capacity[0] && next_vt <= capacity[0]);
 
             offsets[ot] = vt;
@@ -249,7 +255,12 @@ public:
     }
     bool isApprochingEnd()
     {
-        return vtail[0] >= static_cast<ull>(0.8 * capacity[0]) || otail[0] + 3 > offset_capacity[0];
+        const ull offset_base = second_buffer ? offset_capacity[0] / 2 : 0;
+        const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
+        const ull offset_span = second_buffer ? offset_capacity[0] / 2 : offset_capacity[0];
+        const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
+        return (vtail[0] - vertex_base) >= static_cast<ull>(0.8 * vertex_span) ||
+               (otail[0] + 3 - offset_base) > offset_span;
     }
     void allocatePtrs()
     {
