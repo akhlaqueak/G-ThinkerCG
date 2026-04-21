@@ -40,6 +40,7 @@ public:
     ull *vtail = nullptr;
     ull *ohead = nullptr;
     ull *capacity = nullptr;
+    ull *offset_capacity = nullptr;
     ui *n_tasks_proc = nullptr;
     bool second_buffer = false; // the second buffer in ping-pong mode.
     volatile bool *overflow = nullptr;
@@ -62,6 +63,7 @@ public:
 
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;
+        offset_capacity[0] = HOST_OFFSET_SZ;
         n_tasks_proc[0] = 0;
         std::cout << "Host allocated Buffer: " << capacity[0] << std::endl;
     }
@@ -73,12 +75,18 @@ public:
 
         allocatePtrs();
         capacity[0] = sz;
+        offset_capacity[0] = sz;
         std::cout << "Device allocated Buffer: " << capacity[0] << std::endl;
     }
 
     ull append_host(ull sglen, ull md = 0)
     {
         ull ot = otail[0], vt = vtail[0];
+        if (ot + 3 > offset_capacity[0] || vt + sglen > capacity[0])
+        {
+            throw std::runtime_error("Host buffer overflow");
+        }
+        assert(md == 0 || md <= sglen);
         otail[0] += 3;
         vtail[0] += sglen;
         offsets[ot] = vt;
@@ -92,10 +100,11 @@ public:
         ull ot = otail[0];
         ull vt = vtail[0];
 
-        if (ot + 3 > capacity[0] || vt + sglen > capacity[0])
+        if (ot + 3 > offset_capacity[0] || vt + sglen > capacity[0])
         {
             throw std::runtime_error("Device buffer overflow");
         }
+        assert(md == 0 || md <= sglen);
 
         ull host_offsets[3] = {vt, md, vt + sglen};
         chkerr(cudaMemcpy(offsets + ot, host_offsets, sizeof(host_offsets), cudaMemcpyHostToDevice));
@@ -107,34 +116,35 @@ public:
 
     __device__ ull append(ull sglen, ull md = 0)
     {
-        ull vt;
+        ull vt = 0;
         if (LANEID == 0)
         {
             ull ot = atomicAdd(otail, 3);
             vt = atomicAdd(vtail, sglen);
             ui et = atomicAdd(n_tasks_proc, 1);
-            if (ot >= 0.9 * capacity[0] or vt >= 0.9 * capacity[0])
+            const ull next_ot = ot + 3;
+            const ull next_vt = vt + sglen;
+
+            if (next_ot >= static_cast<ull>(0.9 * offset_capacity[0]) || next_vt >= static_cast<ull>(0.9 * capacity[0]))
                 overflow[0] = true;
 
-            if (et > eta)
+            if (et + 1 > eta)
                 eta_filled[0] = true;
 
-            // if it's a host buffer
-            if (capacity[0] == HOST_BUFF_SZ)
+            assert(md == 0 || md <= sglen);
+
+            if (next_ot > offset_capacity[0] || next_vt > capacity[0])
             {
-                assert(ot + 3 < HOST_OFFSET_SZ);
-                assert(vt + sglen < capacity[0]);
-                // printf("Host overflow\n");
+                atomicSub(otail, 3ULL);
+                atomicSub(vtail, sglen);
+                atomicSub(n_tasks_proc, 1U);
+                overflow[0] = true;
+                assert(false);
             }
-            else
-            {
-                // this is device buffer
-                assert(ot + 3 < capacity[0]);
-                assert(vt + sglen < capacity[0]);
-            }
+
             offsets[ot] = vt;
             offsets[ot + 1] = md;
-            offsets[ot + 2] = vt + sglen;
+            offsets[ot + 2] = next_vt;
         }
         vt = __shfl_sync(FULL, vt, 0);
         return vt;
@@ -245,7 +255,7 @@ public:
     }
     bool isApprochingEnd()
     {
-        return vtail[0] >= 0.8 * capacity[0] or otail[0] >= 0.8 * capacity[0];
+        return vtail[0] >= static_cast<ull>(0.8 * capacity[0]) || otail[0] >= static_cast<ull>(0.8 * offset_capacity[0]);
     }
     void allocatePtrs()
     {
@@ -253,6 +263,7 @@ public:
         chkerr(cudaMallocManaged((void **)&vtail, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&ohead, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&capacity, sizeof(ull)));
+        chkerr(cudaMallocManaged((void **)&offset_capacity, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&n_tasks_proc, sizeof(ui)));
         chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
         chkerr(cudaMallocManaged((void **)&eta_filled, sizeof(bool)));
@@ -261,6 +272,7 @@ public:
         otail[0] = 0;
         vtail[0] = 0;
         ohead[0] = 0;
+        offset_capacity[0] = 0;
     }
     void reset_pointers()
     {
