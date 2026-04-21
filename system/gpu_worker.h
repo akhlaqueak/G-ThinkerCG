@@ -77,7 +77,17 @@ public:
         {
             if (not gc.H.empty())
             {
+                cout << "pre-load H.otail=" << gc.H.otail[0]
+                     << " H.vtail=" << gc.H.vtail[0]
+                     << " Bwr.otail=" << gc.Bwr.otail[0]
+                     << " Bwr.vtail=" << gc.Bwr.vtail[0]
+                     << " overflow=" << gc.Bwr.overflow[0] << endl;
                 load_from_host();
+                cout << "post-load H.otail=" << gc.H.otail[0]
+                     << " H.vtail=" << gc.H.vtail[0]
+                     << " Bwr.otail=" << gc.Bwr.otail[0]
+                     << " Bwr.vtail=" << gc.Bwr.vtail[0]
+                     << " overflow=" << gc.Bwr.overflow[0] << endl;
                 move_tasks_to_cpu();
             }
             else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
@@ -110,10 +120,22 @@ public:
     bool layered_mode_expansion()
     {
         gc.resetLevel();
+        cout << "after-reset layered Bwr.otail=" << gc.Bwr.otail[0]
+             << " Bwr.vtail=" << gc.Bwr.vtail[0]
+             << " overflow=" << gc.Bwr.overflow[0]
+             << " Brd.otail=" << gc.Brd.otail[0]
+             << " Brd.vtail=" << gc.Brd.vtail[0]
+             << " H.otail=" << gc.H.otail[0] << endl;
         // show_progress("layered before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
+        cout << "after-extend layered Bwr.otail=" << gc.Bwr.otail[0]
+             << " Bwr.vtail=" << gc.Bwr.vtail[0]
+             << " overflow=" << gc.Bwr.overflow[0]
+             << " Brd.otail=" << gc.Brd.otail[0]
+             << " Brd.vtail=" << gc.Brd.vtail[0]
+             << " H.otail=" << gc.H.otail[0] << endl;
 
         gc.init_level();
 
@@ -144,11 +166,23 @@ public:
     bool ping_pong_mode_expansion()
     {
         gc.resetLevel();
+        cout << "after-reset pingpong Bwr.otail=" << gc.Bwr.otail[0]
+             << " Bwr.vtail=" << gc.Bwr.vtail[0]
+             << " overflow=" << gc.Bwr.overflow[0]
+             << " Brd.otail=" << gc.Brd.otail[0]
+             << " Brd.vtail=" << gc.Brd.vtail[0]
+             << " H.otail=" << gc.H.otail[0] << endl;
         // cout<<gc.Brd.size()<<endl;
         // show_progress("pingpong before ");
         process<<<BLK_NUMS, BLK_DIM>>>(gc);
         extend<<<BLK_NUMS, BLK_DIM>>>(gc);
         deviceSynch();
+        cout << "after-extend pingpong Bwr.otail=" << gc.Bwr.otail[0]
+             << " Bwr.vtail=" << gc.Bwr.vtail[0]
+             << " overflow=" << gc.Bwr.overflow[0]
+             << " Brd.otail=" << gc.Brd.otail[0]
+             << " Brd.vtail=" << gc.Brd.vtail[0]
+             << " H.otail=" << gc.H.otail[0] << endl;
 
         gc.init_level();
 
@@ -265,13 +299,22 @@ public:
 
             tasks_to_load /= 2;
         }
-        cout<<"loaded :"<<offset_count/3<<"tasks"<<endl;
-
         if (tasks_to_load == 0)
         {
+            cout << "loaded :0tasks"
+                 << " H.otail=" << gc.H.otail[0]
+                 << " Bwr.otail=" << gc.Bwr.otail[0]
+                 << " Bwr.vtail=" << gc.Bwr.vtail[0]
+                 << " overflow=" << gc.Bwr.overflow[0] << endl;
             delete[] offsets;
             return;
         }
+        cout << "loaded :" << offset_count / 3 << "tasks"
+             << " total_vertices=" << total_vertices
+             << " H.otail=" << gc.H.otail[0]
+             << " Bwr.otail=" << gc.Bwr.otail[0]
+             << " Bwr.vtail=" << gc.Bwr.vtail[0]
+             << " overflow=" << gc.Bwr.overflow[0] << endl;
         ull *translated_offsets = new ull[offset_count];
         ull write_idx = 0;
         for (ull i = max_offset_count; i > local_offsets_start; i -= 3)
