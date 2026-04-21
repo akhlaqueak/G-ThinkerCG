@@ -40,7 +40,6 @@ public:
     ull *vtail = nullptr;
     ull *ohead = nullptr;
     ull *capacity = nullptr;
-    ull *offset_capacity = nullptr;
     ui *n_tasks_proc = nullptr;
     bool second_buffer = false; // the second buffer in ping-pong mode.
     volatile bool *overflow = nullptr;
@@ -63,7 +62,6 @@ public:
 
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;
-        offset_capacity[0] = HOST_OFFSET_SZ;
         n_tasks_proc[0] = 0;
         std::cout << "Host allocated Buffer: " << capacity[0] << std::endl;
     }
@@ -75,14 +73,13 @@ public:
 
         allocatePtrs();
         capacity[0] = sz;
-        offset_capacity[0] = sz;
         std::cout << "Device allocated Buffer: " << capacity[0] << std::endl;
     }
 
     ull append_host(ull sglen, ull md = 0)
     {
         ull ot = otail[0], vt = vtail[0];
-        if (ot + 3 > offset_capacity[0] || vt + sglen > capacity[0])
+        if (ot + 3 > capacity[0] || vt + sglen > capacity[0])
         {
             throw std::runtime_error("Host buffer overflow");
         }
@@ -100,7 +97,7 @@ public:
         ull ot = otail[0];
         ull vt = vtail[0];
 
-        if (ot + 3 > offset_capacity[0] || vt + sglen > capacity[0])
+        if (ot + 3 > capacity[0] || vt + sglen > capacity[0])
         {
             throw std::runtime_error("Device buffer overflow");
         }
@@ -124,12 +121,10 @@ public:
             ui et = atomicAdd(n_tasks_proc, 1);
             const ull next_ot = ot + 3;
             const ull next_vt = vt + sglen;
-            const ull offset_base = second_buffer ? offset_capacity[0] / 2 : 0;
             const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
-            const ull offset_span = second_buffer ? offset_capacity[0] / 2 : offset_capacity[0];
             const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
 
-            if ((next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span) || (next_ot - offset_base) > offset_span)
+            if ((next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span) || next_ot > capacity[0])
                 overflow[0] = true;
 
             if (et + 1 > eta)
@@ -138,9 +133,7 @@ public:
             assert(md == 0 || md <= sglen);
 
             if (capacity[0] == HOST_BUFF_SZ)
-                assert(next_ot <= offset_capacity[0] && next_vt <= capacity[0]);
-            else if (second_buffer)
-                assert(next_ot <= offset_capacity[0] && next_vt <= capacity[0]);
+                assert(next_ot <= HOST_OFFSET_SZ && next_vt <= HOST_BUFF_SZ);
 
             offsets[ot] = vt;
             offsets[ot + 1] = md;
@@ -255,12 +248,10 @@ public:
     }
     bool isApprochingEnd()
     {
-        const ull offset_base = second_buffer ? offset_capacity[0] / 2 : 0;
         const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
-        const ull offset_span = second_buffer ? offset_capacity[0] / 2 : offset_capacity[0];
         const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
         return (vtail[0] - vertex_base) >= static_cast<ull>(0.8 * vertex_span) ||
-               (otail[0] + 3 - offset_base) > offset_span;
+               otail[0] + 3 > capacity[0];
     }
     void allocatePtrs()
     {
@@ -268,7 +259,6 @@ public:
         chkerr(cudaMallocManaged((void **)&vtail, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&ohead, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&capacity, sizeof(ull)));
-        chkerr(cudaMallocManaged((void **)&offset_capacity, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&n_tasks_proc, sizeof(ui)));
         chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
         chkerr(cudaMallocManaged((void **)&eta_filled, sizeof(bool)));
@@ -277,7 +267,6 @@ public:
         otail[0] = 0;
         vtail[0] = 0;
         ohead[0] = 0;
-        offset_capacity[0] = 0;
     }
     void reset_pointers()
     {
