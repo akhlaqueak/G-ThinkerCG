@@ -151,7 +151,7 @@ public:
         ull s;
         if (LANEID == 0)
         {
-            atomicAdd(n_tasks_proc, 1);
+            // atomicAdd(n_tasks_proc, 1);
             s = atomicAdd(ohead, 3);
         }
         s = __shfl_sync(FULL, s, 0);
@@ -166,7 +166,7 @@ public:
         ull s;
         if (LANEID == 0)
         {
-            atomicAdd(n_tasks_proc, 1);
+            // atomicAdd(n_tasks_proc, 1);
             s = atomicDecrementNonNegative(otail, 3);
         }
         s = __shfl_sync(FULL, s, 0);

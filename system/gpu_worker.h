@@ -231,29 +231,43 @@ public:
         if (available_tasks == 0)
             return;
 
-        const ull tasks_to_load = std::min<ull>(ETA, available_tasks);
-        const ull offset_count = tasks_to_load * 3;
-        const ull offsets_start = src_otail - offset_count;
-
-        ull *offsets = new ull[offset_count];
-        std::copy(gc.H.offsets + offsets_start, gc.H.offsets + src_otail, offsets);
-
-        ull min_src_vstart = offsets[0];
-        ull max_src_vend = offsets[2];
-        for (ull i = 3; i < offset_count; i += 3)
-        {
-            min_src_vstart = std::min(min_src_vstart, offsets[i]);
-            max_src_vend = std::max(max_src_vend, offsets[i + 2]);
-        }
-
-        const ull total_vertices = max_src_vend - min_src_vstart;
         const ull dst_otail = gc.Bwr.otail[0];
         const ull dst_vstart = gc.Bwr.vtail[0];
+        ull tasks_to_load = std::min<ull>(ETA, available_tasks);
+        ull offset_count = 0;
+        ull offsets_start = 0;
+        ull total_vertices = 0;
+        ull min_src_vstart = 0;
+        ull *offsets = nullptr;
 
-        if (dst_otail + offset_count > gc.Bwr.capacity[0] || dst_vstart + total_vertices > gc.Bwr.capacity[0])
+        while (tasks_to_load > 0)
         {
-            cout << dst_otail << " " << offset_count << " " << gc.Bwr.capacity[0] << " " << dst_vstart << " " <<total_vertices << " "<< gc.Bwr.capacity[0] << endl;
-            throw std::runtime_error("Device buffer overflow");
+            offset_count = tasks_to_load * 3;
+            offsets_start = src_otail - offset_count;
+
+            delete[] offsets;
+            offsets = new ull[offset_count];
+            std::copy(gc.H.offsets + offsets_start, gc.H.offsets + src_otail, offsets);
+
+            min_src_vstart = offsets[0];
+            ull max_src_vend = offsets[2];
+            for (ull i = 3; i < offset_count; i += 3)
+            {
+                min_src_vstart = std::min(min_src_vstart, offsets[i]);
+                max_src_vend = std::max(max_src_vend, offsets[i + 2]);
+            }
+
+            total_vertices = max_src_vend - min_src_vstart;
+            if (dst_otail + offset_count <= gc.Bwr.capacity[0]/2 && dst_vstart + total_vertices <= gc.Bwr.capacity[0]/2)
+                break;
+
+            tasks_to_load /= 2;
+        }
+
+        if (tasks_to_load == 0)
+        {
+            delete[] offsets;
+            return;
         }
 
         ull *translated_offsets = new ull[offset_count];
