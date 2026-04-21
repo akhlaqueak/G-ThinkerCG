@@ -133,8 +133,8 @@ public:
 
             assert(md == 0 || md <= sglen);
 
-            assert (next_ot > offset_capacity[0] || next_vt > capacity[0]);
-
+            if (capacity[0] == HOST_BUFF_SZ)
+                assert(next_ot <= offset_capacity[0] && next_vt <= capacity[0]);
 
             offsets[ot] = vt;
             offsets[ot + 1] = md;
