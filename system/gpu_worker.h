@@ -234,24 +234,26 @@ public:
         const ull dst_otail = gc.Bwr.otail[0];
         const ull dst_vstart = gc.Bwr.vtail[0];
         ull tasks_to_load = std::min<ull>(ETA, available_tasks);
-        ull offset_count = 0;
-        ull offsets_start = 0;
+        const ull max_offset_count = tasks_to_load * 3;
+        const ull max_offsets_start = src_otail - max_offset_count;
         ull total_vertices = 0;
         ull min_src_vstart = 0;
-        ull *offsets = nullptr;
+        ull offset_count = 0;
+        ull offsets_start = 0;
+        ull local_offsets_start = 0;
+
+        ull *offsets = new ull[max_offset_count];
+        std::copy(gc.H.offsets + max_offsets_start, gc.H.offsets + src_otail, offsets);
 
         while (tasks_to_load > 0)
         {
             offset_count = tasks_to_load * 3;
             offsets_start = src_otail - offset_count;
+            local_offsets_start = max_offset_count - offset_count;
 
-            delete[] offsets;
-            offsets = new ull[offset_count];
-            std::copy(gc.H.offsets + offsets_start, gc.H.offsets + src_otail, offsets);
-
-            min_src_vstart = offsets[0];
-            ull max_src_vend = offsets[2];
-            for (ull i = 3; i < offset_count; i += 3)
+            min_src_vstart = offsets[local_offsets_start];
+            ull max_src_vend = offsets[local_offsets_start + 2];
+            for (ull i = local_offsets_start + 3; i < max_offset_count; i += 3)
             {
                 min_src_vstart = std::min(min_src_vstart, offsets[i]);
                 max_src_vend = std::max(max_src_vend, offsets[i + 2]);
@@ -272,7 +274,7 @@ public:
 
         ull *translated_offsets = new ull[offset_count];
         ull write_idx = 0;
-        for (ull i = offset_count; i > 0; i -= 3)
+        for (ull i = max_offset_count; i > local_offsets_start; i -= 3)
         {
             const ull idx = i - 3;
             const ull sg_st = offsets[idx];
