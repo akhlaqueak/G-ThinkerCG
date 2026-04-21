@@ -74,6 +74,10 @@ public:
         chkerr(cudaMallocManaged((void **)&indeg, sizeof(int) * HOST_BUFF_SZ));
         chkerr(cudaMallocManaged((void **)&exdeg, sizeof(int) * HOST_BUFF_SZ));
         chkerr(cudaMallocManaged((void **)&lvl2adj, sizeof(int) * HOST_BUFF_SZ));
+        chkerr(cudaMemAdvise(label, sizeof(Label) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        chkerr(cudaMemAdvise(indeg, sizeof(int) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        chkerr(cudaMemAdvise(exdeg, sizeof(int) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        chkerr(cudaMemAdvise(lvl2adj, sizeof(int) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
     }
 
 };

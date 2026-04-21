@@ -57,6 +57,8 @@ public:
     {
         chkerr(cudaMallocManaged((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
         chkerr(cudaMallocManaged((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
+        chkerr(cudaMemAdvise(offsets, sizeof(ull) * HOST_OFFSET_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
+        chkerr(cudaMemAdvise(vertices, sizeof(VertexID) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
 
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;

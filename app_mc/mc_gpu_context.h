@@ -52,6 +52,7 @@ public:
     {
         BufferBase::allocateMemory();
         chkerr(cudaMallocManaged((void **)&labels, sizeof(Label) * HOST_BUFF_SZ));
+        chkerr(cudaMemAdvise(labels, sizeof(Label) * HOST_BUFF_SZ, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId));
     }
 
 };
