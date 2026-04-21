@@ -125,7 +125,7 @@ public:
             const ull next_ot = ot + 3;
             const ull next_vt = vt + sglen;
 
-            if (next_ot >= static_cast<ull>(0.9 * offset_capacity[0]) || next_vt >= static_cast<ull>(0.9 * capacity[0]))
+            if (next_vt >= static_cast<ull>(0.9 * capacity[0]) || next_ot > offset_capacity[0])
                 overflow[0] = true;
 
             if (et + 1 > eta)
@@ -249,7 +249,7 @@ public:
     }
     bool isApprochingEnd()
     {
-        return vtail[0] >= static_cast<ull>(0.8 * capacity[0]) || otail[0] >= static_cast<ull>(0.8 * offset_capacity[0]);
+        return vtail[0] >= static_cast<ull>(0.8 * capacity[0]) || otail[0] + 3 > offset_capacity[0];
     }
     void allocatePtrs()
     {
