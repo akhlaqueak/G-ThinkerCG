@@ -106,7 +106,7 @@ public:
                         delete item;
                     }
                 // else if (SC_size()>worker->tasks_per_fetch)
-                else if (SC_size() >= min_sc_tasks_for_gpu_g)
+                else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g / 10))
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     for (ui i = 0; i < worker->tasks_per_fetch && !SC->empty(); i++)
