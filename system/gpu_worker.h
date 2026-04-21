@@ -60,11 +60,12 @@ public:
             cout << "Lv: " << this->Lv.size() << endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
-        else
+        else if(this->Lt.size())
         {
             cout << "Lt: " << this->Lt.size() << endl;
             gc.move_tasks_from_Sc(this->Lt, gc.H);
         }
+        else return;
 
         this->Lv.clear();
         this->Lt.clear();
