@@ -70,10 +70,10 @@ public:
     void allocateMemory()
     {
         BufferBase::allocateMemory();
-        label = new Label[HOST_BUFF_SZ];
-        indeg = new int[HOST_BUFF_SZ];
-        exdeg = new int[HOST_BUFF_SZ];
-        lvl2adj = new int[HOST_BUFF_SZ];
+        chkerr(cudaMallocManaged((void **)&label, sizeof(Label) * HOST_BUFF_SZ));
+        chkerr(cudaMallocManaged((void **)&indeg, sizeof(int) * HOST_BUFF_SZ));
+        chkerr(cudaMallocManaged((void **)&exdeg, sizeof(int) * HOST_BUFF_SZ));
+        chkerr(cudaMallocManaged((void **)&lvl2adj, sizeof(int) * HOST_BUFF_SZ));
     }
 
 };
@@ -111,10 +111,14 @@ public:
     {
         GPUContext<QCBuffer, QCTask>::cleanup();
 
-        delete[] H.label;
-        delete[] H.indeg;
-        delete[] H.exdeg;
-        delete[] H.lvl2adj;
+        if (H.label)
+            chkerr(cudaFree(H.label));
+        if (H.indeg)
+            chkerr(cudaFree(H.indeg));
+        if (H.exdeg)
+            chkerr(cudaFree(H.exdeg));
+        if (H.lvl2adj)
+            chkerr(cudaFree(H.lvl2adj));
         H.label = nullptr;
         H.indeg = nullptr;
         H.exdeg = nullptr;

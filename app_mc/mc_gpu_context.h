@@ -51,7 +51,7 @@ public:
     void allocateMemory()
     {
         BufferBase::allocateMemory();
-        labels = new Label[HOST_BUFF_SZ];
+        chkerr(cudaMallocManaged((void **)&labels, sizeof(Label) * HOST_BUFF_SZ));
     }
 
 };
@@ -104,7 +104,8 @@ public:
     {
         GPUContext<MCBuffer, MCTask>::cleanup();
 
-        delete[] H.labels;
+        if (H.labels)
+            chkerr(cudaFree(H.labels));
         H.labels = nullptr;
         if (B.labels)
             chkerr(cudaFree(B.labels));

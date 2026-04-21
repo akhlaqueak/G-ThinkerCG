@@ -55,8 +55,8 @@ public:
      */
     void allocateMemory()
     {
-        offsets = new ull[HOST_OFFSET_SZ];
-        vertices = new VertexID[HOST_BUFF_SZ];
+        chkerr(cudaMallocManaged((void **)&offsets, sizeof(ull) * HOST_OFFSET_SZ));
+        chkerr(cudaMallocManaged((void **)&vertices, sizeof(VertexID) * HOST_BUFF_SZ));
 
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;

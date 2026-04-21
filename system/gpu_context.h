@@ -47,8 +47,10 @@ public:
 
     void cleanup()
     {
-        delete[] H.offsets;
-        delete[] H.vertices;
+        if (H.offsets)
+            chkerr(cudaFree(H.offsets));
+        if (H.vertices)
+            chkerr(cudaFree(H.vertices));
         H.offsets = nullptr;
         H.vertices = nullptr;
 

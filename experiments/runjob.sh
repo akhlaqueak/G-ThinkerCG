@@ -71,7 +71,7 @@ mkdir -p logs
 
 for ds in $datasets; do
     rc_pingpong=0
-
+    sleep 5
     ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -gpuchunk 1000000 -pingpong 1 \
         > "logs/$ds.with-pingpong" 2>&1 || rc_pingpong=$?
 
