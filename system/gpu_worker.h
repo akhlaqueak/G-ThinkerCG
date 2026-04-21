@@ -265,13 +265,13 @@ public:
 
             tasks_to_load /= 2;
         }
+        cout<<"loaded :"<<offset_count/3<<"tasks"<<endl;
 
         if (tasks_to_load == 0)
         {
             delete[] offsets;
             return;
         }
-        cout<<"loaded :"<<offset_count/3<<"tasks"<<endl;
         ull *translated_offsets = new ull[offset_count];
         ull write_idx = 0;
         for (ull i = max_offset_count; i > local_offsets_start; i -= 3)
