@@ -91,6 +91,7 @@ size_t num_gpu_workers;
 // Number of tasks assigned to each comper
 size_t tasks_per_fetch_g = 50;
 size_t tasks_per_fetch_gpu_worker_g = 50'000;
+size_t min_sc_tasks_for_gpu_g = 10'000;
 
 // no. of tasks moved from gpu to host to be added to Sc
 size_t gpu_to_host_transfer_size_g = 1'00'000;
