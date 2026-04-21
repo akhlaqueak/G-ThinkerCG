@@ -143,7 +143,7 @@ public:
             }
 
             worker->notify();
-            cout<<"workers: " <<workers_list.size()<<endl;
+            cout<<"workers: " <<workers_list.size()<< "SC: "<< SC_size()<<endl;
         } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and is_SC_empty()));
         global_end_label = true;
         notify_all_workers();
