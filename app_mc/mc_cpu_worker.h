@@ -1,7 +1,7 @@
 #ifndef MC_CPU_APP
 #define MC_CPU_APP
 
-#define TIME_THRESHOLD 0
+#define TIME_THRESHOLD 10
 #define TIME_OVER(ST) (chrono::duration_cast<chrono::milliseconds>(TIME_NOW - ST).count() > TIME_THRESHOLD)
 
 
