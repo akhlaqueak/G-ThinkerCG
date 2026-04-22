@@ -216,40 +216,161 @@ public:
         }
     }
 
-    __device__ void loadFromHost()
+    void dump_to_host()
     {
-        while (true)
+        if (Brd.empty())
+            return;
+
+        const ull src_ohead = Brd.ohead[0];
+        const ull src_otail = Brd.otail[0];
+        const ull offset_count = src_otail - src_ohead;
+        if (offset_count == 0)
+            return;
+
+        ull *offsets = new ull[offset_count];
+        chkerr(cudaMemcpy(offsets, Brd.offsets + src_ohead, sizeof(ull) * offset_count, cudaMemcpyDeviceToHost));
+
+        ull min_src_vstart = offsets[0];
+        ull max_src_vend = offsets[2];
+        ull total_sg_vertices = offsets[2] - offsets[0];
+        for (ull i = 3; i < offset_count; i += 3)
         {
-            if (H.n_tasks_proc[0] > eta)
-                return;
-            auto so = H.pop();
-            if (so.empty())
-                return;
-            ull vt = Bwr.append(so);
-            for (ull i = vt + LANEID, j = so.st + LANEID; j < so.en; i += 32, j += 32)
-                Bwr.copy(H, i, j);
+            min_src_vstart = std::min(min_src_vstart, offsets[i]);
+            max_src_vend = std::max(max_src_vend, offsets[i + 2]);
+            total_sg_vertices += offsets[i + 2] - offsets[i];
         }
+
+        const ull dst_vstart = H.vtail[0];
+        const ull total_vertices = max_src_vend - min_src_vstart;
+        const bool use_bulk_span = total_vertices <= total_sg_vertices * 2;
+
+        if (H.otail[0] + offset_count > HOST_OFFSET_SZ)
+        {
+            delete[] offsets;
+            throw std::runtime_error("Host offset buffer overflow");
+        }
+
+        if (use_bulk_span)
+        {
+            if (dst_vstart + total_vertices > HOST_BUFF_SZ)
+            {
+                delete[] offsets;
+                throw std::runtime_error("Host vertex buffer overflow");
+            }
+
+            for (ull i = 0; i < offset_count; i += 3)
+            {
+                const ull sg_st = offsets[i];
+                const ull sg_md = offsets[i + 1];
+                const ull sg_en = offsets[i + 2];
+
+                H.offsets[H.otail[0]] = dst_vstart + (sg_st - min_src_vstart);
+                H.offsets[H.otail[0] + 1] = (sg_md == 0) ? 0 : dst_vstart + (sg_md - min_src_vstart);
+                H.offsets[H.otail[0] + 2] = dst_vstart + (sg_en - min_src_vstart);
+                H.otail[0] += 3;
+            }
+
+            H.copy_host_range(Brd, dst_vstart, min_src_vstart, total_vertices);
+            H.vtail[0] += total_vertices;
+        }
+        else
+        {
+            for (ull i = 0; i < offset_count; i += 3)
+            {
+                const ull sg_st = offsets[i];
+                const ull sg_md = offsets[i + 1];
+                const ull sg_en = offsets[i + 2];
+                const ull sglen = sg_en - sg_st;
+
+                if (H.vtail[0] + sglen > HOST_BUFF_SZ)
+                {
+                    delete[] offsets;
+                    throw std::runtime_error("Host vertex buffer overflow");
+                }
+
+                ull local_dst = H.append_host(sglen, sg_md == 0 ? 0 : sg_md - sg_st);
+                H.copy_host_range(Brd, local_dst, sg_st, sglen);
+            }
+        }
+        delete[] offsets;
     }
 
-    __device__ void dumpToHost(SubgraphOffsets &so)
+    void load_from_host()
     {
-        ull vt = H.append(so);
-        for (ull i = vt + LANEID, j = so.st + LANEID; j < so.en; i += 32, j += 32)
-            H.copy(Brd, i, j);
-    }
+        if (H.empty())
+            return;
 
-    __device__ void dumpToHost()
-    {
-        while (true)
+        const ull src_ohead = H.ohead[0];
+        const ull src_otail = H.otail[0];
+        const ull available_tasks = (src_otail - src_ohead) / 3;
+
+        if (available_tasks == 0)
+            return;
+
+        const ull dst_otail = Bwr.otail[0];
+        const ull dst_vstart = Bwr.vtail[0];
+        ull tasks_to_load = std::min<ull>(ETA, available_tasks);
+        const ull max_offset_count = tasks_to_load * 3;
+        const ull max_offsets_start = src_otail - max_offset_count;
+        ull total_vertices = 0;
+        ull min_src_vstart = 0;
+        ull offset_count = 0;
+        ull offsets_start = 0;
+        ull local_offsets_start = 0;
+        const ull base = Bwr.second_buffer ? Bwr.capacity[0] / 2 : 0;
+        const ull span = Bwr.second_buffer ? Bwr.capacity[0] / 2 : Bwr.capacity[0];
+
+        ull *offsets = new ull[max_offset_count];
+        std::copy(H.offsets + max_offsets_start, H.offsets + src_otail, offsets);
+
+        while (tasks_to_load > 0)
         {
-            auto so = Brd.next();
-            if (so.empty())
-                return;
-            ull sglen = so.en - so.st;
-            ull vt = H.append(sglen);
-            for (ull i = vt + LANEID, j = so.st + LANEID; j < so.en; i += 32, j += 32)
-                H.copy(Brd, i, j);
+            offset_count = tasks_to_load * 3;
+            offsets_start = src_otail - offset_count;
+            local_offsets_start = max_offset_count - offset_count;
+
+            min_src_vstart = offsets[local_offsets_start];
+            ull max_src_vend = offsets[local_offsets_start + 2];
+            for (ull i = local_offsets_start + 3; i < max_offset_count; i += 3)
+            {
+                min_src_vstart = std::min(min_src_vstart, offsets[i]);
+                max_src_vend = std::max(max_src_vend, offsets[i + 2]);
+            }
+
+            total_vertices = max_src_vend - min_src_vstart;
+            if ((dst_otail - base) + offset_count <= span && (dst_vstart - base) + total_vertices <= span)
+                break;
+
+            tasks_to_load /= 2;
         }
+        if (tasks_to_load == 0)
+        {
+            delete[] offsets;
+            return;
+        }
+
+        ull *translated_offsets = new ull[offset_count];
+        ull write_idx = 0;
+        for (ull i = max_offset_count; i > local_offsets_start; i -= 3)
+        {
+            const ull idx = i - 3;
+            const ull sg_st = offsets[idx];
+            const ull sg_md = offsets[idx + 1];
+            const ull sg_en = offsets[idx + 2];
+
+            translated_offsets[write_idx] = dst_vstart + (sg_st - min_src_vstart);
+            translated_offsets[write_idx + 1] = (sg_md == 0) ? 0 : dst_vstart + (sg_md - min_src_vstart);
+            translated_offsets[write_idx + 2] = dst_vstart + (sg_en - min_src_vstart);
+            write_idx += 3;
+        }
+
+        chkerr(cudaMemcpy(Bwr.offsets + dst_otail, translated_offsets, sizeof(ull) * offset_count, cudaMemcpyHostToDevice));
+        Bwr.copy_host_to_device_range(H, dst_vstart, min_src_vstart, total_vertices);
+        Bwr.otail[0] = dst_otail + offset_count;
+        Bwr.vtail[0] = dst_vstart + total_vertices;
+        H.otail[0] = offsets_start;
+        delete[] translated_offsets;
+        delete[] offsets;
     }
 };
 

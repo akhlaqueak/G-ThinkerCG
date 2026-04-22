@@ -473,33 +473,33 @@ public:
         }
     }
 
-    virtual void move_tasks_from_Sc(std::vector<MCTask *> &src_tasks, MCBuffer &Bwr)
+    virtual void move_tasks_from_Sc(std::vector<MCTask *> &src_tasks, MCBuffer &H)
     {
         cout << "H to D: " << src_tasks.size() << endl;
         for (MCTask *task : src_tasks)
         {
             ui rsz = task->context.R.size(), psz = task->context.P.size(), xsz = task->context.X.size();
-            ull loc = Bwr.append_host(rsz + psz + xsz);
-            std::copy(task->context.R.begin(), task->context.R.end(), Bwr.vertices + loc);
-            std::fill(Bwr.labels + loc, Bwr.labels + loc + rsz, R);
+            ull loc = H.append_host(rsz + psz + xsz);
+            std::copy(task->context.R.begin(), task->context.R.end(), H.vertices + loc);
+            std::fill(H.labels + loc, H.labels + loc + rsz, R);
             loc += rsz;
 
-            std::copy(task->context.P.begin(), task->context.P.end(), Bwr.vertices + loc);
-            std::fill(Bwr.labels + loc, Bwr.labels + loc + psz, P);
+            std::copy(task->context.P.begin(), task->context.P.end(), H.vertices + loc);
+            std::fill(H.labels + loc, H.labels + loc + psz, P);
             loc += psz;
 
-            std::copy(task->context.X.begin(), task->context.X.end(), Bwr.vertices + loc);
-            std::fill(Bwr.labels + loc, Bwr.labels + loc + xsz, X);
+            std::copy(task->context.X.begin(), task->context.X.end(), H.vertices + loc);
+            std::fill(H.labels + loc, H.labels + loc + xsz, X);
             delete task;
         }
         src_tasks.clear();
     }
-    virtual void move_tasks_to_Sc(vector<MCTask *> &collector, MCBuffer &Brd)
+    virtual void move_tasks_to_Sc(vector<MCTask *> &collector, MCBuffer &H)
     {
         cout << "D to H" << endl;
         for (ui i = 0; i < gpu_to_host_transfer_size_g; i++)
         {
-            SubgraphOffsets so = Brd.pop_host();
+            SubgraphOffsets so = H.pop_host();
             if (so.empty())
                 break;
             ui sglen = so.en - so.st;
@@ -510,12 +510,12 @@ public:
             task->context.X.reserve(sglen / 2);
             for (auto st = so.st; st < so.en; st++)
             {
-                if (Brd.labels[st] == R)
-                    task->context.R.push_back(Brd.vertices[st]);
-                else if (Brd.labels[st] == P)
-                    task->context.P.push_back(Brd.vertices[st]);
+                if (H.labels[st] == R)
+                    task->context.R.push_back(H.vertices[st]);
+                else if (H.labels[st] == P)
+                    task->context.P.push_back(H.vertices[st]);
                 else
-                    task->context.X.push_back(Brd.vertices[st]);
+                    task->context.X.push_back(H.vertices[st]);
             }
             collector.push_back(task);
         }

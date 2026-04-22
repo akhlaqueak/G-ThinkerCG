@@ -1812,7 +1812,7 @@ public:
         for (QCTask *task : src_tasks)
         {
             ui sz = task->context.num_vertices;
-            SubgraphOffsets so = this->Bwr.append_host_to_device(sz);
+            SubgraphOffsets so = this->H.append_host_to_device(sz);
             ull loc = so.st;
             std::vector<VertexID> vertices(sz);
             std::vector<Label> labels(sz);
@@ -1829,17 +1829,40 @@ public:
                 lvl2adjs[i] = task->context.vertices[i].lvl2adj;
             }
 
-            chkerr(cudaMemcpy(this->Bwr.vertices + loc, vertices.data(), sizeof(VertexID) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.label + loc, labels.data(), sizeof(Label) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.indeg + loc, indegs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.exdeg + loc, exdegs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
-            chkerr(cudaMemcpy(this->Bwr.lvl2adj + loc, lvl2adjs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->H.vertices + loc, vertices.data(), sizeof(VertexID) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->H.label + loc, labels.data(), sizeof(Label) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->H.indeg + loc, indegs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->H.exdeg + loc, exdegs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
+            chkerr(cudaMemcpy(this->H.lvl2adj + loc, lvl2adjs.data(), sizeof(int) * sz, cudaMemcpyHostToDevice));
             delete task;
         }
         src_tasks.clear();
     }
     virtual void move_tasks_to_Sc(vector<QCTask *> &collector, QCBuffer &H)
     {
+        cout << "D to H" << endl;
+        for (ui i = 0; i < gpu_to_host_transfer_size_g; i++)
+        {
+            SubgraphOffsets so = H.pop_host();
+            if (so.empty())
+                break;
+
+            ull sglen = so.en - so.st;
+            Vertex *vertices = new Vertex[sglen];
+
+            for (ull st = so.st, idx = 0; st < so.en; st++, idx++)
+            {
+                vertices[idx].vertexid = H.vertices[st];
+                vertices[idx].label = H.label[st];
+                vertices[idx].indeg = H.indeg[st];
+                vertices[idx].exdeg = H.exdeg[st];
+                vertices[idx].lvl2adj = H.lvl2adj[st];
+            }
+
+            QCTask *task = new QCTask();
+            task->context = QCContext(vertices, sglen);
+            collector.push_back(task);
+        }
     }
 };
 #endif

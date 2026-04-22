@@ -20,18 +20,6 @@ __global__ void extend(T gc)
     gc.extend(gc.Brd, gc.Bwr, gc.H, gc.row_ptrs, gc.cols);
 }
 
-template <class T>
-__global__ void loadFromHost(T gc)
-{
-    gc.loadFromHost();
-}
-
-template <class T>
-__global__ void dumpToHost(T gc)
-{
-    gc.dumpToHost();
-}
-
 template <class GPUContext>
 class GPUWorker : public Worker<typename GPUContext::TaskType>
 {
@@ -78,7 +66,7 @@ public:
         {
             if (not gc.H.empty())
             {
-                load_from_host();
+                gc.load_from_host();
                 move_tasks_to_cpu();
             }
             else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
@@ -124,13 +112,13 @@ public:
 
         if (!gc.Bwr.empty())
         {
-            gc.incrementLevel();
-            if (gc.isOverflow() or gc.Bwr.isApprochingEnd())
-            {
-                dump_to_host();
-                move_tasks_to_cpu();
-                show_progress(" ** dump done ** ");
-                if (!gc.decrementLevel())
+                gc.incrementLevel();
+                if (gc.isOverflow() or gc.Bwr.isApprochingEnd())
+                {
+                    gc.dump_to_host();
+                    move_tasks_to_cpu();
+                    show_progress(" ** dump done ** ");
+                    if (!gc.decrementLevel())
                     return false;
             }
         }
@@ -160,9 +148,9 @@ public:
 
         if (gc.isOverflow())
         {
-            dump_to_host();      // dumps remaining unxpanded Brd tasks to H
+            gc.dump_to_host();   // dumps remaining unxpanded Brd tasks to H
             gc.incrementLevel(); // switch Bwr => Brd
-            dump_to_host();      // now dump Brd to host...
+            gc.dump_to_host();   // now dump Brd to host...
             gc.set_layered_mode();
             // show_progress("pingpong overflow done ");
             move_tasks_to_cpu();
@@ -174,127 +162,6 @@ public:
             return false;
         }
         return true;
-    }
-
-    void dump_to_host()
-    {
-        show_progress(" ** host dump ** ");
-        if (gc.Brd.empty())
-            return;
-
-        const ull src_ohead = gc.Brd.ohead[0];
-        const ull src_otail = gc.Brd.otail[0];
-        const ull offset_count = src_otail - src_ohead;
-        cout << "moving D->H: " << offset_count / 3 << endl;
-        if (offset_count == 0)
-            return;
-
-        ull *offsets = new ull[offset_count];
-        chkerr(cudaMemcpy(offsets, gc.Brd.offsets + src_ohead, sizeof(ull) * offset_count, cudaMemcpyDeviceToHost));
-
-        ull min_src_vstart = offsets[0];
-        ull max_src_vend = offsets[2];
-        for (ull i = 3; i < offset_count; i += 3)
-        {
-            min_src_vstart = std::min(min_src_vstart, offsets[i]);
-            max_src_vend = std::max(max_src_vend, offsets[i + 2]);
-        }
-
-        const ull dst_vstart = gc.H.vtail[0];
-        const ull total_vertices = max_src_vend - min_src_vstart;
-
-        for (ull i = 0; i < offset_count; i += 3)
-        {
-            const ull sg_st = offsets[i];
-            const ull sg_md = offsets[i + 1];
-            const ull sg_en = offsets[i + 2];
-
-            gc.H.offsets[gc.H.otail[0]] = dst_vstart + (sg_st - min_src_vstart);
-            gc.H.offsets[gc.H.otail[0] + 1] = (sg_md == 0) ? 0 : dst_vstart + (sg_md - min_src_vstart);
-            gc.H.offsets[gc.H.otail[0] + 2] = dst_vstart + (sg_en - min_src_vstart);
-            gc.H.otail[0] += 3;
-        }
-
-        gc.H.copy_host_range(gc.Brd, dst_vstart, min_src_vstart, total_vertices);
-        gc.H.vtail[0] += total_vertices;
-        delete[] offsets;
-    }
-
-    void load_from_host()
-    {
-        if (gc.H.empty())
-            return;
-
-        const ull src_ohead = gc.H.ohead[0];
-        const ull src_otail = gc.H.otail[0];
-        const ull available_tasks = (src_otail - src_ohead) / 3;
-
-        if (available_tasks == 0)
-            return;
-
-        const ull dst_otail = gc.Bwr.otail[0];
-        const ull dst_vstart = gc.Bwr.vtail[0];
-        ull tasks_to_load = std::min<ull>(ETA, available_tasks);
-        const ull max_offset_count = tasks_to_load * 3;
-        const ull max_offsets_start = src_otail - max_offset_count;
-        ull total_vertices = 0;
-        ull min_src_vstart = 0;
-        ull offset_count = 0;
-        ull offsets_start = 0;
-        ull local_offsets_start = 0;
-        const ull base = gc.Bwr.second_buffer ? gc.Bwr.capacity[0] / 2 : 0;
-        const ull span = gc.Bwr.second_buffer ? gc.Bwr.capacity[0] / 2 : gc.Bwr.capacity[0];
-
-        ull *offsets = new ull[max_offset_count];
-        std::copy(gc.H.offsets + max_offsets_start, gc.H.offsets + src_otail, offsets);
-
-        while (tasks_to_load > 0)
-        {
-            offset_count = tasks_to_load * 3;
-            offsets_start = src_otail - offset_count;
-            local_offsets_start = max_offset_count - offset_count;
-
-            min_src_vstart = offsets[local_offsets_start];
-            ull max_src_vend = offsets[local_offsets_start + 2];
-            for (ull i = local_offsets_start + 3; i < max_offset_count; i += 3)
-            {
-                min_src_vstart = std::min(min_src_vstart, offsets[i]);
-                max_src_vend = std::max(max_src_vend, offsets[i + 2]);
-            }
-
-            total_vertices = max_src_vend - min_src_vstart;
-            if ((dst_otail - base) + offset_count <= span && (dst_vstart - base) + total_vertices <= span)
-                break;
-
-            tasks_to_load /= 2;
-        }
-        if (tasks_to_load == 0)
-        {
-            delete[] offsets;
-            return;
-        }
-        ull *translated_offsets = new ull[offset_count];
-        ull write_idx = 0;
-        for (ull i = max_offset_count; i > local_offsets_start; i -= 3)
-        {
-            const ull idx = i - 3;
-            const ull sg_st = offsets[idx];
-            const ull sg_md = offsets[idx + 1];
-            const ull sg_en = offsets[idx + 2];
-
-            translated_offsets[write_idx] = dst_vstart + (sg_st - min_src_vstart);
-            translated_offsets[write_idx + 1] = (sg_md == 0) ? 0 : dst_vstart + (sg_md - min_src_vstart);
-            translated_offsets[write_idx + 2] = dst_vstart + (sg_en - min_src_vstart);
-            write_idx += 3;
-        }
-
-        chkerr(cudaMemcpy(gc.Bwr.offsets + dst_otail, translated_offsets, sizeof(ull) * offset_count, cudaMemcpyHostToDevice));
-        gc.Bwr.copy_host_to_device_range(gc.H, dst_vstart, min_src_vstart, total_vertices);
-        gc.Bwr.otail[0] = dst_otail + offset_count;
-        gc.Bwr.vtail[0] = dst_vstart + total_vertices;
-        gc.H.otail[0] = offsets_start;
-        delete[] translated_offsets;
-        delete[] offsets;
     }
 
     void show_progress(std::string msg = "Progress Report")
