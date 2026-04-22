@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=Gthinker
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=10G
 #SBATCH --partition=amperenodes
 #SBATCH --time=12:00:00
@@ -70,13 +70,30 @@ mkdir -p logs
 : > logs/failed.log
 
 for ds in $datasets; do
-    rc_pingpong=0
+    rc_with_pingpong=0
+    rc_no_pingpong=0
+    rc_no_cpu=0
+
     sleep 5
     ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -gpuchunk 1000000 -pingpong 1 \
-        > "logs/$ds.with-pingpong" 2>&1 || rc_pingpong=$?
+        > "logs/$ds.with-pingpong" 2>&1 || rc_with_pingpong=$?
 
-    if [ "$rc_pingpong" -ne 0 ]; then
-        echo "Dataset failed (no-pingpong): $ds (exit code: $rc_pingpong)" | tee -a "logs/failed.log"
+    sleep 5
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -gpuchunk 1000000 -pingpong 0 \
+        > "logs/$ds.no-pingpong" 2>&1 || rc_no_pingpong=$?
+
+    sleep 5
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 \
+        > "logs/$ds.no-cpu" 2>&1 || rc_no_cpu=$?
+
+    if [ "$rc_with_pingpong" -ne 0 ]; then
+        echo "Dataset failed (with-pingpong): $ds (exit code: $rc_with_pingpong)" >> "logs/failed.log"
+    fi
+    if [ "$rc_no_pingpong" -ne 0 ]; then
+        echo "Dataset failed (no-pingpong): $ds (exit code: $rc_no_pingpong)" >> "logs/failed.log"
+    fi
+    if [ "$rc_no_cpu" -ne 0 ]; then
+        echo "Dataset failed (no-cpu): $ds (exit code: $rc_no_cpu)" >> "logs/failed.log"
     fi
 done
 
@@ -84,13 +101,13 @@ done
 output="results.txt"
 : > "$output"
 
-rm $output
-
 for ds in $datasets; do
     printf "%s " "$ds" >> "$output"
-    for algo in with-pingpong; do
-        cliques=$(grep "Total count" "logs/$ds.$algo" | awk '{print $NF}')
-        time_taken=$(grep "Total time" "logs/$ds.$algo" | awk '{print $NF}')
+    for algo in with-pingpong no-pingpong no-cpu; do
+        cliques=$(grep "Total count" "logs/$ds.$algo" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+        time_taken=$(grep "Total time" "logs/$ds.$algo" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+        cliques=${cliques:-NA}
+        time_taken=${time_taken:-NA}
         printf " %s %s" "$cliques" "$time_taken" >> "$output"
     done
     printf "\n" >> "$output"
