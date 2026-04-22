@@ -122,7 +122,7 @@ public:
                 if (not is_SC_empty())
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
-                    ui chunk = std::min(SC->size() / (workers_list.size() + 1), worker->tasks_per_fetch);
+                    ui chunk = std::min<ui>(SC->size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
                     for (ui i = 0; i < chunk && !SC->empty(); i++)
                     {
