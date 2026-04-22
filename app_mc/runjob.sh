@@ -75,16 +75,16 @@ for ds in $datasets; do
     rc_no_cpu=0
 
     sleep 5
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -gpuchunk 1000000 -pingpong 1 \
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -cpuchunk 100 -gpuchunk 1000000 -pingpong 1 \
         > "logs/$ds.with-pingpong" 2>&1 || rc_with_pingpong=$?
 
     sleep 5
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -gpuchunk 1000000 -pingpong 0 \
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -cpuchunk 100 -gpuchunk 1000000 -pingpong 0 \
         > "logs/$ds.no-pingpong" 2>&1 || rc_no_pingpong=$?
 
     sleep 5
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -gpuchunk 1000000 -pingpong 1 \
-        > "logs/$ds.no-cpu" 2>&1 || rc_no_cpu=$?
+    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk 100 -gpuchunk 1000000 -pingpong 1 \
+        > "logs/$ds.with-cpu" 2>&1 || rc_no_cpu=$?
 
     if [ "$rc_with_pingpong" -ne 0 ]; then
         echo "Dataset failed (with-pingpong): $ds (exit code: $rc_with_pingpong)" >> "logs/failed.log"
