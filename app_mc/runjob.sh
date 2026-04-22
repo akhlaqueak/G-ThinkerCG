@@ -2,7 +2,7 @@
 #SBATCH --job-name=Gthinker
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
-#SBATCH --mem-per-cpu=10G
+#SBATCH --mem-per-cpu=1G
 #SBATCH --partition=amperenodes
 #SBATCH --time=12:00:00
 #SBATCH --no-requeue
