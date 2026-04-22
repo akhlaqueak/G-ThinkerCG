@@ -6,7 +6,7 @@
 #SBATCH --partition=amperenodes
 #SBATCH --time=12:00:00
 #SBATCH --no-requeue
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --output=%x.out
 #SBATCH --error=%x.err
 
