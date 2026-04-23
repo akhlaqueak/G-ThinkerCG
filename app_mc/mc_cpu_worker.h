@@ -1,7 +1,7 @@
 #ifndef MC_CPU_APP
 #define MC_CPU_APP
 
-#define TIME_OVER(ST) (chrono::duration_cast<chrono::microseconds>(TIME_NOW - ST).count() > tau_time)
+#define TIME_OVER(ST) (chrono::duration_cast<chrono::microseconds>(TIME_NOW - ST).count() > tau_time_g)
 
 
 class MCCPUWorker : public CPUWorker<MCTask>
