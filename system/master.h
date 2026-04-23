@@ -126,7 +126,6 @@ public:
             }
             else
             {
-                bool took_sc_work = false;
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     if (!SC->empty())
@@ -140,10 +139,9 @@ public:
                             SC->pop();
                         }
                         assigned_work = !worker->Lt.empty();
-                        took_sc_work = assigned_work;
                     }
                 }
-                if (!took_sc_work && not data_array.empty())
+                if (!assigned_work && not data_array.empty())
                 {
                     ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
