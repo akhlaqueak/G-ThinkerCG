@@ -132,13 +132,13 @@ public:
                 }
                 else if (not data_array.empty())
                 {
-                    
-                    for (ui i = 0; i < worker->tasks_per_fetch && data_array.size(); i++)
+                    ui chunk = std::min<ull>(data_array.size(), worker->tasks_per_fetch);
+                    for (ui i = 0; i <  chunk; i++)
                     {
                         VertexID *item = data_array.back();
                         worker->Lv.push_back(*item);
                         data_array.pop_back();
-                        // delete item;
+                        delete item;
                     }
                 }
             }
