@@ -26,6 +26,9 @@ public:
     {
         tasks_per_fetch = n_tasks;
         SC = (stack<TaskT *> *)global_SC;
+        Lv.reserve(n_tasks);
+        Lt.reserve(n_tasks);
+        Lo.reserve(n_tasks);
     }
 
     virtual ~Worker()
