@@ -14,13 +14,11 @@ public:
     using GPUWorkerT = GPUWorker<GPUContextT>;
     using TaskT = typename GPUContextT::TaskType;
     using WorkerT = Worker<TaskT>;
-    using ClockT = std::chrono::high_resolution_clock;
 
     // Contains all data loaded from file
     deque<VertexID> data_array;
 
     stack<TaskT *> *SC;
-    std::chrono::nanoseconds cpu_root_dispatch_time{0};
 
     // Init files seq with 1 for each thread.
     Master()
@@ -137,21 +135,17 @@ public:
                     // cout << "workers: " << workers_list.size() << "data_array: " << data_array.size() << endl;
                     ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
-                    auto dispatch_start = ClockT::now();
                     for (ui i = 0; i < chunk; i++)
                     {
                         VertexID item = data_array.back();
                         worker->Lv.push_back(item);
                         data_array.pop_back();
                     }
-                    cpu_root_dispatch_time += std::chrono::duration_cast<std::chrono::nanoseconds>(ClockT::now() - dispatch_start);
                 }
             }
 
             worker->notify();
         } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and is_SC_empty()));
-        cout << "CPU root dispatch time (s): " << std::fixed << std::setprecision(6)
-             << cpu_root_dispatch_time.count() / 1e9 << endl;
         global_end_label = true;
         notify_all_workers();
     }
