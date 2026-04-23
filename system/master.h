@@ -105,7 +105,7 @@ public:
                         data_array.pop_front();
                         delete item;
                     }
-                // else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g / 0))
+                else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g * 0.1))
                 else {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     for (ui i = 0; i < worker->tasks_per_fetch && !SC->empty(); i++)
