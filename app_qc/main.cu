@@ -91,7 +91,7 @@ public:
         initialize_tasks(graph, hd);
 
         for(ui i=0;i<hd.initial_vertices_count; i++){
-            data_array.push_back(new ui(i));
+            data_array.push_back(i);
         }
         
         chkerr(cudaMalloc((void **)&dd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count));

@@ -35,7 +35,7 @@ public:
         cudaMemcpyToSymbol(eta, &ETA, sizeof(ui));
 
         for (int i = 0; i < data_graph.GetVertexCount(); ++i)
-            data_array.push_back(new ui(i)); // data_array is member of Master
+            data_array.push_back(i); // data_array is member of Master
     }
 
     ull get_results()

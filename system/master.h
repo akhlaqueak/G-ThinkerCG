@@ -16,7 +16,7 @@ public:
     using WorkerT = Worker<TaskT>;
 
     // Contains all data loaded from file
-    deque<VertexID *> data_array;
+    deque<VertexID> data_array;
 
     stack<TaskT *> *SC;
 
@@ -98,12 +98,11 @@ public:
             {
                 // cout << "SC size: " << SC->size() << endl;
                 if (not data_array.empty())
-                    for (ui i = 0; i < worker->tasks_per_fetch && data_array.size(); i++)
+                    for (ui i = 0; i < worker->tasks_per_fetch && !data_array.empty(); i++)
                     {
-                        VertexID *item = data_array.front();
-                        worker->Lv.push_back(*item);
+                        VertexID item = data_array.front();
+                        worker->Lv.push_back(item);
                         data_array.pop_front();
-                        delete item;
                     }
                 else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g * 0.1))
                 {
@@ -133,16 +132,14 @@ public:
                 }
                 else if (not data_array.empty())
                 {
-
                     cout << "workers: " << workers_list.size() << "data_array: " << data_array.size() << endl;
                     ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
                     for (ui i = 0; i < chunk; i++)
                     {
-                        VertexID *item = data_array.back();
-                        worker->Lv.push_back(*item);
+                        VertexID item = data_array.back();
+                        worker->Lv.push_back(item);
                         data_array.pop_back();
-                        delete item;
                     }
                 }
             }
