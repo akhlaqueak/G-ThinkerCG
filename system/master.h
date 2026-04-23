@@ -137,7 +137,7 @@ public:
                         VertexID *item = data_array.back();
                         worker->Lv.push_back(*item);
                         data_array.pop_back();
-                        delete item;
+                        // delete item;
                     }
                 }
             }
