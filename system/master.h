@@ -132,6 +132,8 @@ public:
                 }
                 else if (not data_array.empty())
                 {
+                    
+                    cout << "workers: " << workers_list.size() << "SC: " << SC_size() << endl;
                     ui chunk = std::min<ull>(data_array.size(), worker->tasks_per_fetch);
                     for (ui i = 0; i <  chunk; i++)
                     {
@@ -144,7 +146,6 @@ public:
             }
 
             worker->notify();
-            // cout << "workers: " << workers_list.size() << "SC: " << SC_size() << endl;
         } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and is_SC_empty()));
         global_end_label = true;
         notify_all_workers();
