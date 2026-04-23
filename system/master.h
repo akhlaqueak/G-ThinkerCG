@@ -93,6 +93,7 @@ public:
                 continue;
 
             WorkerT *worker = (WorkerT *)workers_list.dequeue();
+            bool assigned_work = false;
 
             if (dynamic_cast<GPUWorkerT *>(worker))
             {
@@ -106,35 +107,43 @@ public:
                         worker->Lv.push_back(item);
                         data_array.pop_front();
                     }
+                    assigned_work = (chunk > 0);
                 }
                 else
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
-                    ui chunk = SC->size() >= tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC ? 
-                    std::min<ull>(tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC, SC->size()) : 0;
+                    const size_t sc_size = SC->size();
+                    ui chunk = sc_size >= tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC ?
+                               std::min<ull>(tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC, sc_size) : 0;
                     for (ui i = 0; i < chunk; i++)
                     {
                         TaskT *task = SC->top();
                         worker->Lt.push_back(task);
                         SC->pop();
                     }
+                    assigned_work = (chunk > 0);
                 }
             }
             else
             {
-                if (not is_SC_empty())
+                bool took_sc_work = false;
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
-                    ui chunk = std::min<ui>(SC->size() / (workers_list.size() + 1), worker->tasks_per_fetch);
-                    chunk = max(chunk, 1);
-                    for (ui i = 0; i < chunk && !SC->empty(); i++)
+                    if (!SC->empty())
                     {
-                        TaskT *task = SC->top();
-                        worker->Lt.push_back(task);
-                        SC->pop();
+                        ui chunk = std::min<ui>(SC->size() / (workers_list.size() + 1), worker->tasks_per_fetch);
+                        chunk = max(chunk, 1);
+                        for (ui i = 0; i < chunk && !SC->empty(); i++)
+                        {
+                            TaskT *task = SC->top();
+                            worker->Lt.push_back(task);
+                            SC->pop();
+                        }
+                        assigned_work = !worker->Lt.empty();
+                        took_sc_work = assigned_work;
                     }
                 }
-                else if (not data_array.empty())
+                if (!took_sc_work && not data_array.empty())
                 {
                     ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
@@ -144,10 +153,14 @@ public:
                         worker->Lv.push_back(item);
                         data_array.pop_back();
                     }
+                    assigned_work = (chunk > 0);
                 }
             }
 
-            worker->notify();
+            if (assigned_work)
+                worker->notify();
+            else
+                workers_list.enqueue(worker);
         } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and is_SC_empty()));
         global_end_label = true;
         notify_all_workers();
