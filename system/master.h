@@ -105,8 +105,9 @@ public:
                         data_array.pop_front();
                         delete item;
                     }
-                else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g * 0.1)){
-                // else {
+                else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g * 0.1))
+                {
+                    // else {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     for (ui i = 0; i < worker->tasks_per_fetch && !SC->empty(); i++)
                     {
@@ -132,10 +133,11 @@ public:
                 }
                 else if (not data_array.empty())
                 {
-                    
+
                     cout << "workers: " << workers_list.size() << "SC: " << SC_size() << endl;
-                    ui chunk = std::min<ull>(data_array.size(), worker->tasks_per_fetch);
-                    for (ui i = 0; i <  chunk; i++)
+                    ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
+                    chunk = max(chunk, 1);
+                    for (ui i = 0; i < chunk; i++)
                     {
                         VertexID *item = data_array.back();
                         worker->Lv.push_back(*item);
