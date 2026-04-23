@@ -138,7 +138,7 @@ public:
                             worker->Lt.push_back(task);
                             SC->pop();
                         }
-                        assigned_work = !worker->Lt.empty();
+                        assigned_work = (chunk > 0);
                     }
                 }
                 if (!assigned_work && not data_array.empty())
