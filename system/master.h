@@ -134,7 +134,7 @@ public:
                 else if (not data_array.empty())
                 {
 
-                    cout << "workers: " << workers_list.size() << "SC: " << SC_size() << endl;
+                    cout << "workers: " << workers_list.size() << "data_array: " << data_array.size() << endl;
                     ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
                     for (ui i = 0; i < chunk; i++)
