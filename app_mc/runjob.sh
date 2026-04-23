@@ -70,21 +70,17 @@ mkdir -p logs
 : > logs/failed.log
 
 for ds in $datasets; do
-    rc_with_pingpong=0
-    rc_no_pingpong=0
-    rc_no_cpu=0
+    for chunk in 10 20 50; do
+        rc_no_cpu=0
+        sleep 5
+        fname="logs/$ds-cpuchunk-$chunk.log"
+        ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk 1000000 -pingpong 1 \
+            > "$fname" 2>&1 || rc_no_cpu=$?
 
-    # sleep 5
-    # ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -cpuchunk 100 -gpuchunk 1000000 -pingpong 1 \
-    #     > "logs/$ds.with-pingpong" 2>&1 || rc_with_pingpong=$?
-
-    # sleep 5
-    # ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 0 -cpuchunk 100 -gpuchunk 1000000 -pingpong 0 \
-    #     > "logs/$ds.no-pingpong" 2>&1 || rc_no_pingpong=$?
-
-    sleep 5
-    ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk 100 -gpuchunk 1000000 -pingpong 1 \
-        > "logs/$ds.with-cpu" 2>&1 || rc_no_cpu=$?
+        if [ "$rc_no_cpu" -ne 0 ]; then
+            echo "Dataset failed: $ds cpuchunk=$chunk (exit code: $rc_no_cpu)" | tee -a "logs/failed.log"
+        fi
+    done
 done
 
 
@@ -93,9 +89,10 @@ output="results.txt"
 
 for ds in $datasets; do
     printf "%s " "$ds" >> "$output"
-    for algo in with-pingpong no-pingpong with-cpu; do
-        cliques=$(grep "Total count" "logs/$ds.$algo" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
-        time_taken=$(grep "Total time" "logs/$ds.$algo" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+    for chunk in 10 20 50; do 
+        fname="logs/$ds-cpuchunk-$chunk.log"
+        cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+        time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
         cliques=${cliques:-NA}
         time_taken=${time_taken:-NA}
         printf " %s %s" "$cliques" "$time_taken" >> "$output"
