@@ -28,7 +28,7 @@ public:
         cout << "eta (tasks load per warp): " << ETA << endl;
         cout << "cpu chunk: " << tasks_per_fetch_g << endl;
         cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
-        cout << "tau_time: " << tau_time << endl;
+        cout << "tau_time: " << tau_time_g << endl;
         cout << " ======= ********** ========" << endl;
         
         data_graph = Graph(fp);
