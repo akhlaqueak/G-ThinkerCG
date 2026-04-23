@@ -98,17 +98,21 @@ public:
             {
                 // cout << "SC size: " << SC->size() << endl;
                 if (not data_array.empty())
-                    for (ui i = 0; i < worker->tasks_per_fetch && !data_array.empty(); i++)
+                {
+                    ui chunk = std::min<ull>(data_array.size(), worker->tasks_per_fetch);
+                    for (ui i = 0; i < chunk; i++)
                     {
                         VertexID item = data_array.front();
                         worker->Lv.push_back(item);
                         data_array.pop_front();
                     }
-                else if (SC_size() >= std::max<size_t>(1, tasks_per_fetch_gpu_worker_g * 0.1))
+                }
+                else
                 {
-                    // else {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
-                    for (ui i = 0; i < worker->tasks_per_fetch && !SC->empty(); i++)
+                    ui chunk = SC->size() >= tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC ? 
+                    std::min<ull>(tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC, SC->size()) : 0;
+                    for (ui i = 0; i < chunk; i++)
                     {
                         TaskT *task = SC->top();
                         worker->Lt.push_back(task);
@@ -132,7 +136,6 @@ public:
                 }
                 else if (not data_array.empty())
                 {
-                    // cout << "workers: " << workers_list.size() << "data_array: " << data_array.size() << endl;
                     ui chunk = std::min<ull>(data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
                     for (ui i = 0; i < chunk; i++)
