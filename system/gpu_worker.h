@@ -51,7 +51,7 @@ public:
         else if(this->Lt.size())
         {
             cout << "Lt: " << this->Lt.size() << endl;
-            gc.move_tasks_from_Sc(this->Lt, gc.H);
+            gc.fi(this->Lt, gc.H);
         }
         else return;
 

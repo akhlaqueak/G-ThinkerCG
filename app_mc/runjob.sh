@@ -103,7 +103,7 @@ output="results.txt"
 
 for ds in $datasets; do
     printf "%s " "$ds" >> "$output"
-    for algo in with-pingpong no-pingpong no-cpu; do
+    for algo in with-pingpong no-pingpong with-cpu; do
         cliques=$(grep "Total count" "logs/$ds.$algo" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
         time_taken=$(grep "Total time" "logs/$ds.$algo" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
         cliques=${cliques:-NA}

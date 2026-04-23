@@ -153,12 +153,15 @@ public:
             SubgraphOffsets so = H.pop_host();
             if (so.empty())
                 break;
-            ui *data = H.vertices;
+            VertexID *data = H.vertices;
 
             if (so.md == 0)
             {
                 // expand strategy
-                ui sglen = so.en - so.st;
+                ull sglen64 = so.en - so.st;
+                if (sglen64 > gpu_qg.GetVertexCount())
+                    throw std::runtime_error("Invalid task size while moving GM tasks from host buffer");
+                ui sglen = static_cast<ui>(sglen64);
                 GMTask *task = new GMTask();
                 task->context.embedding = new ui[gpu_qg.GetVertexCount()];
                 task->context.idx_embedding = new ui[gpu_qg.GetVertexCount()];
@@ -184,7 +187,10 @@ public:
             else
             {
                 // prefix strategy
-                ui sglen = so.md - so.st + 1;
+                ull sglen64 = so.md - so.st + 1;
+                if (sglen64 > gpu_qg.GetVertexCount())
+                    throw std::runtime_error("Invalid prefix task size while moving GM tasks from host buffer");
+                ui sglen = static_cast<ui>(sglen64);
                 ui *idx = new ui[sglen - 1]; // common idx_maping
                 bool valid_prefix=true;
                 for (ui i = 0; i < sglen - 1; i++)
@@ -198,7 +204,7 @@ public:
                     idx[i] = idv;
                 }
 
-                for (ui j = so.md; valid_prefix && j < so.en; j++)
+                for (ull j = so.md; valid_prefix && j < so.en; j++)
                 {
                     ui idv = binary_search(sglen - 1, data[j]); // -1 because candidates index start from 0
                     if (idv == -1)
@@ -305,17 +311,18 @@ public:
                 break;
             }
 
-            ui id = 0, sglen;
+            ull sglen64 = 0;
             if (CUR_MODE == StoreStrategy::EXPAND)
             {
-                id = so.en - so.st;
-                sglen = so.en - so.st;
+                sglen64 = so.en - so.st;
             }
             else if (CUR_MODE == StoreStrategy::PREFIX)
             {
-                id = so.md - so.st + 1;
-                sglen = so.md - so.st + 1;
+                sglen64 = so.md - so.st + 1;
             }
+            assert(sglen64 <= querySize[0]);
+            ui id = static_cast<ui>(sglen64);
+            ui sglen = static_cast<ui>(sglen64);
 
             NEXT_MODE = strategy[id + 1];
             ui u = matchOrder[id];
@@ -432,12 +439,13 @@ public:
                     }
                     ui pre_len = len;
 
-                    for (ui subgraph_id = so.md; subgraph_id < so.en; ++subgraph_id)
+                    const ui prefix_slot = static_cast<ui>(so.md - so.st);
+                    for (ull subgraph_id = so.md; subgraph_id < so.en; ++subgraph_id)
                     {
 
                         if (LANEID == 0)
                         {
-                            partial_subgraphs[WARPID][so.md - so.st] = Brd.vertices[subgraph_id];
+                            partial_subgraphs[WARPID][prefix_slot] = Brd.vertices[subgraph_id];
                         }
                         __syncwarp();
 

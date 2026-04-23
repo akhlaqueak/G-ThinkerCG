@@ -2,7 +2,7 @@
 #define MC_CPU_APP
 
 #define TIME_THRESHOLD 1000
-#define TIME_OVER(ST) (chrono::duration_cast<chrono::nanoseconds>(TIME_NOW - ST).count() > TIME_THRESHOLD)
+#define TIME_OVER(ST) (chrono::duration_cast<chrono::microseconds>(TIME_NOW - ST).count() > TIME_THRESHOLD)
 
 
 class MCCPUWorker : public CPUWorker<MCTask>
