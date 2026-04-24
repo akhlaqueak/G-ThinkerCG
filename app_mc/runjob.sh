@@ -73,8 +73,8 @@ for ds in $datasets; do
     for chunk in 10 50 100; do
         rc_no_cpu=0
         sleep 5
-        fname="logs/$ds-cpuchunk-$chunk-tau-10.log"
-        ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk 1000000 -pingpong 1 -tau 10\
+        fname="logs/$ds-cpuchunk-$chunk-tau-1000.log"
+        ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk 1000000 -pingpong 1 -tau 1000\
             > "$fname" 2>&1 || rc_no_cpu=$?
 
         if [ "$rc_no_cpu" -ne 0 ]; then
@@ -84,13 +84,13 @@ for ds in $datasets; do
 done
 
 
-output="results-tau-10.txt"
+output="results-tau-1000.txt"
 : > "$output"
 
 for ds in $datasets; do
     printf "%s " "$ds" >> "$output"
     for chunk in 10 50 100; do 
-        fname="logs/$ds-cpuchunk-$chunk-tau-10.log"
+        fname="logs/$ds-cpuchunk-$chunk-tau-1000.log"
         cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
         time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
         cliques=${cliques:-NA}
