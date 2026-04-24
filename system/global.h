@@ -66,7 +66,7 @@ __device__ ui eta=1000*N_WARPS;
 ui ETA = 1000*N_WARPS;
 bool ping_pong = true;
 double gpu_min_thresh_SC = 0.1; // a GPU takes tasks only if |SC| is more than gpu_min_thresh_SC * tasks_per_fetch_gpu_worker
-ui tau_time_g = 10; // in microseconds. controls cpu task decomposition threshold. 
+ui tau_time_g = 1000; // in microseconds. controls cpu task decomposition threshold. 
 
 #define HOST_BUFF_SZ 10'000'000'000ULL
 #define HOST_OFFSET_SZ 2'000'000'000ULL
