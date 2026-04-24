@@ -14,22 +14,23 @@ set -euo pipefail
 
 mkdir -p "logs"
 
-datasets="wikipedia_link_sr
-wikipedia_link_sh
-wikipedia_link_fr
-web-wikipedia_link_en13-all
-wikipedia_link_de
-edit-frwiki
-orkut-links
-wikipedia_link_ru
-link-dynamic-frwiki
-edit-dewiki
-wikipedia_link_sv
-sx-stackoverflow
-soc-sinaweibo
-edit-eswiki
-wikipedia_link_it
-wikipedia_link_nl
+# datasets="wikipedia_link_sr
+# wikipedia_link_sh
+# wikipedia_link_fr
+# web-wikipedia_link_en13-all
+# wikipedia_link_de
+# edit-frwiki
+# orkut-links
+# wikipedia_link_ru
+# link-dynamic-frwiki
+# edit-dewiki
+# wikipedia_link_sv
+# sx-stackoverflow
+# soc-sinaweibo
+# edit-eswiki
+# wikipedia_link_it
+# wikipedia_link_nl
+datasets="
 trackers
 edit-nlwiki
 orkut-groupmemberships
@@ -75,7 +76,7 @@ for ds in $datasets; do
             rc_no_cpu=0
             sleep 5
             fname="logs/$ds-cpuchunk-$chunk-tau-$tau.log"
-            ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk 1000000 -pingpong 1 -tau $tau\
+            timeout 5m ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk 1000000 -pingpong 1 -tau $tau\
                 > "$fname" 2>&1 || rc_no_cpu=$?
 
             if [ "$rc_no_cpu" -ne 0 ]; then
@@ -90,7 +91,7 @@ output="results.txt"
 : > "$output"
 
 for ds in $datasets; do
-    for chunk in 200 500 1000; do
+    for chunk in 100 200 500; do
         for tau in 1 10 100 500 1000; do 
             fname="logs/$ds-cpuchunk-$chunk-tau-$tau.log"
             cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
