@@ -1,7 +1,7 @@
 #ifndef MC_CPU_APP
 #define MC_CPU_APP
 
-#define TIME_OVER(ST) (chrono::duration_cast<chrono::microseconds>(TIME_NOW - ST).count() > tau_time_g)
+#define TIME_OVER(ST) (chrono::duration_cast<chrono::microseconds>(TIME_NOW - ST).count() >= tau_time_g)
 
 
 class MCCPUWorker : public CPUWorker<MCTask>
@@ -85,6 +85,16 @@ public:
         newP.reserve(P.size());
         newX.reserve(X.size());
 
+        if (TIME_OVER(st))
+        {
+            MCTask *t = new MCTask();
+            t->context.R = R;
+            t->context.P = P;
+            t->context.X = X;
+            add_task(t);
+            return;
+        }
+
         if (P.size() == 0)
         {
             if (X.size() == 0)
@@ -144,4 +154,3 @@ public:
 };
 
 #endif
-
