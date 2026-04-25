@@ -131,7 +131,7 @@ public:
                     if (!SC->empty())
                     {
                         ui chunk = std::min<ui>(SC->size() / (workers_list.size() + 1), worker->tasks_per_fetch);
-                        chunk = max(chunk, 1);
+                        chunk = std::max(chunk, 1);
                         for (ui i = 0; i < chunk && !SC->empty(); i++)
                         {
                             TaskT *task = SC->top();
