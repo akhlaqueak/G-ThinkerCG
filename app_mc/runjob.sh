@@ -72,7 +72,7 @@ mkdir -p logs
 for ds in $datasets; do
     for chunk in 200; do
         for tau in 1000; do 
-            for gpuchunk in 100000 500000 1000000; do
+            for gpuchunk in 1000 10000 50000 ; do
                 rc_no_cpu=0
                 sleep 5
                 fname="logs/$ds-cpuchunk-$chunk-tau-$tau-gpuchunk-$gpuchunk.log"
@@ -94,7 +94,7 @@ output="results.txt"
 for ds in $datasets; do
     for chunk in 200; do
         for tau in 1000; do 
-            for gpuchunk in 100000 500000 1000000; do
+            for gpuchunk in 1000 10000 50000; do
                 fname="logs/$ds-cpuchunk-$chunk-tau-$tau-gpuchunk-$gpuchunk.log"
     # for chunk in 1 10 100 200 500 1000; do
     #     for tau in 1 10 100 500 1000; do 
@@ -107,4 +107,18 @@ for ds in $datasets; do
         done
     done
     printf "\n" >> "$output"
+done
+
+output="results-cpuonly.txt"
+: > "$output"
+
+for ds in $datasets; do 
+    rc_no_cpu=0
+    fname="logs/$ds-cpuonly.log"
+    timeout 10m ./run -dg "$ds_path/$ds.bin" -gpu 0 -cpu 32 -cpuchunk 200 -tau 1000 > "$fname" 2>&1 || rc_no_cpu=$?
+    cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+    time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+    cliques=${cliques:-NA}
+    time_taken=${time_taken:-NA}
+    printf "%s " "$time_taken" >> "$output"
 done
