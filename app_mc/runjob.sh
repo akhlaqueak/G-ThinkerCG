@@ -71,16 +71,18 @@ mkdir -p logs
 
 for ds in $datasets; do
     for chunk in 200; do
-        for tau in 10000 100000; do 
-            rc_no_cpu=0
-            sleep 5
-            fname="logs/$ds-cpuchunk-$chunk-tau-$tau.log"
-            timeout 10m ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk 1000000 -pingpong 1 -tau $tau\
-                > "$fname" 2>&1 || rc_no_cpu=$?
+        for tau in 1000; do 
+            for gpuchunk in 100000 500000 1000000; do
+                rc_no_cpu=0
+                sleep 5
+                fname="logs/$ds-cpuchunk-$chunk-tau-$tau-gpuchunk-$gpuchunk.log"
+                timeout 10m ./run -dg "$ds_path/$ds.bin" -eta 2000 -cpu 32 -cpuchunk $chunk -gpuchunk $gpuchunk -pingpong 1 -tau $tau\
+                    > "$fname" 2>&1 || rc_no_cpu=$?
 
-            if [ "$rc_no_cpu" -ne 0 ]; then
-                echo "Dataset failed: $ds cpuchunk=$chunk (exit code: $rc_no_cpu)" | tee -a "logs/failed.log"
-            fi
+                if [ "$rc_no_cpu" -ne 0 ]; then
+                    echo "Dataset failed: $ds cpuchunk=$chunk (exit code: $rc_no_cpu)" | tee -a "logs/failed.log"
+                fi
+            done
         done
     done
 done
@@ -91,15 +93,17 @@ output="results.txt"
 
 for ds in $datasets; do
     for chunk in 200; do
-        for tau in 1 10 100 500 1000 10000 100000; do 
+        for tau in 1000; do 
+            for gpuchunk in 100000 500000 1000000; do
+                fname="logs/$ds-cpuchunk-$chunk-tau-$tau-gpuchunk-$gpuchunk.log"
     # for chunk in 1 10 100 200 500 1000; do
     #     for tau in 1 10 100 500 1000; do 
-            fname="logs/$ds-cpuchunk-$chunk-tau-$tau.log"
-            cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
-            time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
-            cliques=${cliques:-NA}
-            time_taken=${time_taken:-NA}
-            printf "%s " "$time_taken" >> "$output"
+                cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+                time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+                cliques=${cliques:-NA}
+                time_taken=${time_taken:-NA}
+                printf "%s " "$time_taken" >> "$output"
+            done
         done
     done
     printf "\n" >> "$output"
