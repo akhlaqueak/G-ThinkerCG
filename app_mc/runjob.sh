@@ -70,8 +70,8 @@ mkdir -p logs
 : > logs/failed.log
 
 for ds in $datasets; do
-    for chunk in 1 10 500 1000; do
-        for tau in 1 10 100 500 1000; do 
+    for chunk in 200; do
+        for tau in 10000 100000; do 
             rc_no_cpu=0
             sleep 5
             fname="logs/$ds-cpuchunk-$chunk-tau-$tau.log"
@@ -90,8 +90,10 @@ output="results.txt"
 : > "$output"
 
 for ds in $datasets; do
-    for chunk in 1 10 100 200 500 1000; do
-        for tau in 1 10 100 500 1000; do 
+    for chunk in 200; do
+        for tau in 1 10 100 500 1000 10000 100000; do 
+    # for chunk in 1 10 100 200 500 1000; do
+    #     for tau in 1 10 100 500 1000; do 
             fname="logs/$ds-cpuchunk-$chunk-tau-$tau.log"
             cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
             time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
