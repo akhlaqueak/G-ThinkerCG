@@ -305,11 +305,11 @@ public:
             else
                 CUR_MODE = StoreStrategy::PREFIX;
 
-            if (isOverflow())
-            {
-                dumpToHost(so);
-                break;
-            }
+            // if (isOverflow())
+            // {
+            //     dumpToHost(so);
+            //     break;
+            // }
 
             ull sglen64 = 0;
             if (CUR_MODE == StoreStrategy::EXPAND)
