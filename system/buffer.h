@@ -287,6 +287,13 @@ public:
     {
         vertices[i] = src.vertices[j];
     }
+    __device__ void copy_range(auto &src, ull dst, ull src_st, ull len)
+    {
+        for (ull i = dst + LANEID, j = src_st + LANEID; j < src_st + len; i += 32, j += 32)
+        {
+            copy(src, i, j);
+        }
+    }
     void copy_host_range(auto &src, ull dst, ull src_st, ull len)
     {
         if (len == 0)

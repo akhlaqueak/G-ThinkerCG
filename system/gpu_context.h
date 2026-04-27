@@ -175,6 +175,20 @@ public:
         return Bwr.isOverflow();
     }
 
+    __device__ void dumpToHost(SubgraphOffsets &so)
+    {
+        if (H.overflow[0])
+            return;
+
+        const ull sglen = so.en - so.st;
+        ull vt = H.append(sglen, so.md == 0 ? 0 : so.md - so.st);
+
+        if (H.overflow[0])
+            return;
+
+        H.copy_range(Brd, vt, so.st, sglen);
+    }
+
     void set_ping_pong_mode()
     {
         ping_pong_mode = true;  
