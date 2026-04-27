@@ -26,6 +26,8 @@ public:
         std::cout.imbue(std::locale(""));
         global_SC = SC = new stack<TaskT *>();
         global_end_label = false;
+        ETA *= N_WARPS;
+        cudaMemcpyToSymbol(eta, &ETA, sizeof(ui));
     }
 
     void add_task(TaskT *t)

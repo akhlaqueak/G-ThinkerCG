@@ -32,9 +32,6 @@ public:
         cout << " ======= ********** ========" << endl;
         
         data_graph = Graph(fp);
-        
-        ETA *= N_WARPS;
-        cudaMemcpyToSymbol(eta, &ETA, sizeof(ui));
 
         for (int i = 0; i < data_graph.GetVertexCount(); ++i)
             data_array.push_back(i); // data_array is member of Master

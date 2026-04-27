@@ -21,13 +21,14 @@ public:
         std::string dg = cmd.GetOptionValue("-dg", "");
         int query_type = cmd.GetOptionIntValue("-q", 0);
         plan_strategy = cmd.GetOptionValue("-s", "hybrid");
-
+        tau_time_g = cmd.GetOptionIntValue("-tau", 10);
+        ping_pong = cmd.GetOptionIntValue("-pingpong", 1);
         cout << " ======= Parameters ========" << endl;
         cout << "Data Graph: " << dg << endl;
         cout << "Query Graph: " << query_type << endl;
         cout << "cpu workers: " << num_cpu_workers << endl;
         cout << "gpu workers: " << num_gpu_workers << endl;
-        cout << "eta: " << eta_ << endl;
+        cout << "eta: " << ETA << endl;
         cout << "cpu chunk: " << tasks_per_fetch_g << endl;
         cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
         cout << "plan strategy: " << plan_strategy << endl;
