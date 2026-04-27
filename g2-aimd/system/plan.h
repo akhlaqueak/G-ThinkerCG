@@ -331,8 +331,8 @@ public:
         // initial plan
         for (size_t i = 0; i < vertex_count_; ++i)
         {
-            if (true)
-            // if (!share_intersection[i])
+            // if (true)
+            if (!share_intersection[i])
                 strategy[i] = StoreStrategy::EXPAND;
             else
                 strategy[i] = StoreStrategy::PREFIX;
