@@ -446,7 +446,7 @@ void Graph_CPU::loadGraphFromCSR(ull *row_ptrs, ui *cols, ui n)
     cout << "Max Degree: " << max_degree_ << endl;
     if(max_degree_> 10)
     // Write degree distribution to JSON
-    WriteDegreeDistributionToJson(degree_count, "degree_distribution.json");
+    // WriteDegreeDistributionToJson(degree_count, "degree_distribution.json");
 
     labels_frequency_[0] = n;
     max_label_frequency_ = n;
