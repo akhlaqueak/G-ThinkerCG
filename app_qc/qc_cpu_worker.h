@@ -1,9 +1,6 @@
 #ifndef MC_CPU_APP
 #define MC_CPU_APP
 
-#define TIME_THRESHOLD 100
-#define TIME_OVER(ST) (chrono::duration_cast<chrono::nanoseconds>(TIME_NOW - ST).count() > TIME_THRESHOLD)
-
 class QCCPUWorker : public CPUWorker<QCTask>
 {
 public:
@@ -874,7 +871,7 @@ private:
                         vertices[k].lvl2adj = 0;
                     }
 
-                    if (TIME_OVER(st))
+                    if (time_over(st))
                     {
                         enqueue_task(vertices, total_vertices);
                     }
@@ -1056,7 +1053,7 @@ public:
     {
         if (context.vertices == nullptr || context.num_vertices == 0)
             return;
-        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices, TIME_NOW);
+        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices, now());
     }
 };
 

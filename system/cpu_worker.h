@@ -15,6 +15,19 @@ class CPUWorker : public Worker<TaskT>
         compute(task->context);
     }
 
+protected:
+    using TimePoint = std::chrono::steady_clock::time_point;
+
+    static TimePoint now()
+    {
+        return TIME_NOW;
+    }
+
+    static bool time_over(const TimePoint &start)
+    {
+        return std::chrono::duration_cast<std::chrono::microseconds>(TIME_NOW - start).count() >= tau_time_g;
+    }
+
 public:
 
     CPUWorker() : Worker<TaskT>(tasks_per_fetch_g) {

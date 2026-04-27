@@ -1,10 +1,6 @@
 #ifndef GM_CPU_APP
 #define GM_CPU_APP
 
-#define TIME_THRESHOLD 1000
-#define TIME_OVER(ST) (chrono::duration_cast<chrono::milliseconds>(TIME_NOW - ST).count() > TIME_THRESHOLD)
-
-
 #include "graph_cpu.h"
 #include "FilterVertices.h"
 #include "GenerateQueryPlan.h"
@@ -73,7 +69,7 @@ public:
         }
 
         ftime(&thread_local_time);
-        st=TIME_NOW;
+        st = now();
     
         LFTJ(context.cur_depth, cpu_qg, edge_matrix, candidates, candidates_count, matching_order, context.embedding, 
                     context.idx_embedding, bn, bn_count);
@@ -261,7 +257,7 @@ public:
 
                 // if not timeout, continue search 
                 // if(countElaspedTime() < TIME_THRESHOLD) 
-                if(not TIME_OVER(st))
+                if (!time_over(st))
                 {
                     cur_depth += 1;
                     idx[cur_depth] = 0;
@@ -305,4 +301,3 @@ public:
 };
 
 #endif
-

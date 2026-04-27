@@ -1,9 +1,6 @@
 #ifndef MC_CPU_APP
 #define MC_CPU_APP
 
-#define TIME_OVER(ST) (chrono::duration_cast<chrono::microseconds>(TIME_NOW - ST).count() >= tau_time_g)
-
-
 class MCCPUWorker : public CPUWorker<MCTask>
 {
 public:
@@ -78,14 +75,14 @@ public:
         return t;
     }
 
-    void BK(vector<VertexID> &R, vector<VertexID> &P, vector<VertexID> &X, auto st)
+    void BK(vector<VertexID> &R, vector<VertexID> &P, vector<VertexID> &X, const TimePoint &st)
     {
         vector<VertexID> Q, newP, newX;
         Q.reserve(P.size());
         newP.reserve(P.size());
         newX.reserve(X.size());
 
-        if (TIME_OVER(st))
+        if (time_over(st))
         {
             MCTask *t = new MCTask();
             t->context.R = R;
@@ -126,7 +123,7 @@ public:
             intersect(nbrs, nbrs + nbr_count, P.begin(), P.end(), newP);
             intersect(nbrs, nbrs + nbr_count, X.begin(), X.end(), newX);
 
-            if (TIME_OVER(st))
+            if (time_over(st))
             {
                 MCTask *t = new MCTask();
                 t->context.R = R;
@@ -149,7 +146,7 @@ public:
 
     virtual void compute(MCContext &context)
     {
-        BK(context.R, context.P, context.X, TIME_NOW);
+        BK(context.R, context.P, context.X, now());
     }
 };
 
