@@ -49,8 +49,6 @@ public:
             ui v = candidates[root_vertex][i];
             data_array.push_back(v);
         }
-        // for (ui i = 0; i < gpu_dg.GetVertexCount(); ++i)
-        //     data_array.push_back(i);
     }
 
     ull get_results()
