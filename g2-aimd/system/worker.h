@@ -41,6 +41,7 @@ public:
         int do_split = cmd.GetOptionIntValue("-ds", 0);
         int do_split_times = cmd.GetOptionIntValue("-dst", 1);
         int sort_sources = cmd.GetOptionIntValue("-ss", 0);
+        plan_strategy = cmd.GetOptionValue("-s", "hybrid");
 
         int gpu_count = 0;
         cudaGetDeviceCount(&gpu_count);

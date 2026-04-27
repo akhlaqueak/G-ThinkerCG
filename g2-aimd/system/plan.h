@@ -5,7 +5,7 @@
 #include "common/graph.h"
 
 #include <queue>
-
+string plan_strategy; 
 class Plan
 {
 public:
@@ -331,11 +331,14 @@ public:
         // initial plan
         for (size_t i = 0; i < vertex_count_; ++i)
         {
-            // if (true)
-            if (!share_intersection[i])
-                strategy[i] = StoreStrategy::EXPAND;
-            else
-                strategy[i] = StoreStrategy::PREFIX;
+            if(plan_strategy=="expand")
+                strategyHost[i] = StoreStrategy::EXPAND;
+            else{
+                if (!shareIntersectionHost[i])
+                    strategyHost[i] = StoreStrategy::EXPAND;
+                else
+                    strategyHost[i] = StoreStrategy::PREFIX;
+            }
         }
         strategy[vertex_count_] = StoreStrategy::COUNT;
 
