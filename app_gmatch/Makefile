@@ -5,7 +5,7 @@ DEBUG_TARGET := run_debug
 P100_TARGET := run
 PTXAS_P100_TARGET := run_ptxas_p100
 DEBUG_P100_TARGET := run_debug_p100
-SRC := main.cu
+SRC := main.cu intersection/computesetintersection.cpp
 INC := -I.. -I../common/MPMCQueue/include -I../common/bliss -I../system/ -I../common
 CFLAGS := -std=c++20 -O3 -Xcompiler -fopenmp  -lgomp -lpthread -DOPENMP
 PTXASFLAGS := -Xptxas -v -lineinfo
