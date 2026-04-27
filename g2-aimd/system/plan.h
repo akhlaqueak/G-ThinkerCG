@@ -5,7 +5,7 @@
 #include "common/graph.h"
 
 #include <queue>
-string plan_strategy;
+std::string plan_strategy;
 class Plan
 {
 public:
