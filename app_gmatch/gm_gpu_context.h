@@ -535,17 +535,19 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                    auto vt = Bwr.append_batch(sglen + 1, min, StoreStrategy::EXPAND);
-                                    // if (isOverflow())
-                                    //     return;
+                                    auto alloc = append_batch(sglen + 1, min, StoreStrategy::EXPAND);
+                                    if (alloc.failed)
+                                        return;
+                                    auto &dst = alloc.to_host ? H : Bwr;
+                                    auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
                                         for (ui j = 0; j < sglen; ++j)
                                         {
                                             auto k = vt + i * (sglen + 1) + j;
-                                            Bwr.vertices[k] = partial_subgraphs[WARPID][j];
+                                            dst.vertices[k] = partial_subgraphs[WARPID][j];
                                         }
-                                        Bwr.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                        dst.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                     }
                                 }
                             }
@@ -554,16 +556,18 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                    auto vt = Bwr.append_batch(sglen, min, StoreStrategy::PREFIX);
-                                    // if (isOverflow())
-                                    //     return;
+                                    auto alloc = append_batch(sglen, min, StoreStrategy::PREFIX);
+                                    if (alloc.failed)
+                                        return;
+                                    auto &dst = alloc.to_host ? H : Bwr;
+                                    auto vt = alloc.vt;
                                     for (ui i = LANEID; i < sglen; i += 32)
                                     {
                                         auto k = vt + i;
-                                        Bwr.vertices[k] = partial_subgraphs[WARPID][i];
+                                        dst.vertices[k] = partial_subgraphs[WARPID][i];
                                     }
                                     for (ui i = LANEID; i < min; i += 32)
-                                        Bwr.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                        dst.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                 }
                             }
                         }
@@ -701,17 +705,19 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                             {
                                 ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                auto vt = Bwr.append_batch(sglen + 1, min, StoreStrategy::EXPAND);
-                                // if (isOverflow())
-                                //     return;
+                                auto alloc = append_batch(sglen + 1, min, StoreStrategy::EXPAND);
+                                if (alloc.failed)
+                                    return;
+                                auto &dst = alloc.to_host ? H : Bwr;
+                                auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
                                     for (ui j = 0; j < sglen; ++j)
                                     {
                                         auto k = vt + i * (sglen + 1) + j;
-                                        Bwr.vertices[k] = partial_subgraphs[WARPID][j];
+                                        dst.vertices[k] = partial_subgraphs[WARPID][j];
                                     }
-                                    Bwr.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                    dst.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                 }
                             }
                         }
@@ -720,16 +726,18 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                             {
                                 ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                auto vt = Bwr.append_batch(sglen, min, StoreStrategy::PREFIX);
-                                // if (isOverflow())
-                                //     return;
+                                auto alloc = append_batch(sglen, min, StoreStrategy::PREFIX);
+                                if (alloc.failed)
+                                    return;
+                                auto &dst = alloc.to_host ? H : Bwr;
+                                auto vt = alloc.vt;
                                 for (ui i = LANEID; i < sglen; i += 32)
                                 {
                                     auto k = vt + i;
-                                    Bwr.vertices[k] = partial_subgraphs[WARPID][i];
+                                    dst.vertices[k] = partial_subgraphs[WARPID][i];
                                 }
                                 for (ui i = LANEID; i < min; i += 32)
-                                    Bwr.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                    dst.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                             }
                         }
                     }
