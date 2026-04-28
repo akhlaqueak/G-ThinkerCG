@@ -250,7 +250,7 @@ public:
 
                     visited_arr[v] = false;
                     
-                    if(counter % 1000000000 == 0) cout<<counter<<endl;
+                    // if(counter % 1000000000 == 0) cout<<counter<<endl;
                     
                     continue;
                 }

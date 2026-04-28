@@ -147,7 +147,7 @@ public:
 
     virtual void move_tasks_to_Sc(vector<GMTask *> &collector, GMBuffer &H)
     {
-        // cout << "D to H" << endl;
+        cout << "D to H" << endl;
         for (ui i = 0; i < gpu_to_host_transfer_size_g; i++)
         {
             SubgraphOffsets so = H.pop_host();
