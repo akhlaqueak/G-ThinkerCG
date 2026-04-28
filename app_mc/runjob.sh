@@ -109,16 +109,16 @@ for ds in $datasets; do
     printf "\n" >> "$output"
 done
 
-output="results-cpuonly.txt"
-: > "$output"
+# output="results-cpuonly.txt"
+# : > "$output"
 
-for ds in $datasets; do 
-    rc_no_cpu=0
-    fname="logs/$ds-cpuonly.log"
-    timeout 10m ./run -dg "$ds_path/$ds.bin" -gpu 0 -cpu 32 -cpuchunk 200 -tau 1000 > "$fname" 2>&1 || rc_no_cpu=$?
-    cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
-    time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
-    cliques=${cliques:-NA}
-    time_taken=${time_taken:-NA}
-    printf "%s " "$time_taken" >> "$output"
-done
+# for ds in $datasets; do 
+#     rc_no_cpu=0
+#     fname="logs/$ds-cpuonly.log"
+#     timeout 10m ./run -dg "$ds_path/$ds.bin" -gpu 0 -cpu 32 -cpuchunk 200 -tau 1000 > "$fname" 2>&1 || rc_no_cpu=$?
+#     cliques=$(grep "Total count" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+#     time_taken=$(grep "Total time" "$fname" 2>/dev/null | awk '{print $NF}' | tail -n 1 || true)
+#     cliques=${cliques:-NA}
+#     time_taken=${time_taken:-NA}
+#     printf "%s " "$time_taken" >> "$output"
+# done

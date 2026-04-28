@@ -96,10 +96,10 @@ public:
 
             WorkerT *worker = (WorkerT *)workers_list.dequeue();
             bool assigned_work = false;
+            cout << "SC size: " << SC->size()<<" workers: "<< workers_list.size()  << endl;
 
             if (dynamic_cast<GPUWorkerT *>(worker))
             {
-                // cout << "SC size: " << SC->size() << endl;
                 if (not data_array.empty())
                 {
                     ui chunk = std::min<ull>(data_array.size(), worker->tasks_per_fetch);

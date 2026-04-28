@@ -87,7 +87,7 @@ public:
 
         size_t total, free;
         cudaMemGetInfo(&free, &total);
-        cout << "Available Memory " << free / 1024.0 / 1024 / 1024 << " GB" << endl;
+        cout << "Available Memory " << free / 1024 / 1024 / 1024 << " GB" << endl;
         // leave some memory for pointers and other variables...
         free -= 500'000'000 + reserved_mem;
 
@@ -241,6 +241,7 @@ public:
             {
                 for (ui i = LANEID; i < num; i += 32)
                 {
+                    // adding dummy entries to Bwr. 
                     Bwr.offsets[ot + i * 3] = vt + sglen * i;
                     Bwr.offsets[ot + i * 3 + 1] = 0;
                     Bwr.offsets[ot + i * 3 + 2] = vt + sglen * i;
@@ -266,7 +267,7 @@ public:
                 }
             }
         }
-        else
+        else // prefix mode. 
         {
             if (LANEID == 0)
             {
