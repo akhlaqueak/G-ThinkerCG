@@ -96,7 +96,7 @@ public:
 
             WorkerT *worker = (WorkerT *)workers_list.dequeue();
             bool assigned_work = false;
-            cout << "SC size: " << SC->size()<<" workers: "<< workers_list.size()  << endl;
+            // cout << "SC size: " << SC->size()<<" workers: "<< workers_list.size()  << endl;
 
             if (dynamic_cast<GPUWorkerT *>(worker))
             {
