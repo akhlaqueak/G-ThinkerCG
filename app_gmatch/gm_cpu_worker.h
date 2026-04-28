@@ -83,6 +83,25 @@ public:
         return cur_time.time - thread_local_time.time + (double)(cur_time.millitm - thread_local_time.millitm)/1000;
     }
 
+    void spawn_split_task(ui cur_depth, ui *embedding, ui *idx_embedding, ui *order, ui query_vertices_num)
+    {
+        GMTask *t = new GMTask();
+        t->context.query_vertices_num = query_vertices_num;
+        t->context.cur_depth = cur_depth + 1;
+
+        t->context.embedding = new ui[query_vertices_num]();
+        t->context.idx_embedding = new ui[query_vertices_num]();
+
+        for (ui i = 0; i <= cur_depth; ++i)
+        {
+            ui u = order[i];
+            t->context.embedding[u] = embedding[u];
+            t->context.idx_embedding[u] = idx_embedding[u];
+        }
+
+        add_task(t);
+    }
+
     void generateValidCandidateIndex(ui depth, ui *embedding, ui *idx_embedding, ui *idx_count, ui **valid_candidate_index,
                                     Edges ***edge_matrix, ui **bn, ui *bn_cnt, ui *order, ui *temp_buffer_, ui **candidates)
     {   
@@ -265,19 +284,7 @@ public:
                 }
                 else  // if timeout, start task splitting
                 {
-                    ui query_vertices_num = cpu_qg.getVerticesCount();
-                    GMTask *t = new GMTask();
-
-                    t->context.query_vertices_num = query_vertices_num;
-                    t->context.cur_depth = cur_depth+1;
-
-                    t->context.embedding = new ui[query_vertices_num];
-                    memcpy(t->context.embedding, embedding, sizeof(ui)*query_vertices_num);
-                    t->context.idx_embedding = new ui[query_vertices_num];
-                    memcpy(t->context.idx_embedding, idx_embedding, sizeof(ui)*query_vertices_num);
-                      
-                    add_task(t);
-                    // cout<<"+";
+                    spawn_split_task(cur_depth, embedding, idx_embedding, order, cpu_qg.getVerticesCount());
 
                     visited_arr[v] = false;
                 }
