@@ -18,11 +18,11 @@ public:
     // ====== auxiliary arrays in computation =====
     unsigned long long int counter = 0;
 
-    ui *temp_buffer;
-    bool *visited_arr;
-    ui *idx;
-    ui *idx_count;
-    ui **valid_candidate_idx;
+    ui *temp_buffer = nullptr;
+    bool *visited_arr = nullptr;
+    ui *idx = nullptr;
+    ui *idx_count = nullptr;
+    ui **valid_candidate_idx = nullptr;
 
     struct timeb thread_local_time;
 
