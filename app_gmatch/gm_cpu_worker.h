@@ -126,9 +126,11 @@ public:
         valid_candidates_count = previous_edge.offset_[previous_index_id + 1] - previous_edge.offset_[previous_index_id];
         ui* previous_candidates = previous_edge.edge_ + previous_edge.offset_[previous_index_id];
 
-        memcpy(valid_candidate_index[depth], previous_candidates, valid_candidates_count * sizeof(ui));
+        ui *current_buffer = valid_candidate_index[depth];
+        ui *next_buffer = temp_buffer_;
+        memcpy(current_buffer, previous_candidates, valid_candidates_count * sizeof(ui));
 
-        ui temp_count;
+        ui temp_count = 0;
         for (ui i = 1; i < bn_cnt[depth]; ++i) {
             
             VertexID current_bn = bn[depth][i];
@@ -141,23 +143,23 @@ public:
 
             ui* current_candidates = current_edge.edge_ + current_edge.offset_[current_index_id];
 
-
             if (current_candidates_count < valid_candidates_count)
-                ComputeSetIntersection::ComputeCandidates(current_candidates, current_candidates_count, valid_candidate_index[depth], valid_candidates_count,
-                            temp_buffer_, temp_count);
+                ComputeSetIntersection::ComputeCandidates(current_candidates, current_candidates_count, current_buffer, valid_candidates_count,
+                            next_buffer, temp_count);
             else
-                ComputeSetIntersection::ComputeCandidates(valid_candidate_index[depth], valid_candidates_count, current_candidates, current_candidates_count,
-                            temp_buffer_, temp_count);
-          
-
-            // std::swap(temp_buffer, valid_candidate_index[depth]); // all elements are swapped
-
-            if (temp_count > 0)
-                memcpy(valid_candidate_index[depth], temp_buffer_, temp_count * sizeof(ui));
+                ComputeSetIntersection::ComputeCandidates(current_buffer, valid_candidates_count, current_candidates, current_candidates_count,
+                            next_buffer, temp_count);
             valid_candidates_count = temp_count;
 
             if (valid_candidates_count == 0)
                 break;
+
+            std::swap(current_buffer, next_buffer);
+        }
+
+        if (current_buffer != valid_candidate_index[depth] && valid_candidates_count > 0)
+        {
+            memcpy(valid_candidate_index[depth], current_buffer, valid_candidates_count * sizeof(ui));
         }
 
         // ====================================================
