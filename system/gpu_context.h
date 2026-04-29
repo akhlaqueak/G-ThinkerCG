@@ -383,6 +383,7 @@ public:
 
     void dump_to_host()
     {
+        cout<<"dumping to host"<<endl;
         if (Brd.empty())
             return;
 
@@ -479,6 +480,7 @@ public:
 
     void load_from_host()
     {
+        cout<<"loading from host"<<endl;
         if (H.empty())
             return;
 
