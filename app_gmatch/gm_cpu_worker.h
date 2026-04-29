@@ -52,7 +52,7 @@ public:
         {
             // allocate space for temp_buffer array
             temp_buffer = new ui[max_candidate_cnt];
-
+            cout<<"buffer allocated";
             // allocate space for visited_arr array
             visited_arr = new bool[cpu_dg.getVerticesCount()];
             memset(visited_arr, false, sizeof(bool)*cpu_dg.getVerticesCount());
