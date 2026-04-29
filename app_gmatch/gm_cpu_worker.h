@@ -30,6 +30,35 @@ public:
 
     // =============================================
 
+    GMCPUWorker() : CPUWorker<GMTask>()
+    {
+        temp_buffer = new ui[max_candidate_cnt];
+
+        visited_arr = new bool[cpu_dg.getVerticesCount()];
+        memset(visited_arr, false, sizeof(bool) * cpu_dg.getVerticesCount());
+
+        idx = new ui[cpu_qg.getVerticesCount()];
+        idx_count = new ui[cpu_qg.getVerticesCount()];
+
+        valid_candidate_idx = new ui *[cpu_qg.getVerticesCount()];
+        for (ui i = 0; i < cpu_qg.getVerticesCount(); ++i)
+            valid_candidate_idx[i] = new ui[max_candidate_cnt];
+    }
+
+    ~GMCPUWorker() override
+    {
+        delete[] temp_buffer;
+        delete[] visited_arr;
+        delete[] idx;
+        delete[] idx_count;
+        if (valid_candidate_idx != nullptr)
+        {
+            for (ui i = 0; i < cpu_qg.getVerticesCount(); ++i)
+                delete[] valid_candidate_idx[i];
+            delete[] valid_candidate_idx;
+        }
+    }
+
     virtual GMTask *task_spawn(VertexID &data)
     {
         GMTask *t = new GMTask();
@@ -48,26 +77,6 @@ public:
 
     virtual void compute(GMContext &context)
     {
-        if (temp_buffer == NULL)
-        {
-            // allocate space for temp_buffer array
-            temp_buffer = new ui[max_candidate_cnt];
-            cout<<"buffer allocated";
-            // allocate space for visited_arr array
-            visited_arr = new bool[cpu_dg.getVerticesCount()];
-            memset(visited_arr, false, sizeof(bool)*cpu_dg.getVerticesCount());
-
-            // allocate space for idx and idx_count array
-            idx = new ui[cpu_qg.getVerticesCount()];
-            idx_count = new ui[cpu_qg.getVerticesCount()];
-
-            // allocate space for valid candidate 2-dimensional array
-            valid_candidate_idx = new ui*[cpu_qg.getVerticesCount()];
-            for (ui i = 0; i < cpu_qg.getVerticesCount(); ++i) {
-                valid_candidate_idx[i] = new ui[max_candidate_cnt];
-            }
-        }
-
         ftime(&thread_local_time);
         st = now();
     
