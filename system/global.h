@@ -68,8 +68,10 @@ bool ping_pong = true;
 double gpu_min_thresh_SC = 0.1; // a GPU takes tasks only if |SC| is more than gpu_min_thresh_SC * tasks_per_fetch_gpu_worker
 ui tau_time_g = 1000; // in microseconds. controls cpu task decomposition threshold. 
 
-#define HOST_BUFF_SZ 10'000'000'000ULL
-#define HOST_OFFSET_SZ 2'000'000'000ULL
+#define HOST_BUFF_SZ 1'000ULL
+#define HOST_OFFSET_SZ 2'000ULL
+// #define HOST_BUFF_SZ 10'000'000'000ULL
+// #define HOST_OFFSET_SZ 2'000'000'000ULL
 
 #define DEV __device__
 #define DEVHOST __device__ __host__
