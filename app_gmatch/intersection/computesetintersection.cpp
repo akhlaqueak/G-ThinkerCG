@@ -25,12 +25,12 @@ void ComputeSetIntersection::ComputeCandidates(const VertexID* larray, const ui 
         return ComputeCNMergeBasedAVX512(larray, l_count, rarray, r_count, cn, cn_count);
     }
     #elif SI == 2
-    // if (l_count / 50 > r_count || r_count / 50 > l_count) {
-    //     return ComputeCNGalloping(larray, l_count, rarray, r_count, cn, cn_count);
-    // }
-    // else {
+    if (l_count / 50 > r_count || r_count / 50 > l_count) {
+        return ComputeCNGalloping(larray, l_count, rarray, r_count, cn, cn_count);
+    }
+    else {
         return ComputeCNNaiveStdMerge(larray, l_count, rarray, r_count, cn, cn_count);
-    // }
+    }
     #endif
 #elif HYBRID == 1
     #if SI == 0
