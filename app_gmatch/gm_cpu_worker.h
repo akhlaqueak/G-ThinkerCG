@@ -152,11 +152,12 @@ public:
 
             // std::swap(temp_buffer, valid_candidate_index[depth]); // all elements are swapped
 
-            for(int i = 0; i < temp_count; ++i)
-            {
-                valid_candidate_index[depth][i] = temp_buffer_[i];
-            }
+            if (temp_count > 0)
+                memcpy(valid_candidate_index[depth], temp_buffer_, temp_count * sizeof(ui));
             valid_candidates_count = temp_count;
+
+            if (valid_candidates_count == 0)
+                break;
         }
 
         // ====================================================
