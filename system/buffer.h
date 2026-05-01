@@ -87,7 +87,7 @@ public:
         otail[0] += 3;
         vtail[0] += sglen;
         offsets[ot] = vt;
-        offsets[ot + 1] = md;
+        offsets[ot + 1] = (md == 0 ? 0 : vt + md);
         offsets[ot + 2] = vtail[0];
         return vt;
     }
@@ -103,7 +103,7 @@ public:
         }
         assert(md == 0 || md <= sglen);
 
-        ull host_offsets[3] = {vt, md, vt + sglen};
+        ull host_offsets[3] = {vt, (md == 0 ? 0 : vt + md), vt + sglen};
         chkerr(cudaMemcpy(offsets + ot, host_offsets, sizeof(host_offsets), cudaMemcpyHostToDevice));
 
         otail[0] = ot + 3;
@@ -136,7 +136,7 @@ public:
                 assert(next_ot <= HOST_OFFSET_SZ && next_vt <= HOST_BUFF_SZ);
 
             offsets[ot] = vt;
-            offsets[ot + 1] = md;
+            offsets[ot + 1] = (md == 0 ? 0 : vt + md);
             offsets[ot + 2] = next_vt;
         }
         vt = __shfl_sync(FULL, vt, 0);
@@ -151,7 +151,6 @@ public:
         ull s;
         if (LANEID == 0)
         {
-            // atomicAdd(n_tasks_proc, 1);
             s = atomicAdd(ohead, 3);
         }
         s = __shfl_sync(FULL, s, 0);
@@ -166,7 +165,6 @@ public:
         ull s;
         if (LANEID == 0)
         {
-            // atomicAdd(n_tasks_proc, 1);
             s = atomicDecrementNonNegative(otail, 3);
         }
         s = __shfl_sync(FULL, s, 0);

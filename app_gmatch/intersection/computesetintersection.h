@@ -13,7 +13,6 @@
  * 0: Hybrid method; 1: Merge based set intersections.
  */
 #define HYBRID 0
-
 /**
  * Accelerate set intersection with SIMD instructions.
  * 0: AVX2; 1: AVX512; 2: Basic;

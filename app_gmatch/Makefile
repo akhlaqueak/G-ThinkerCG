@@ -19,7 +19,7 @@ all:
 	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET)
 
 prof:
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET) -pqx
+	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET) -pg
 
 ptxas:
 	$(NVCC) -arch=sm_80 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(PTXAS_TARGET)

@@ -36,6 +36,7 @@ public:
 
     ull *sources_num = nullptr;  // size of Lv
     VertexID *sources = nullptr; // Lv copy on GPU
+    ui eta_limit = 1000 * N_WARPS;
 
     // graph in CSR on GPU
     ull *row_ptrs = nullptr;
@@ -76,6 +77,11 @@ public:
     bool topLevelWorkExist()
     {
         return v_proc[0] < sources_num[0];
+    }
+
+    void set_eta_limit(ui limit)
+    {
+        eta_limit = limit;
     }
 
     void allocateMemory(ull reserved_mem = 0)
@@ -426,6 +432,7 @@ public:
         const ull dst_vstart = H.vtail[0];
         const ull total_vertices = max_src_vend - min_src_vstart;
         const bool use_bulk_span = total_vertices <= total_sg_vertices * 2;
+        cout<<"dumping to host "<<valid_offset_count<<endl;
 
         if (H.otail[0] + valid_offset_count > HOST_OFFSET_SZ)
         {
@@ -480,10 +487,9 @@ public:
 
     void load_from_host()
     {
-        cout<<"loading from host"<<endl;
         if (H.empty())
-            return;
-
+        return;
+        
         const ull src_ohead = H.ohead[0];
         const ull src_otail = H.otail[0];
         const ull available_tasks = (src_otail - src_ohead) / 3;
@@ -493,7 +499,7 @@ public:
 
         const ull dst_otail = Bwr.otail[0];
         const ull dst_vstart = Bwr.vtail[0];
-        ull tasks_to_load = std::min<ull>(ETA, available_tasks);
+        ull tasks_to_load = std::min<ull>(eta_limit, available_tasks);
         const ull max_offset_count = tasks_to_load * 3;
         const ull max_offsets_start = src_otail - max_offset_count;
         ull total_vertices = 0;
@@ -532,6 +538,7 @@ public:
             delete[] offsets;
             return;
         }
+        cout<<"loading from host "<< tasks_to_load <<endl;
 
         ull *translated_offsets = new ull[offset_count];
         ull write_idx = 0;

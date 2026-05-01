@@ -31,8 +31,9 @@ class GPUWorker : public Worker<typename GPUContext::TaskType>
 public:
     GPUContext gc;
     Timer progress;
-    GPUWorker() : Worker<TaskT>(tasks_per_fetch_gpu_worker_g)
+    GPUWorker(ui eta_limit) : Worker<TaskT>(tasks_per_fetch_gpu_worker_g)
     {
+        gc.set_eta_limit(eta_limit);
         gc.allocateMemory();
         this->Lv.reserve(tasks_per_fetch_gpu_worker_g);
         this->Lt.reserve(tasks_per_fetch_gpu_worker_g);

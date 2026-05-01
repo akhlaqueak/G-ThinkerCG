@@ -4,7 +4,6 @@
 #include "qc_task.h"
 #include "qc_gpu_context.h"
 #include "qc_cpu_worker.h"
-CommandLine cmd;
 ull spilled_tasks;
 CPU_Data hd;
 GPU_Data dd;
@@ -16,21 +15,23 @@ class QCApp : public Master<QCCPUWorker, QCGPUContext>
 public:
     QCApp()
     {
+        CommandLine::RuntimeConfig defaults;
+        defaults.num_cpu_workers = 28;
+        defaults.num_gpu_workers = 1;
+        defaults.tasks_per_fetch_gpu_worker = 500000;
+        defaults.tasks_per_fetch_cpu_worker = 50;
+        defaults.eta_per_warp = 1000;
+        defaults.ping_pong = true;
+        cmd.ParseRuntimeConfig(defaults);
+        apply_runtime_config(cmd.runtime);
+
         std::string graph_file = cmd.GetOptionValue("-g");
         minimum_degree_ratio = cmd.GetOptionDoubleValue("-gamma", 0.5);
         minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
-        num_cpu_workers = cmd.GetOptionIntValue("-cpu", 28);
-        num_gpu_workers = cmd.GetOptionIntValue("-gpu", 1);
-        ping_pong = cmd.GetOptionIntValue("-pingpong", 1);
-        tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 500000);
-        tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 50);
-        ui eta_ = cmd.GetOptionIntValue("-eta", 1000);
 
         std::cout.imbue(std::locale());
-        eta_ *= N_WARPS;
-        cudaMemcpyToSymbol(eta, &eta_, sizeof(ui));
 
         ifstream graph_stream(graph_file, ios::in);
         if (!graph_stream.is_open())
@@ -62,11 +63,11 @@ public:
         cout << "Min size: " << minimum_clique_size << endl;
         cout << "Output: " << output_file << endl;
         cout << "Scheduling: " << (scheduling_toggle == 0 ? "dynamic" : "static") << endl;
-        cout << "cpu workers: " << num_cpu_workers << endl;
-        cout << "gpu workers: " << num_gpu_workers << endl;
-        cout << "eta: " << eta_ << endl;
-        cout << "cpu chunk: " << tasks_per_fetch_g << endl;
-        cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
+        cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
+        cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
+        cout << "eta: " << eta_per_warp() << endl;
+        cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
+        cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << " ======= ********** ========" << endl;
 
         // TIME

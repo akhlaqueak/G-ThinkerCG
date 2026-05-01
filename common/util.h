@@ -81,10 +81,29 @@ public:
 };
 class CommandLine {
     public:
+     struct RuntimeConfig {
+       size_t num_cpu_workers = 32;
+       size_t num_gpu_workers = 1;
+       size_t tasks_per_fetch_gpu_worker = 1000000;
+       size_t tasks_per_fetch_cpu_worker = 50;
+       ui eta_per_warp = 1000;
+       ui tau_time_us = 10;
+       bool ping_pong = true;
+       std::string data_graph = "";
+       int query_type = 0;
+       std::string plan_strategy = "hybrid";
+     };
+
      int argc;
      char** argv;
+     RuntimeConfig runtime;
      CommandLine(): argc(0), argv(nullptr) {}
      CommandLine(int _argc, char** _argv) : argc(_argc), argv(_argv) {}
+
+     void SetArgs(int _argc, char** _argv) {
+       argc = _argc;
+       argv = _argv;
+     }
    
      void BadArgument() {
        std::cout << "usage: " << argv[0] << " bad argument" << std::endl;
@@ -131,8 +150,24 @@ class CommandLine {
              BadArgument();
            }
            return val;
-         }
+       }
        return defaultValue;
      }
+
+     void ParseRuntimeConfig(const RuntimeConfig& defaults = RuntimeConfig()) {
+       runtime = defaults;
+       runtime.num_cpu_workers = GetOptionIntValue("-cpu", static_cast<int>(defaults.num_cpu_workers));
+       runtime.num_gpu_workers = GetOptionIntValue("-gpu", static_cast<int>(defaults.num_gpu_workers));
+       runtime.tasks_per_fetch_gpu_worker = GetOptionIntValue("-gpuchunk", static_cast<int>(defaults.tasks_per_fetch_gpu_worker));
+       runtime.tasks_per_fetch_cpu_worker = GetOptionIntValue("-cpuchunk", static_cast<int>(defaults.tasks_per_fetch_cpu_worker));
+       runtime.eta_per_warp = GetOptionIntValue("-eta", defaults.eta_per_warp);
+       runtime.tau_time_us = GetOptionIntValue("-tau", defaults.tau_time_us);
+       runtime.ping_pong = GetOptionIntValue("-pingpong", defaults.ping_pong ? 1 : 0);
+       runtime.data_graph = GetOptionValue("-dg", defaults.data_graph);
+       runtime.query_type = GetOptionIntValue("-q", defaults.query_type);
+       runtime.plan_strategy = GetOptionValue("-s", defaults.plan_strategy);
+     }
    };
+
+inline CommandLine cmd;
    

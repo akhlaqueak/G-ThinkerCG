@@ -11,29 +11,34 @@ class GMApp : public Master<GMCPUWorker, GMGPUContext>
 public:
     GMApp(ui argc, char *argv[])
     {
-        CommandLine cmd(argc, argv);
-
-        num_cpu_workers = cmd.GetOptionIntValue("-cpu", 32);
-        num_gpu_workers = cmd.GetOptionIntValue("-gpu", 1);
-        tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 1000000);
-        tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 50);
-        ETA = cmd.GetOptionIntValue("-eta", 1000);
-        std::string dg = cmd.GetOptionValue("-dg", "");
-        int query_type = cmd.GetOptionIntValue("-q", 0);
-        plan_strategy = cmd.GetOptionValue("-s", "hybrid");
-        tau_time_g = cmd.GetOptionIntValue("-tau", 10);
-        ping_pong = cmd.GetOptionIntValue("-pingpong", 1);
+        cmd.SetArgs(argc, argv);
+        CommandLine::RuntimeConfig defaults;
+        defaults.num_cpu_workers = 32;
+        defaults.num_gpu_workers = 1;
+        defaults.tasks_per_fetch_gpu_worker = 1000000;
+        defaults.tasks_per_fetch_cpu_worker = 50;
+        defaults.eta_per_warp = 1000;
+        defaults.tau_time_us = 10;
+        defaults.ping_pong = true;
+        defaults.data_graph = "";
+        defaults.query_type = 0;
+        defaults.plan_strategy = "hybrid";
+        cmd.ParseRuntimeConfig(defaults);
+        apply_runtime_config(cmd.runtime);
+        std::string dg = cmd.runtime.data_graph;
+        int query_type = cmd.runtime.query_type;
+        plan_strategy = cmd.runtime.plan_strategy;
         cout << " ======= Parameters ========" << endl;
         cout << "Data Graph: " << dg << endl;
         cout << "Query Graph: " << query_type << endl;
-        cout << "cpu workers: " << num_cpu_workers << endl;
-        cout << "gpu workers: " << num_gpu_workers << endl;
-        cout << "eta: " << ETA << endl;
-        cout << "cpu chunk: " << tasks_per_fetch_g << endl;
-        cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
+        cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
+        cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
+        cout << "eta: " << eta_per_warp() << endl;
+        cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
+        cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "plan strategy: " << plan_strategy << endl;
         cout << " ======= ********** ========" << endl;
-
+        
         gpu_dg = Graph(dg);
         gpu_qg = Graph("", (PresetPatternType)query_type, GraphType::QUERY);
 

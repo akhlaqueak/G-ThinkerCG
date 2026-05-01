@@ -98,8 +98,8 @@ public:
         t->context.query_vertices_num = query_vertices_num;
         t->context.cur_depth = cur_depth + 1;
 
-        t->context.embedding = new ui[query_vertices_num]();
-        t->context.idx_embedding = new ui[query_vertices_num]();
+        t->context.embedding = new ui[query_vertices_num];
+        t->context.idx_embedding = new ui[query_vertices_num];
 
         for (ui i = 0; i <= cur_depth; ++i)
         {
@@ -157,16 +157,11 @@ public:
             std::swap(current_buffer, next_buffer);
         }
 
-        if (current_buffer != valid_candidate_index[depth] && valid_candidates_count > 0)
-        {
-            memcpy(valid_candidate_index[depth], current_buffer, valid_candidates_count * sizeof(ui));
-        }
-
         // ====================================================
         ui condCount = plan.condNumHost[u];
         ui tmp_len = 0;
         for (ui i = 0; i < valid_candidates_count; ++i) {
-            ui valid_index = valid_candidate_index[depth][i];
+            ui valid_index = current_buffer[i];
             ui vertex = candidates[u][valid_index];
             bool pred = true;
 

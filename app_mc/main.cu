@@ -5,30 +5,33 @@ Graph data_graph;
 #include "mc_gpu_context_no_Q.h"
 // #include "mc_gpu_context.h"
 #include "mc_cpu_worker.h"
-CommandLine cmd;
 ull spilled_tasks;
 class MCApp : public Master<MCCPUWorker, MCGPUContext>
 {
 public:
     MCApp()
     {
-        num_cpu_workers = cmd.GetOptionIntValue("-cpu", 28);
-        num_gpu_workers = cmd.GetOptionIntValue("-gpu", 1);
-        tasks_per_fetch_gpu_worker_g = cmd.GetOptionIntValue("-gpuchunk", 1000000);
-        tasks_per_fetch_g = cmd.GetOptionIntValue("-cpuchunk", 50);
-        tau_time_g = cmd.GetOptionIntValue("-tau", 10);
-        ping_pong = cmd.GetOptionIntValue("-pingpong", 1);
-        ETA = cmd.GetOptionIntValue("-eta", 1000);
-        std::string fp = cmd.GetOptionValue("-dg", "./data/com-friendster.ungraph.txt.bin");
+        CommandLine::RuntimeConfig defaults;
+        defaults.num_cpu_workers = 28;
+        defaults.num_gpu_workers = 1;
+        defaults.tasks_per_fetch_gpu_worker = 1000000;
+        defaults.tasks_per_fetch_cpu_worker = 50;
+        defaults.eta_per_warp = 1000;
+        defaults.tau_time_us = 10;
+        defaults.ping_pong = true;
+        defaults.data_graph = "./data/com-friendster.ungraph.txt.bin";
+        cmd.ParseRuntimeConfig(defaults);
+        apply_runtime_config(cmd.runtime);
+        std::string fp = cmd.runtime.data_graph;
         std::cout.imbue(std::locale());
         cout << " ======= Parameters ========" << endl;
         cout << "Graph: " << fp << endl;
-        cout << "cpu workers: " << num_cpu_workers << endl;
-        cout << "gpu workers: " << num_gpu_workers << endl;
-        cout << "eta (tasks load per warp): " << ETA << endl;
-        cout << "cpu chunk: " << tasks_per_fetch_g << endl;
-        cout << "gpu chunk: " << tasks_per_fetch_gpu_worker_g << endl;
-        cout << "tau_time: " << tau_time_g << endl;
+        cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
+        cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
+        cout << "eta (tasks load per warp): " << eta_per_warp() << endl;
+        cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
+        cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        cout << "tau_time: " << cmd.runtime.tau_time_us << endl;
         cout << " ======= ********** ========" << endl;
         
         data_graph = Graph(fp);

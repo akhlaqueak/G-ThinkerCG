@@ -19,6 +19,8 @@ public:
     deque<VertexID> data_array;
 
     stack<TaskT *> *SC;
+    ui eta_per_warp_ = 1000;
+    ui eta_total_ = 1000 * N_WARPS;
 
     // Init files seq with 1 for each thread.
     Master()
@@ -26,8 +28,35 @@ public:
         std::cout.imbue(std::locale(""));
         global_SC = SC = new stack<TaskT *>();
         global_end_label = false;
-        ETA *= N_WARPS;
-        cudaMemcpyToSymbol(eta, &ETA, sizeof(ui));
+        cudaMemcpyToSymbol(eta, &eta_total_, sizeof(ui));
+    }
+
+    void set_eta(ui eta_per_warp)
+    {
+        eta_per_warp_ = eta_per_warp;
+        eta_total_ = eta_per_warp_ * N_WARPS;
+        cudaMemcpyToSymbol(eta, &eta_total_, sizeof(ui));
+    }
+
+    ui eta_per_warp() const
+    {
+        return eta_per_warp_;
+    }
+
+    ui eta_total() const
+    {
+        return eta_total_;
+    }
+
+    void apply_runtime_config(const CommandLine::RuntimeConfig &config)
+    {
+        num_cpu_workers = config.num_cpu_workers;
+        num_gpu_workers = config.num_gpu_workers;
+        tasks_per_fetch_gpu_worker_g = config.tasks_per_fetch_gpu_worker;
+        tasks_per_fetch_g = config.tasks_per_fetch_cpu_worker;
+        tau_time_g = config.tau_time_us;
+        ping_pong = config.ping_pong;
+        set_eta(config.eta_per_warp);
     }
 
     void add_task(TaskT *t)
@@ -40,7 +69,7 @@ public:
     {
         for (int i = 0; i < num_gpu_workers; i++)
         {
-            WorkerT *worker = new GPUWorkerT();
+            WorkerT *worker = new GPUWorkerT(eta_total_);
             worker->start();
             workers_list.enqueue(worker);
         }
