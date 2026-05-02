@@ -171,7 +171,7 @@ public:
                 {
                     ui v = data[so.st + i];
                     task->context.embedding[i] = v;
-                    ui idx = binary_search(i, v);
+                    int idx = binary_search(i, v);
                     if (idx == -1)
                     {
                         // it's an invalid task
@@ -179,7 +179,7 @@ public:
                         task = nullptr;
                         break;
                     }
-                    task->context.idx_embedding[i] = idx; // if binary search returned -1, it's invalid
+                    task->context.idx_embedding[i] = static_cast<ui>(idx); // if binary search returned -1, it's invalid
                 }
                 if (task)
                     collector.push_back(task);
@@ -195,18 +195,18 @@ public:
                 bool valid_prefix=true;
                 for (ui i = 0; i < sglen - 1; i++)
                 {
-                    ui idv = binary_search(i, data[so.st + i]);
+                    int idv = binary_search(i, data[so.st + i]);
                     if (idv == -1)
                     {
                         valid_prefix=false;
                         break;
                     }
-                    idx[i] = idv;
+                    idx[i] = static_cast<ui>(idv);
                 }
 
                 for (ull j = so.md; valid_prefix && j < so.en; j++)
                 {
-                    ui idv = binary_search(sglen - 1, data[j]); // -1 because candidates index start from 0
+                    int idv = binary_search(sglen - 1, data[j]); // -1 because candidates index start from 0
                     if (idv == -1)
                         continue;
                     GMTask *task = new GMTask();
@@ -218,7 +218,7 @@ public:
                     std::copy(idx, idx + sglen - 1, task->context.idx_embedding);
 
                     task->context.embedding[sglen - 1] = data[j];
-                    task->context.idx_embedding[sglen - 1] = idv;
+                    task->context.idx_embedding[sglen - 1] = static_cast<ui>(idv);
                     collector.push_back(task);
                 }
                 delete[] idx;
@@ -305,11 +305,11 @@ public:
             else
                 CUR_MODE = StoreStrategy::PREFIX;
 
-            if (isOverflow())
-            {
-                dumpToHost(so);
-                break;
-            }
+            // if (isOverflow())
+            // {
+            //     dumpToHost(so);
+            //     break;
+            // }
 
             ull sglen64 = 0;
             if (CUR_MODE == StoreStrategy::EXPAND)

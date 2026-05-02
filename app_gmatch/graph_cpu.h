@@ -80,52 +80,52 @@ public:
     {
         return neighbors_;
     }
-    const ui getLabelsCount() const
+    ui getLabelsCount() const
     {
         return labels_count_;
     }
 
-    const ui getVerticesCount() const
+    ui getVerticesCount() const
     {
         return vertices_count_;
     }
 
-    const ui getEdgesCount() const
+    ui getEdgesCount() const
     {
         return edges_count_;
     }
 
-    const ui getGraphMaxDegree() const
+    ui getGraphMaxDegree() const
     {
         return max_degree_;
     }
 
-    const ui getGraphMaxLabelFrequency() const
+    ui getGraphMaxLabelFrequency() const
     {
         return max_label_frequency_;
     }
 
-    const ui getVertexDegree(const ui id) const
+    ui getVertexDegree(const ui id) const
     {
         return offsets_[id + 1] - offsets_[id];
     }
 
-    const ui getLabelsFrequency(const ui label) const
+    ui getLabelsFrequency(const ui label) const
     {
         return labels_frequency_.find(label) == labels_frequency_.end() ? 0 : labels_frequency_.at(label);
     }
 
-    const ui getCoreValue(const ui id) const
+    ui getCoreValue(const ui id) const
     {
         return core_table_[id];
     }
 
-    const ui get2CoreSize() const
+    ui get2CoreSize() const
     {
         return core_length_;
     }
 
-    const ui getVertexLabel(const ui id) const
+    ui getVertexLabel(const ui id) const
     {
         return labels_[id];
     }

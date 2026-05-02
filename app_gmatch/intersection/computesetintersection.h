@@ -79,8 +79,8 @@ public:
                                    ui r_count, VertexID * cn, ui& cn_count);
     static void ComputeCNGalloping(const VertexID * larray, ui l_count, const VertexID * rarray,
                                    ui r_count, ui& cn_count);
-    static const ui GallopingSearch(const VertexID *src, ui begin, ui end, ui target);
-    static const ui BinarySearch(const VertexID *src, ui begin, ui end, ui target);
+    static ui GallopingSearch(const VertexID *src, ui begin, ui end, ui target);
+    static ui BinarySearch(const VertexID *src, ui begin, ui end, ui target);
 
 #endif
 };

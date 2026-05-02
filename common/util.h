@@ -154,7 +154,11 @@ class CommandLine {
        return defaultValue;
      }
 
-     void ParseRuntimeConfig(const RuntimeConfig& defaults = RuntimeConfig()) {
+     void ParseRuntimeConfig() {
+       ParseRuntimeConfig(RuntimeConfig{});
+     }
+
+     void ParseRuntimeConfig(const RuntimeConfig& defaults) {
        runtime = defaults;
        runtime.num_cpu_workers = GetOptionIntValue("-cpu", static_cast<int>(defaults.num_cpu_workers));
        runtime.num_gpu_workers = GetOptionIntValue("-gpu", static_cast<int>(defaults.num_gpu_workers));
