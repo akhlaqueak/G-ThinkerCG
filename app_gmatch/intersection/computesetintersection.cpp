@@ -1063,8 +1063,8 @@ void ComputeSetIntersection::ComputeCNGalloping(const VertexID* larray, const ui
     }
 }
 
-const ui ComputeSetIntersection::GallopingSearch(const VertexID *src, const ui begin, const ui end,
-                                            const ui target) {
+ui ComputeSetIntersection::GallopingSearch(const VertexID *src, const ui begin, const ui end,
+                                           const ui target) {
     if (src[end - 1] < target) {
         return end;
     }
@@ -1095,7 +1095,7 @@ const ui ComputeSetIntersection::GallopingSearch(const VertexID *src, const ui b
     }
 }
 
-const ui ComputeSetIntersection::BinarySearch(const VertexID *src, const ui begin, const ui end, const ui target) {
+ui ComputeSetIntersection::BinarySearch(const VertexID *src, const ui begin, const ui end, const ui target) {
     int offset_begin = begin;
     int offset_end = end;
     while (offset_end - offset_begin >= 16) {

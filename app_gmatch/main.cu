@@ -17,7 +17,7 @@ public:
         defaults.num_gpu_workers = 1;
         defaults.tasks_per_fetch_gpu_worker = 1000000;
         defaults.tasks_per_fetch_cpu_worker = 50;
-        defaults.eta_per_warp = 1000;
+        defaults.eta_per_warp = 2000;
         defaults.tau_time_us = 10;
         defaults.ping_pong = true;
         defaults.data_graph = "";
@@ -236,8 +236,9 @@ public:
 int main(int argc, char *argv[])
 {
 
-    GMApp app(argc, argv);
     Timer t;
+    GMApp app(argc, argv);
+    cout<<"Prep time: "<<t.elapsed()/1e6<<endl;
     app.run();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << app.get_results() << endl;

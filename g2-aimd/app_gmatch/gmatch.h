@@ -7,7 +7,7 @@
 #include "system/util.h"
 
 #define SHM_CAP 350
-#define BATCH_SIZE 10000000
+#define BATCH_SIZE 100
 
 
 // 2634376 * 4 = 10537504 2634376

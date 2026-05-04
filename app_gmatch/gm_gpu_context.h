@@ -2,7 +2,7 @@
 #define APP_GMATCH_GMATCH_H
 
 #define SHM_CAP 350
-#define BATCH_SIZE 10000000
+#define BATCH_SIZE 100
 #define TEMPSIZE 200'000
 
 using GMBuffer = BufferBase;
@@ -138,7 +138,8 @@ public:
         {
             ui sz = task->context.cur_depth;
             ull loc = H.append_host(sz);
-            std::copy(task->context.embedding, task->context.embedding + sz, H.vertices + loc);
+            for (ui i = 0; i < sz; ++i)
+                H.vertices[loc + i] = task->context.embedding[matching_order[i]];
             delete task;
         }
         // cout<<"All copied"<<endl;
@@ -170,7 +171,8 @@ public:
                 for (ui i = 0; i < sglen; i++)
                 {
                     ui v = data[so.st + i];
-                    task->context.embedding[i] = v;
+                    ui qv = matching_order[i];
+                    task->context.embedding[qv] = v;
                     int idx = binary_search(i, v);
                     if (idx == -1)
                     {
@@ -179,7 +181,7 @@ public:
                         task = nullptr;
                         break;
                     }
-                    task->context.idx_embedding[i] = static_cast<ui>(idx); // if binary search returned -1, it's invalid
+                    task->context.idx_embedding[qv] = static_cast<ui>(idx); // if binary search returned -1, it's invalid
                 }
                 if (task)
                     collector.push_back(task);
@@ -214,11 +216,15 @@ public:
                     task->context.idx_embedding = new ui[gpu_qg.GetVertexCount()];
                     task->context.cur_depth = sglen;
 
-                    std::copy(data + so.st, data + so.md, task->context.embedding);
-                    std::copy(idx, idx + sglen - 1, task->context.idx_embedding);
-
-                    task->context.embedding[sglen - 1] = data[j];
-                    task->context.idx_embedding[sglen - 1] = static_cast<ui>(idv);
+                    for (ui i = 0; i < sglen - 1; ++i)
+                    {
+                        ui qv = matching_order[i];
+                        task->context.embedding[qv] = data[so.st + i];
+                        task->context.idx_embedding[qv] = idx[i];
+                    }
+                    ui qv = matching_order[sglen - 1];
+                    task->context.embedding[qv] = data[j];
+                    task->context.idx_embedding[qv] = static_cast<ui>(idv);
                     collector.push_back(task);
                 }
                 delete[] idx;

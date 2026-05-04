@@ -239,6 +239,15 @@ public:
             }
         }
 
+        search_from_depth(enter_depth, cur_depth, cpu_qg, edge_matrix, candidates, candidates_count, order,
+                          embedding, idx_embedding, bn, bn_count);
+    }
+
+    void search_from_depth(int enter_depth, int cur_depth, Graph_CPU &cpu_qg, Edges ***edge_matrix, ui **candidates,
+                           ui *candidates_count, ui *order, ui *embedding, ui *idx_embedding, ui **bn, ui *bn_count)
+    {
+        int max_depth = cpu_qg.getVerticesCount();
+
         while (true) {
             while (idx[cur_depth] < idx_count[cur_depth]) {
                 ui valid_idx = valid_candidate_idx[cur_depth][idx[cur_depth]];
@@ -306,11 +315,8 @@ public:
             }
         }
 
-        // ####
-        for (ui i = 0; i < enter_depth; ++i)
-        {
+        for (int i = 0; i < enter_depth; ++i)
             visited_arr[embedding[order[i]]] = false;
-        }
     }
 };
 
