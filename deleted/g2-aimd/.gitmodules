@@ -1,3 +1,0 @@
-[submodule "lib/MPMCQueue"]
-	path = third_party/MPMCQueue
-	url = https://github.com/rigtorp/MPMCQueue.git

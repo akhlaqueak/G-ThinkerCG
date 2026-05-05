@@ -279,10 +279,10 @@ void search(CPU_Graph& hg, ofstream& temp_results);
 void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg);
 void initialize_tasks(CPU_Graph& hg, CPU_Data& hd);
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd);
-void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& output_file);
+uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& output_file);
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
 void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc);
-void RemoveNonMax(const char* szset_filename, char* szoutput_filename);
+int RemoveNonMax(const char* szset_filename, const char* szoutput_filename);
 
 // expansion
 void h_write_to_tasks(CPU_Data& hd, Vertex* vertices, int total_vertices, Vertex* write_vertices, uint64_t* write_offsets, uint64_t* write_count);
@@ -389,8 +389,10 @@ void calculate_minimum_degrees(CPU_Graph& hg)
 
 
 
-void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
+uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
 {
+    uint64_t dumped_cliques_count = hc.cliques_offset.empty() ? 0 : static_cast<uint64_t>(hc.cliques_offset.size() - 1);
+
     // flush CPU cliques first; otherwise they get overwritten by the GPU copy below
     flush_cliques(hc, temp_results);
 
@@ -403,7 +405,7 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     if (gpu_cliques_count == 0)
     {
         cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
-        return;
+        return dumped_cliques_count;
     }
 
     if (gpu_cliques_count >= CLIQUES_OFFSET_SIZE)
@@ -447,6 +449,7 @@ void dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     }
 
     cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
+    return dumped_cliques_count + gpu_cliques_count;
 }
 
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results) 
@@ -1773,7 +1776,7 @@ void OutputMaxSet(TREE_NODE* proot, int nmax_len, const char* szoutput_filename)
     fclose(fp);
 }
 
-void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
+int RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 {
     cout << ">:REMOVING NON-MAXIMAL CLIQUES" << endl;
 
@@ -1794,7 +1797,8 @@ void RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
     ftime(&end);
 
 
-    printf(">:NUMBER OF MAXIMAL CLIQUES: %d\n", gntotal_max_cliques);
+    printf(">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: %d\n", gntotal_max_cliques);
+    return gntotal_max_cliques;
 }
 
 

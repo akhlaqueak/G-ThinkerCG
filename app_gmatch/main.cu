@@ -236,9 +236,8 @@ public:
 int main(int argc, char *argv[])
 {
 
-    Timer t;
     GMApp app(argc, argv);
-    cout<<"Prep time: "<<t.elapsed()/1e6<<endl;
+    Timer t;
     app.run();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count: " << app.get_results() << endl;

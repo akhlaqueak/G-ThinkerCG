@@ -168,7 +168,7 @@ public:
             shareIntersectionHost[i] = false;
         }
 
-        // // if enabled: prefix-only 
+        // if enabled: prefix-only 
         // shareIntersectionHost[1] = false;
         // for (size_t i = 2; i < sz; ++i)
         // {   

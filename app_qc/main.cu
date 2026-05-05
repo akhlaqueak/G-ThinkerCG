@@ -25,8 +25,8 @@ public:
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
 
-        std::string graph_file = cmd.GetOptionValue("-g");
-        minimum_degree_ratio = cmd.GetOptionDoubleValue("-gamma", 0.5);
+        std::string graph_file = cmd.GetOptionValue("-dg");
+        minimum_degree_ratio = cmd.GetOptionDoubleValue("-g", 0.5);
         minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
@@ -458,40 +458,43 @@ int main(int argc, char *argv[])
     app.merge_cpu_cliques();
     chkerr(cudaDeviceSynchronize());
 
-    dump_cliques(hc, dd, temp_results);
+    uint64_t pre_max_quasi_cliques = dump_cliques(hc, dd, temp_results);
     temp_results.flush();
     temp_results.close();
 
     //     // TIME
-    // auto start1 = chrono::high_resolution_clock::now();
+    auto start1 = chrono::high_resolution_clock::now();
 
 
     // // RM NON-MAX
     string out_file = cmd.GetOptionValue("-o", "output.txt");
+    cout << ">:NUMBER OF QUASI-CLIQUES BEFORE MAX CHECK: " << pre_max_quasi_cliques << endl;
+
+    int final_maximal_quasi_cliques = 0;
     {
         std::ifstream clique_input(temp_filename);
         if (clique_input.peek() != std::ifstream::traits_type::eof())
         {
-            RemoveNonMax(temp_filename.c_str(), out_file.c_str());
+            final_maximal_quasi_cliques = RemoveNonMax(temp_filename.c_str(), out_file.c_str());
         }
         else
         {
             std::ofstream empty_output(out_file);
+            cout << ">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: 0" << endl;
         }
     }
 
     // TIME
-    // auto stop1 = chrono::high_resolution_clock::now();
-    // auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
-    // cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+    auto stop1 = chrono::high_resolution_clock::now();
+    auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
+    cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
 
 
-    ull cliques_count = 0;
-    chkerr(cudaMemcpy(&cliques_count, dd.cliques_count, sizeof(ull), cudaMemcpyDeviceToHost));
     app.cleanup_runtime();
 
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-    cout << "Total count: " << cliques_count << endl;
+    cout << "Total count before maximality check: " << pre_max_quasi_cliques << endl;
+    cout << "Total maximal quasi-cliques: " << final_maximal_quasi_cliques << endl;
     cout << "Total spilled vertices: " << spilled_tasks << endl;
 
     return 0;
