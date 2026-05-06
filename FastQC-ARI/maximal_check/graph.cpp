@@ -1787,7 +1787,7 @@ bool Graph::CheckMaximal(VERTEX* pvertices, int nclique_size, int num_of_exts)
 
 int Graph::LoadGraph(char* szgraph_file) // create 1-hop neighbors
 {
-	std::ifstream read(szgraph_file);
+	std::ifstream read(szgraph_file, std::ios::binary);
 	if(!read.is_open())
 	{
 		printf("Error: cannot open file %s for read\n", szgraph_file);
@@ -1795,25 +1795,22 @@ int Graph::LoadGraph(char* szgraph_file) // create 1-hop neighbors
 	}
 
 	int num_of_vertices = 0;
-	int number_of_edges = 0;
-	int number_of_lvl2adj = 0;
+	uint64_t number_of_edges = 0;
+	uint64_t number_of_lvl2adj = 0;
 	int nmax_deg = 0;
 
-	read >> num_of_vertices;
-	read >> number_of_edges;
-	read >> number_of_lvl2adj;
+	read.read(reinterpret_cast<char*>(&num_of_vertices), sizeof(num_of_vertices));
+	read.read(reinterpret_cast<char*>(&number_of_edges), sizeof(number_of_edges));
+	read.read(reinterpret_cast<char*>(&number_of_lvl2adj), sizeof(number_of_lvl2adj));
 
-	int *onehop_neighbors = new int[number_of_edges];
+	int *onehop_neighbors = new int[static_cast<size_t>(number_of_edges)];
 	unsigned long long *onehop_offsets = new unsigned long long[num_of_vertices + 1];
 
-	for(int i=0;i<number_of_edges;i++)
-		read >> onehop_neighbors[i];
-
-	for(int i=0;i<num_of_vertices + 1;i++)
-		read >> onehop_offsets[i];
+	read.read(reinterpret_cast<char*>(onehop_neighbors), sizeof(int) * static_cast<size_t>(number_of_edges));
+	read.read(reinterpret_cast<char*>(onehop_offsets), sizeof(unsigned long long) * (num_of_vertices + 1));
 
 	mppadj_lists = new int*[num_of_vertices];
-	mpadj_list_buf = new int[num_of_vertices + number_of_edges];
+	mpadj_list_buf = new int[num_of_vertices + static_cast<int>(number_of_edges)];
 
 	int nbuf_pos = 0;
 	for(int nvertex_no=0; nvertex_no<num_of_vertices; nvertex_no++)
@@ -1832,11 +1829,8 @@ int Graph::LoadGraph(char* szgraph_file) // create 1-hop neighbors
 			nmax_deg = mppadj_lists[nvertex_no][0];
 	}
 
-	int discard = 0;
-	for(int i=0;i<number_of_lvl2adj;i++)
-		read >> discard;
-	for(int i=0;i<num_of_vertices + 1;i++)
-		read >> discard;
+	read.seekg(static_cast<std::streamoff>(sizeof(int) * static_cast<size_t>(number_of_lvl2adj)), std::ios::cur);
+	read.seekg(static_cast<std::streamoff>(sizeof(unsigned long long) * (num_of_vertices + 1)), std::ios::cur);
 
 	delete []onehop_neighbors;
 	delete []onehop_offsets;

@@ -25,7 +25,7 @@ public:
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
 
-        std::string graph_file = cmd.GetOptionValue("-dg");
+        std::string graph_file = cmd.GetOptionValue("-f");
         minimum_degree_ratio = cmd.GetOptionDoubleValue("-g", 0.5);
         minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
@@ -33,11 +33,12 @@ public:
 
         std::cout.imbue(std::locale());
 
-        ifstream graph_stream(graph_file, ios::in);
+        ifstream graph_stream(graph_file, ios::in | ios::binary);
         if (!graph_stream.is_open())
         {
             cout << "invalid graph file" << endl;
         }
+        load_output_vertex_id_map(graph_file);
 
         if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
         {
@@ -207,7 +208,7 @@ public:
                 pvertexid = hd.remaining_candidates[i];
                 pneighbors_start = hg.onehop_offsets[pvertexid];
                 pneighbors_end = hg.onehop_offsets[pvertexid + 1];
-                for (int j = pneighbors_start; j < pneighbors_end; j++)
+                for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
                 {
                     phelper1 = hg.onehop_neighbors[j];
                     if (vertices[phelper1].label == 0)
@@ -245,7 +246,7 @@ public:
             pneighbors_start = hg.onehop_offsets[pvertexid];
             pneighbors_end = hg.onehop_offsets[pvertexid + 1];
 
-            for (int j = pneighbors_start; j < pneighbors_end; j++)
+            for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
             {
                 phelper1 = hg.onehop_neighbors[j];
 
@@ -284,7 +285,7 @@ public:
         // find all covered vertices
         pneighbors_start = hg.onehop_offsets[maximum_degree_index];
         pneighbors_end = hg.onehop_offsets[maximum_degree_index + 1];
-        for (int i = pneighbors_start; i < pneighbors_end; i++)
+        for (uint64_t i = pneighbors_start; i < pneighbors_end; i++)
         {
             pvertexid = hg.onehop_neighbors[i];
             if (vertices[pvertexid].label == 0)

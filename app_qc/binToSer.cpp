@@ -92,14 +92,14 @@ public:
 
         // handle lvl2 adj
         for (int i = 0; i < number_of_vertices; i++) {
-            for (int j = onehop_offsets[i]; j < onehop_offsets[i + 1]; j++) {
+            for (uint64_t j = onehop_offsets[i]; j < onehop_offsets[i + 1]; j++) {
                 int lvl1adj = onehop_neighbors[j];
                 if (twohop_flag_DIA[lvl1adj]) {
                     twohop_neighbors[number_of_lvl2adj++] = lvl1adj;
                     twohop_flag_DIA[lvl1adj] = false;
                 }
 
-                for (int k = onehop_offsets[lvl1adj]; k < onehop_offsets[lvl1adj + 1]; k++) {
+                for (uint64_t k = onehop_offsets[lvl1adj]; k < onehop_offsets[lvl1adj + 1]; k++) {
                     int lvl2adj = onehop_neighbors[k];
                     if (twohop_flag_DIA[lvl2adj] && lvl2adj != i) {
                         twohop_neighbors[number_of_lvl2adj++] = lvl2adj;
@@ -110,7 +110,7 @@ public:
 
             twohop_offsets[i + 1] = number_of_lvl2adj;
 
-            for (int j = twohop_offsets[i]; j < twohop_offsets[i + 1]; j++) {
+            for (uint64_t j = twohop_offsets[i]; j < twohop_offsets[i + 1]; j++) {
                 twohop_flag_DIA[twohop_neighbors[j]] = true;
             }
 
@@ -123,50 +123,26 @@ public:
             }
         }
 
-        delete twohop_flag_DIA;
+        delete[] twohop_flag_DIA;
     }
 
-    void write_serialized(char* output_file)
+    void write_binary(char* output_file)
     {
-        ofstream out(output_file);
+        FILE* file_out = fopen(output_file, "wb");
+        assert(file_out != NULL);
 
-        out << number_of_vertices << endl;
-        out << number_of_edges << endl;
-        out << number_of_lvl2adj << endl;
+        size_t res = 0;
+        uint64_t edge_count_u64 = static_cast<uint64_t>(number_of_edges);
+        res += fwrite(&number_of_vertices, sizeof(int), 1, file_out);
+        res += fwrite(&edge_count_u64, sizeof(uint64_t), 1, file_out);
+        res += fwrite(&number_of_lvl2adj, sizeof(uint64_t), 1, file_out);
+        res += fwrite(onehop_neighbors, sizeof(int), number_of_edges, file_out);
+        res += fwrite(onehop_offsets, sizeof(uint64_t), number_of_vertices + 1, file_out);
+        res += fwrite(twohop_neighbors, sizeof(int), number_of_lvl2adj, file_out);
+        res += fwrite(twohop_offsets, sizeof(uint64_t), number_of_vertices + 1, file_out);
 
-        for (int i = 0; i < number_of_edges; i++) {
-            out << onehop_neighbors[i];
-            if (i < number_of_edges - 1) {
-                out << " ";
-            }
-        }
-        out << endl;
-
-        for (int i = 0; i < number_of_vertices + 1; i++) {
-            out << onehop_offsets[i];
-            if (i < number_of_vertices) {
-                out << " ";
-            }
-        }
-        out << endl;
-
-        for (int i = 0; i < number_of_lvl2adj; i++) {
-            out << twohop_neighbors[i];
-            if (i < number_of_lvl2adj - 1) {
-                out << " ";
-            }
-        }
-        out << endl;
-
-        for (int i = 0; i < number_of_vertices + 1; i++) {
-            out << twohop_offsets[i];
-            if (i < number_of_vertices) {
-                out << " ";
-            }
-        }
-        out << endl;
-
-        out.close();
+        assert(res == static_cast<size_t>(3 + number_of_edges + (number_of_vertices + 1) + number_of_lvl2adj + (number_of_vertices + 1)));
+        fclose(file_out);
     }
 
     ~CPU_Graph()
@@ -197,7 +173,7 @@ int main(int argc, char* argv[])
 
     // GRAPH
     CPU_Graph hg(argv[1]);
-    hg.write_serialized(argv[2]);
+    hg.write_binary(argv[2]);
     
     return 0;
 }

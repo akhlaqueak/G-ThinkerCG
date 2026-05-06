@@ -5,31 +5,31 @@
 #include "common/command_line.h"
 
 #define DEGREESORT 1
-#define BUFFSIZE 10'000'000'000
+
 #include<numeric>
 // #include<filesystem>
 
 class KCore
 {
 public:
-    ui count, bufTail;
-    ui *degOrder;
-    ui *buffer;
-    ui *degrees;
-    ui level;
-    ui V;
+    size_t count, bufTail;
+    uintV *degOrder;
+    uintV *buffer;
+    uintE *degrees;
+    uintE level;
+    size_t V;
     Graph g;
 
     void allocateMemory(Graph &g)
     {
-        degrees = new ui[g.GetVertexCount()];
-        degOrder = new ui[g.GetVertexCount()];
-        buffer = new ui[g.GetVertexCount()];
+        degrees = new uintE[g.GetVertexCount()];
+        degOrder = new uintV[g.GetVertexCount()];
+        buffer = new uintV[g.GetVertexCount()];
         level = 0;
         count = 0;
         V = g.GetVertexCount();
 
-        for (ui i = 0; i < g.GetVertexCount(); i++)
+        for (size_t i = 0; i < g.GetVertexCount(); i++)
         {
             degrees[i] = g.GetRowPtrs()[i + 1] - g.GetRowPtrs()[i];
         }
@@ -39,7 +39,7 @@ public:
     void scan()
     {
         bufTail = 0;
-        for (ui v = 0; v < V; v++)
+        for (size_t v = 0; v < V; v++)
         {
             if (degrees[v] == level)
             {
@@ -51,7 +51,7 @@ public:
 
     void loop()
     {
-        for (ui i = 0; i < bufTail; i++)
+        for (size_t i = 0; i < bufTail; i++)
         {
             uintV v = buffer[i];
             ull start = g.GetRowPtrs()[v];
@@ -60,7 +60,7 @@ public:
             for (ull j = start; j < end; j++)
             {
 
-                ui u = g.GetCols()[j];
+                uintV u = g.GetCols()[j];
                 if (degrees[u] > level)
                 {
 
@@ -74,7 +74,7 @@ public:
                 }
             }
         }
-        for (int i = 0; i < bufTail; i++)
+        for (size_t i = 0; i < bufTail; i++)
         {
 #if DEGREESORT == 1
             degOrder[count + i] = buffer[i]; // needs to process it again if done this way
@@ -92,7 +92,7 @@ public:
 class Degeneracy
 {
     Graph g;
-    std::vector<ui> degOrderOffsets;
+    std::vector<size_t> degOrderOffsets;
     KCore kc;
 
 public:
@@ -100,7 +100,7 @@ public:
     {
         degOrderOffsets.push_back(0);
     }
-    ui *degenerate()
+    uintV *degenerate()
     {
 
         kc.allocateMemory(g);
@@ -137,12 +137,12 @@ public:
             // return g.degrees[a] < g.degrees[b];
         };
 
-        for (int i = 0; i < degOrderOffsets.size() - 1; i++)
+        for (size_t i = 0; i + 1 < degOrderOffsets.size(); i++)
             std::sort(kc.degOrder + degOrderOffsets[i], kc.degOrder + degOrderOffsets[i + 1], degComp);
 
-        ui *revOrder = new ui[g.GetVertexCount()];
+        uintV *revOrder = new uintV[g.GetVertexCount()];
         // copy back the sorted vertices to rec array...
-        for (int i = 0; i < g.GetVertexCount(); i++)
+        for (size_t i = 0; i < g.GetVertexCount(); i++)
             revOrder[kc.degOrder[i]] = i;
         std::swap(kc.degOrder, revOrder);
 
@@ -155,10 +155,10 @@ public:
         uintV *cols = new uintV[g.GetEdgeCount()];
         uintE *rowPtrs = new uintE[g.GetVertexCount() + 1];
 
-        ui *degrees = new ui[g.GetVertexCount()];
+        uintE *degrees = new uintE[g.GetVertexCount()];
         // auto tick = chrono::steady_clock::now();
         std::cout << "Degrees copied" << std::endl;
-        for (uintV i = 0; i < g.GetVertexCount(); i++)
+        for (size_t i = 0; i < g.GetVertexCount(); i++)
         {
             degrees[kc.degOrder[i]] = g.GetRowPtrs()[i + 1] - g.GetRowPtrs()[i];
         }
@@ -168,9 +168,9 @@ public:
         // delete[] degrees;
         std::cout<<"partial sum complete"<<std::endl;
 
-        for (ui v = 0; v < g.GetVertexCount(); v++)
+        for (size_t v = 0; v < g.GetVertexCount(); v++)
         {
-            ui recv = kc.degOrder[v];
+            uintV recv = kc.degOrder[v];
             uintE start = rowPtrs[recv];
             uintE end = rowPtrs[recv + 1];
             for (uintE j = g.GetRowPtrs()[v], k = start; j < g.GetRowPtrs()[v + 1]; j++, k++)
@@ -186,6 +186,7 @@ public:
         gRec.SetCols(cols);
         gRec.SetVertexCount(g.GetVertexCount());
         gRec.SetEdgeCount(g.GetEdgeCount());
+        delete[] degrees;
 
         return gRec;
     }
@@ -200,9 +201,9 @@ public:
             return;
         }
         file << nb << " ";
-        for (ui i = 0; i < degOrderOffsets.size() - 1; i++)
+        for (size_t i = 0; i + 1 < degOrderOffsets.size(); i++)
         {
-            ui window = degOrderOffsets[i + 1] - degOrderOffsets[i];
+            size_t window = degOrderOffsets[i + 1] - degOrderOffsets[i];
             // ################### kcore2 ordering...
             // kcore2 is using this format 01230123...
             // ui v = 0;
@@ -214,10 +215,10 @@ public:
 
             // ################### kcore1 ordering
             // kcore1 is using this format 0000011111222223333300001111...
-            ui binShare = window / nb + 1;
+            size_t binShare = window / nb + 1;
             for (ui j = 0; j < nb && window > 0; j++)
             {
-                for (ui k = 0; k < binShare && window > 0; k++)
+                for (size_t k = 0; k < binShare && window > 0; k++)
                 {
                     file << j << " ";
                     window--;
@@ -225,6 +226,28 @@ public:
             }
         }
         file.close();
+    }
+
+    void writeVertexMap(const std::string &filename)
+    {
+        std::string map_filename = filename + ".origmap";
+        FILE *file = fopen(map_filename.c_str(), "wb");
+        if (file == NULL)
+        {
+            std::cout << "Error writing vertex map file : " << map_filename << std::endl;
+            return;
+        }
+
+        std::vector<uintV> new_to_old(g.GetVertexCount());
+        for (size_t old_id = 0; old_id < g.GetVertexCount(); old_id++)
+            new_to_old[kc.degOrder[old_id]] = static_cast<uintV>(old_id);
+
+        size_t uintV_size = sizeof(uintV);
+        size_t vertex_count = g.GetVertexCount();
+        fwrite(&uintV_size, sizeof(size_t), 1, file);
+        fwrite(&vertex_count, sizeof(size_t), 1, file);
+        fwrite(new_to_old.data(), sizeof(uintV), new_to_old.size(), file);
+        fclose(file);
     }
 };
 
@@ -247,6 +270,7 @@ int main(int argc, char *argv[])
 
     Graph gRec = deg.recode();
     gRec.writeBinFile(binfile);
+    deg.writeVertexMap(binfile);
     std::cout << "writing bins... " << std::endl;
     deg.writeBins(nbins, binfile);
 }

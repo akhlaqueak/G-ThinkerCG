@@ -253,7 +253,7 @@ private:
 
         pneighbors_start = hg.twohop_offsets[pvertexid];
         pneighbors_end = hg.twohop_offsets[pvertexid + 1];
-        for (int i = pneighbors_start; i < pneighbors_end; i++)
+        for (uint64_t i = pneighbors_start; i < pneighbors_end; i++)
         {
             phelper1 = hd.vertex_order_map[hg.twohop_neighbors[i]];
 
@@ -325,7 +325,7 @@ private:
                     pvertexid = vertices[hd.remaining_candidates[i]].vertexid;
                     pneighbors_start = hg.onehop_offsets[pvertexid];
                     pneighbors_end = hg.onehop_offsets[pvertexid + 1];
-                    for (int j = pneighbors_start; j < pneighbors_end; j++)
+                    for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
                     {
                         phelper1 = hd.vertex_order_map[hg.onehop_neighbors[j]];
 
@@ -343,7 +343,7 @@ private:
                     pvertexid = vertices[hd.removed_candidates[i]].vertexid;
                     pneighbors_start = hg.onehop_offsets[pvertexid];
                     pneighbors_end = hg.onehop_offsets[pvertexid + 1];
-                    for (int j = pneighbors_start; j < pneighbors_end; j++)
+                    for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
                     {
                         phelper1 = hd.vertex_order_map[hg.onehop_neighbors[j]];
 
@@ -447,7 +447,7 @@ private:
             pvertexid = read_vertices[start + i].vertexid;
             pneighbors_start = hg.twohop_offsets[pvertexid];
             pneighbors_end = hg.twohop_offsets[pvertexid + 1];
-            for (int j = pneighbors_start; j < pneighbors_end; j++)
+            for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
             {
                 phelper1 = hd.vertex_order_map[hg.twohop_neighbors[j]];
 
@@ -502,7 +502,7 @@ private:
         pvertexid = read_vertices[start + tot_vert].vertexid;
         pneighbors_start = hg.onehop_offsets[pvertexid];
         pneighbors_end = hg.onehop_offsets[pvertexid + 1];
-        for (int i = pneighbors_start; i < pneighbors_end; i++)
+        for (uint64_t i = pneighbors_start; i < pneighbors_end; i++)
         {
             phelper1 = hd.vertex_order_map[hg.onehop_neighbors[i]];
 
@@ -538,7 +538,7 @@ private:
         int pvertexid;
         uint64_t pneighbors_start;
         uint64_t pneighbors_end;
-        int pneighbors_count;
+        uint64_t pneighbors_count;
         int phelper1;
 
         pvertexid = vertices[number_of_members].vertexid;
@@ -554,7 +554,7 @@ private:
         pneighbors_start = hg.onehop_offsets[pvertexid];
         pneighbors_end = hg.onehop_offsets[pvertexid + 1];
         pneighbors_count = pneighbors_end - pneighbors_start;
-        for (int i = 0; i < pneighbors_count; i++)
+        for (uint64_t i = 0; i < pneighbors_count; i++)
         {
             phelper1 = hd.vertex_order_map[hg.onehop_neighbors[pneighbors_start + i]];
 

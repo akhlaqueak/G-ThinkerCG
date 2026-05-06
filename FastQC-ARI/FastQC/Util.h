@@ -13,33 +13,28 @@ class Util{
 
 static int ReadSerializedGraph(string dataset_path, int **&Graph, int *&degree){
     ifstream read;
-    read.open(dataset_path);
+    read.open(dataset_path, ios::binary);
 
     if (!read.is_open()) {
         return 0;
     }
 
     int graph_size = 0;
-    int number_of_edges = 0;
-    int number_of_lvl2adj = 0;
-    read >> graph_size;
-    read >> number_of_edges;
-    read >> number_of_lvl2adj;
+    uint64_t number_of_edges = 0;
+    uint64_t number_of_lvl2adj = 0;
+    read.read(reinterpret_cast<char*>(&graph_size), sizeof(graph_size));
+    read.read(reinterpret_cast<char*>(&number_of_edges), sizeof(number_of_edges));
+    read.read(reinterpret_cast<char*>(&number_of_lvl2adj), sizeof(number_of_lvl2adj));
 
     Graph = new int*[graph_size];
     delete []degree;
     degree = new int[graph_size];
 
-    int *onehop_neighbors = new int[number_of_edges];
+    int *onehop_neighbors = new int[static_cast<size_t>(number_of_edges)];
     unsigned long long *onehop_offsets = new unsigned long long[graph_size + 1];
 
-    for (int i = 0; i < number_of_edges; ++i) {
-        read >> onehop_neighbors[i];
-    }
-
-    for (int i = 0; i < graph_size + 1; ++i) {
-        read >> onehop_offsets[i];
-    }
+    read.read(reinterpret_cast<char*>(onehop_neighbors), sizeof(int) * static_cast<size_t>(number_of_edges));
+    read.read(reinterpret_cast<char*>(onehop_offsets), sizeof(unsigned long long) * (graph_size + 1));
 
     for (int i = 0; i < graph_size; ++i) {
         degree[i] = static_cast<int>(onehop_offsets[i + 1] - onehop_offsets[i]);
@@ -50,13 +45,8 @@ static int ReadSerializedGraph(string dataset_path, int **&Graph, int *&degree){
         Graph[i] = temp_array;
     }
 
-    int discard = 0;
-    for (int i = 0; i < number_of_lvl2adj; ++i) {
-        read >> discard;
-    }
-    for (int i = 0; i < graph_size + 1; ++i) {
-        read >> discard;
-    }
+    read.seekg(static_cast<std::streamoff>(sizeof(int) * static_cast<size_t>(number_of_lvl2adj)), ios::cur);
+    read.seekg(static_cast<std::streamoff>(sizeof(unsigned long long) * (graph_size + 1)), ios::cur);
 
     delete []onehop_neighbors;
     delete []onehop_offsets;

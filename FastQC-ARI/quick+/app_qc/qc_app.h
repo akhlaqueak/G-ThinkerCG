@@ -15,7 +15,7 @@
 #include <climits>
 
 
-float TIME_THRESHOLD; // if running time >= TIME_THRESHOLD, split into subtasks
+float TIME_THRESHOLD=1e9; // effectively disable timeout-driven splitting by default
 size_t spawned_num = 0;
 mutex spawned_num_mtx;
 

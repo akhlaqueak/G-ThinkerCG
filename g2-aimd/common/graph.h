@@ -10,6 +10,7 @@
 #include <queue>
 #include <utility>
 #include <fstream>
+#include <limits>
 #include <string.h>
 
 #include "common/meta.h"

@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <sstream>
 #include <cmath>
+#include <limits>
 #include <time.h>
 #include <chrono>
 #include <sys/timeb.h>
@@ -92,30 +93,52 @@ class CPU_Graph
 
     CPU_Graph(ifstream& graph_stream)
     {
-        graph_stream >> number_of_vertices;
-        graph_stream >> number_of_edges;
-        graph_stream >> number_of_lvl2adj;
+        uint64_t edge_count_u64 = 0;
+        graph_stream.read(reinterpret_cast<char*>(&number_of_vertices), sizeof(number_of_vertices));
+        graph_stream.read(reinterpret_cast<char*>(&edge_count_u64), sizeof(edge_count_u64));
+        graph_stream.read(reinterpret_cast<char*>(&number_of_lvl2adj), sizeof(number_of_lvl2adj));
+        if (!graph_stream.good())
+        {
+            throw runtime_error("Failed to read graph header");
+        }
+        number_of_edges = edge_count_u64;
+
+        if (number_of_vertices <= 0 ||
+            edge_count_u64 > static_cast<uint64_t>(numeric_limits<size_t>::max() / sizeof(int)) ||
+            number_of_lvl2adj > static_cast<uint64_t>(numeric_limits<size_t>::max() / sizeof(int)))
+        {
+            graph_stream.clear();
+            graph_stream.seekg(0, ios::beg);
+
+            size_t uintV_size = 0;
+            size_t uintE_size = 0;
+            size_t vertex_count = 0;
+            size_t edge_count = 0;
+            graph_stream.read(reinterpret_cast<char*>(&uintV_size), sizeof(uintV_size));
+            graph_stream.read(reinterpret_cast<char*>(&uintE_size), sizeof(uintE_size));
+            graph_stream.read(reinterpret_cast<char*>(&vertex_count), sizeof(vertex_count));
+            graph_stream.read(reinterpret_cast<char*>(&edge_count), sizeof(edge_count));
+
+            if (graph_stream.good() &&
+                uintV_size == sizeof(int) &&
+                uintE_size == sizeof(uint64_t))
+            {
+                throw runtime_error("Graph file is in the original 1-hop binary format. Run binToSer.cpp to generate the expanded binary graph first.");
+            }
+
+            throw runtime_error("Graph file is not in the expected expanded binary format.");
+        }
 
         onehop_neighbors = new int[number_of_edges];
         onehop_offsets = new uint64_t[number_of_vertices + 1];
         twohop_neighbors = new int[number_of_lvl2adj];
         twohop_offsets = new uint64_t[number_of_vertices + 1];
 
-        for (int i = 0; i < number_of_edges; i++) {
-            graph_stream >> onehop_neighbors[i];
-        }
-
-        for (int i = 0; i < number_of_vertices + 1; i++) {
-            graph_stream >> onehop_offsets[i];
-        }
-
-        for (int i = 0; i < number_of_lvl2adj; i++) {
-            graph_stream >> twohop_neighbors[i];
-        }
-
-        for (int i = 0; i < number_of_vertices + 1; i++) {
-            graph_stream >> twohop_offsets[i];
-        }
+        graph_stream.read(reinterpret_cast<char*>(onehop_neighbors), sizeof(int) * number_of_edges);
+        graph_stream.read(reinterpret_cast<char*>(onehop_offsets), sizeof(uint64_t) * (number_of_vertices + 1));
+        graph_stream.read(reinterpret_cast<char*>(twohop_neighbors), sizeof(int) * number_of_lvl2adj);
+        graph_stream.read(reinterpret_cast<char*>(twohop_offsets), sizeof(uint64_t) * (number_of_vertices + 1));
+        assert(graph_stream.good() || graph_stream.eof());
     }
 
     ~CPU_Graph() 
@@ -372,6 +395,47 @@ double minimum_degree_ratio;
 int minimum_clique_size;
 int* minimum_degrees;
 int scheduling_toggle;
+std::vector<int> output_vertex_id_map;
+
+inline int output_vertex_id(int vertexid)
+{
+    if (vertexid >= 0 && static_cast<size_t>(vertexid) < output_vertex_id_map.size())
+        return output_vertex_id_map[vertexid];
+    return vertexid;
+}
+
+inline void load_output_vertex_id_map(const std::string &graph_file)
+{
+    output_vertex_id_map.clear();
+
+    std::ifstream map_stream(graph_file + ".origmap", std::ios::binary);
+    if (!map_stream.is_open())
+        return;
+
+    size_t uintV_size = 0;
+    size_t vertex_count = 0;
+    map_stream.read(reinterpret_cast<char *>(&uintV_size), sizeof(uintV_size));
+    map_stream.read(reinterpret_cast<char *>(&vertex_count), sizeof(vertex_count));
+
+    if (!map_stream || uintV_size != sizeof(unsigned int) ||
+        vertex_count > static_cast<size_t>(std::numeric_limits<int>::max()))
+    {
+        output_vertex_id_map.clear();
+        return;
+    }
+
+    std::vector<unsigned int> raw_map(vertex_count);
+    map_stream.read(reinterpret_cast<char *>(raw_map.data()), sizeof(unsigned int) * raw_map.size());
+    if (!map_stream)
+    {
+        output_vertex_id_map.clear();
+        return;
+    }
+
+    output_vertex_id_map.resize(vertex_count);
+    for (size_t i = 0; i < vertex_count; i++)
+        output_vertex_id_map[i] = static_cast<int>(raw_map[i]);
+}
 
 
 
@@ -443,7 +507,7 @@ uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
         uint64_t end = gpu_cliques_offset[i + 1];
         temp_results << end - start << " ";
         for (uint64_t j = start; j < end; j++) {
-            temp_results << gpu_cliques_vertex[j] << " ";
+            temp_results << output_vertex_id(gpu_cliques_vertex[j]) << " ";
         }
         temp_results << "\n";
     }
@@ -459,7 +523,7 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
         uint64_t end = hc.cliques_offset[i + 1];
         temp_results << end - start << " ";
         for (uint64_t j = start; j < end; j++) {
-            temp_results << hc.cliques_vertex[j] << " ";
+            temp_results << output_vertex_id(hc.cliques_vertex[j]) << " ";
         }
         temp_results << "\n";
     }

@@ -67,7 +67,7 @@ public:
 
     void start(int thread_id)
     {
-        gfpout = fopen(("output_" + to_string(thread_id)).c_str(), "wt");
+        gfpout = fopen((output_prefix + "_" + to_string(thread_id)).c_str(), "wt");
         this->thread_id = thread_id;
 
         start_time = steady_clock::now();

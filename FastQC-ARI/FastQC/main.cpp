@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
 	args::ArgumentParser parser("DCFastQC, an algorithm for enumerating maximal quasi-cliques\n");
     args::HelpFlag help(parser, "help", "Display this help menu",{'h', "help"});
     args::Group required(parser, "", args::Group::Validators::All);
-    args::ValueFlag<std::string> benchmark_file(parser, "dataset", "Path to dataset", {"dg", "file"},"");
+    args::ValueFlag<std::string> benchmark_file(parser, "dataset", "Path to dataset", {'f', "file"},"");
     args::ValueFlag<int> Threshold(parser, "Lower Bound", "The lower bound of the size of MQC", {'k', "k"}, 1);
     args::ValueFlag<int> Quiete(parser, "quiete", "output to file", {'q', "q"}, 1);
 	args::ValueFlag<double> Gamma(parser, "para Gamma", "The parameter Gamma", {'g', "g"}, 0.9);
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
     }
     
     	
-    FastQC miner(pG,pd,pgs,gamma,theta,setG,quiete);
+    FastQC miner(pG,pd,pgs,gamma,theta,setG,quiete,args::get(benchmark_file));
    
     time_t s1 = clock();
     miner.DCStrategy();

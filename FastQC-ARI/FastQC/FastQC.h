@@ -3,6 +3,7 @@
 #include<set>
 #include<time.h>
 #include<math.h>
+#include<string>
 #include"RandList.h"
 
 using std::cout;
@@ -11,7 +12,7 @@ using std::set;
 
 class FastQC{
     public:
-        FastQC(int **Graph, int *degree, int graph_size, double gamma, int size_bound, set<int> *setG,int quiete);
+        FastQC(int **Graph, int *degree, int graph_size, double gamma, int size_bound, set<int> *setG,int quiete, const std::string &dataset_path);
         ~FastQC();
         void QCMiner();
         void DCStrategy();
@@ -77,7 +78,7 @@ class FastQC{
         int size_p;
 };
 
-FastQC::FastQC(int **Graph, int *degree, int graph_size, double gamma, int size_bound, set<int> *setG, int quiete){
+FastQC::FastQC(int **Graph, int *degree, int graph_size, double gamma, int size_bound, set<int> *setG, int quiete, const std::string &dataset_path){
     this->Graph=Graph;
     this->degree=degree;
     this->graph_size=graph_size;
@@ -108,8 +109,14 @@ FastQC::FastQC(int **Graph, int *degree, int graph_size, double gamma, int size_
     }
 
     size_p=std::ceil(gamma*(size_bound-1));
-        if(quiete!=0)
-    	in.open("./output");
+    if(quiete!=0){
+        std::string filename = dataset_path;
+        size_t slash_pos = filename.find_last_of("/\\");
+        if (slash_pos != std::string::npos) {
+            filename = filename.substr(slash_pos + 1);
+        }
+        in.open("./output_" + filename);
+    }
 
 }
 

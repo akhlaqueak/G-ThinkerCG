@@ -65,7 +65,7 @@ atomic<int> global_Lreg_num;
 string TASK_DISK_BUFFER_DIR;
 
 // Number of compers. Compers means threads
-size_t num_compers = 32;
+size_t num_compers = 1;
 int BIGTASK_THRESHOLD = 200;
 
 mutex data_stack_mtx;
@@ -80,6 +80,7 @@ mutex mtx_go;
 bool ready_go = true;
 
 bool enable_log = false;
+string output_prefix = "output";
 void log(const string &text)
 {
 	//if (enable_log)
