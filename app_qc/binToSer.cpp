@@ -1,199 +1,271 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <vector>
-#include <set>
-#include <iostream>
+#include <algorithm>
+#include <cstdint>
+#include <exception>
 #include <fstream>
-#include <string>
-#include <cstdio>
-#include <sstream>
-#include <cmath>
-#include <time.h>
-#include <chrono>
-#include <cstring>
-#include <cassert>
+#include <iostream>
 #include <limits>
-#include <sys/timeb.h>
-#include <cuda_runtime.h>
-#include <cuda.h>
-#include <device_launch_parameters.h>
-#include <sm_30_intrinsics.h>
-#include <device_atomic_functions.h>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 using namespace std;
 
+namespace
+{
+    template <typename T>
+    void read_value(ifstream& in, T& value, const string& description)
+    {
+        in.read(reinterpret_cast<char*>(&value), sizeof(T));
+        if (!in) {
+            throw runtime_error("Failed to read " + description);
+        }
+    }
 
+    template <typename T>
+    void read_array(ifstream& in, vector<T>& values, const string& description)
+    {
+        if (values.empty()) {
+            return;
+        }
 
-// buffer size for CPU onehop and twohop adjacency array and offsets, ensure these are large enough
-#define OFFSETS_SIZE 1000000000
-#define LVL1ADJ_SIZE 1000000000
-#define LVL2ADJ_SIZE 10000000000
+        const uint64_t bytes = static_cast<uint64_t>(values.size()) * sizeof(T);
+        if (bytes > static_cast<uint64_t>(numeric_limits<streamsize>::max())) {
+            throw length_error(description + " is too large to read in one block");
+        }
 
+        in.read(reinterpret_cast<char*>(values.data()), static_cast<streamsize>(bytes));
+        if (!in) {
+            throw runtime_error("Failed to read " + description);
+        }
+    }
 
+    template <typename T>
+    void write_value(ofstream& out, const T& value, const string& description)
+    {
+        out.write(reinterpret_cast<const char*>(&value), sizeof(T));
+        if (!out) {
+            throw runtime_error("Failed to write " + description);
+        }
+    }
 
-// CPU GRAPH / CONSTRUCTOR
-int h_sort_asce(const void* a, const void* b);
+    template <typename T>
+    void write_array(ofstream& out, const vector<T>& values, const string& description)
+    {
+        if (values.empty()) {
+            return;
+        }
+
+        const uint64_t bytes = static_cast<uint64_t>(values.size()) * sizeof(T);
+        if (bytes > static_cast<uint64_t>(numeric_limits<streamsize>::max())) {
+            throw length_error(description + " is too large to write in one block");
+        }
+
+        out.write(reinterpret_cast<const char*>(values.data()), static_cast<streamsize>(bytes));
+        if (!out) {
+            throw runtime_error("Failed to write " + description);
+        }
+    }
+
+    size_t checked_size(uint64_t value, const string& description)
+    {
+        if (value > static_cast<uint64_t>(numeric_limits<size_t>::max())) {
+            throw length_error(description + " does not fit in size_t");
+        }
+        return static_cast<size_t>(value);
+    }
+
+    string vertex_error(int vertex, uint64_t position, int neighbor, int vertex_count)
+    {
+        ostringstream message;
+        message << "Invalid neighbor id " << neighbor << " at vertex " << vertex
+                << ", adjacency position " << position << ". Expected 0 <= id < "
+                << vertex_count << ".";
+        return message.str();
+    }
+}
+
 class CPU_Graph
 {
 public:
+    int number_of_vertices = 0;
+    uint64_t number_of_edges = 0;
+    uint64_t number_of_lvl2adj = 0;
 
-    int number_of_vertices;
-    int number_of_edges;
-    uint64_t number_of_lvl2adj;
+    vector<int> onehop_neighbors;
+    vector<uint64_t> onehop_offsets;
+    vector<int> twohop_neighbors;
+    vector<uint64_t> twohop_offsets;
 
-    // one dimentional arrays of 1hop and 2hop neighbors and the offsets for each vertex
-    int* onehop_neighbors;
-    uint64_t* onehop_offsets;
-    int* twohop_neighbors;
-    uint64_t* twohop_offsets;
-
-    CPU_Graph(const char* input_file)
+    explicit CPU_Graph(const char* input_file)
     {
-        FILE* file_in = fopen(input_file, "rb");
-        assert(file_in != NULL);
+        read_original_binary(input_file);
+        build_twohop_adjacency();
+    }
 
-        size_t res = 0;
+    void write_binary(const char* output_file) const
+    {
+        ofstream file_out(output_file, ios::binary);
+        if (!file_out) {
+            throw runtime_error(string("Failed to open output file: ") + output_file);
+        }
+
+        write_value(file_out, number_of_vertices, "vertex count");
+        write_value(file_out, number_of_edges, "edge count");
+        write_value(file_out, number_of_lvl2adj, "two-hop adjacency count");
+        write_array(file_out, onehop_neighbors, "one-hop neighbors");
+        write_array(file_out, onehop_offsets, "one-hop offsets");
+        write_array(file_out, twohop_neighbors, "two-hop neighbors");
+        write_array(file_out, twohop_offsets, "two-hop offsets");
+    }
+
+private:
+    void read_original_binary(const char* input_file)
+    {
+        ifstream file_in(input_file, ios::binary);
+        if (!file_in) {
+            throw runtime_error(string("Failed to open input file: ") + input_file);
+        }
+
         size_t uintV_size = 0;
         size_t uintE_size = 0;
         size_t vertex_count = 0;
         size_t edge_count = 0;
 
-        res += fread(&uintV_size, sizeof(size_t), 1, file_in);
-        res += fread(&uintE_size, sizeof(size_t), 1, file_in);
-        res += fread(&vertex_count, sizeof(size_t), 1, file_in);
-        res += fread(&edge_count, sizeof(size_t), 1, file_in);
+        read_value(file_in, uintV_size, "vertex-id type size");
+        read_value(file_in, uintE_size, "edge-count type size");
+        read_value(file_in, vertex_count, "vertex count");
+        read_value(file_in, edge_count, "edge count");
 
-        assert(uintV_size == sizeof(int));
-        assert(uintE_size == sizeof(uint64_t));
-        assert(vertex_count <= static_cast<size_t>(numeric_limits<int>::max()));
-        assert(edge_count <= static_cast<size_t>(numeric_limits<int>::max()));
+        if (uintV_size != sizeof(int)) {
+            throw runtime_error("Unsupported vertex-id type size in input graph");
+        }
+        if (uintE_size != sizeof(uint64_t)) {
+            throw runtime_error("Unsupported edge-count type size in input graph");
+        }
+        if (vertex_count == 0 || vertex_count > static_cast<size_t>(numeric_limits<int>::max())) {
+            throw length_error("Vertex count must fit in a positive int");
+        }
+        if (edge_count > onehop_neighbors.max_size()) {
+            throw length_error("Edge count is too large for this process");
+        }
 
         number_of_vertices = static_cast<int>(vertex_count);
-        number_of_edges = static_cast<int>(edge_count);
-        number_of_lvl2adj = 0;
-        std::cout<<"|V|: "<<number_of_vertices<<endl;
-        std::cout<<"|E|: "<<number_of_edges<<endl;
-        onehop_offsets = new uint64_t[number_of_vertices + 1];
-        onehop_neighbors = new int[number_of_edges];
-        twohop_neighbors = new int[LVL2ADJ_SIZE];
-        res += fread(onehop_offsets, sizeof(uint64_t), number_of_vertices + 1, file_in);
-        res += fread(onehop_neighbors, sizeof(int), number_of_edges, file_in);
-        assert(res == 4 + static_cast<size_t>(number_of_vertices + 1) + static_cast<size_t>(number_of_edges));
+        number_of_edges = static_cast<uint64_t>(edge_count);
 
-        fgetc(file_in);
-        assert(feof(file_in));
-        fclose(file_in);
+        cout << "|V|: " << number_of_vertices << endl;
+        cout << "|E|: " << number_of_edges << endl;
 
-        twohop_offsets = new uint64_t[number_of_vertices + 1];
-        twohop_offsets[0] = 0;
+        onehop_offsets.resize(static_cast<size_t>(number_of_vertices) + 1);
+        onehop_neighbors.resize(edge_count);
 
-        bool* twohop_flag_DIA;
-        twohop_flag_DIA = new bool[number_of_vertices];
-        memset(twohop_flag_DIA, true, number_of_vertices * sizeof(bool));
+        read_array(file_in, onehop_offsets, "one-hop offsets");
+        read_array(file_in, onehop_neighbors, "one-hop neighbors");
 
-        // handle lvl2 adj
-        for (int i = 0; i < number_of_vertices; i++) {
-            for (uint64_t j = onehop_offsets[i]; j < onehop_offsets[i + 1]; j++) {
-                int lvl1adj = onehop_neighbors[j];
-                if (twohop_flag_DIA[lvl1adj]) {
-                    twohop_neighbors[number_of_lvl2adj++] = lvl1adj;
-                    twohop_flag_DIA[lvl1adj] = false;
+        if (file_in.peek() != char_traits<char>::eof()) {
+            throw runtime_error("Unexpected trailing bytes in input graph");
+        }
+
+        validate_onehop_graph();
+    }
+
+    void validate_onehop_graph() const
+    {
+        if (onehop_offsets.front() != 0) {
+            throw runtime_error("First one-hop offset must be 0");
+        }
+        if (onehop_offsets.back() != number_of_edges) {
+            throw runtime_error("Last one-hop offset must equal edge count");
+        }
+
+        for (int vertex = 0; vertex < number_of_vertices; vertex++) {
+            const uint64_t begin = onehop_offsets[static_cast<size_t>(vertex)];
+            const uint64_t end = onehop_offsets[static_cast<size_t>(vertex) + 1];
+            if (begin > end) {
+                ostringstream message;
+                message << "One-hop offsets are not monotonic at vertex " << vertex;
+                throw runtime_error(message.str());
+            }
+            if (end > number_of_edges) {
+                ostringstream message;
+                message << "One-hop offset for vertex " << vertex << " exceeds edge count";
+                throw runtime_error(message.str());
+            }
+
+            for (uint64_t pos = begin; pos < end; pos++) {
+                const int neighbor = onehop_neighbors[checked_size(pos, "one-hop index")];
+                if (neighbor < 0 || neighbor >= number_of_vertices) {
+                    throw out_of_range(vertex_error(vertex, pos, neighbor, number_of_vertices));
                 }
+            }
+        }
+    }
 
-                for (uint64_t k = onehop_offsets[lvl1adj]; k < onehop_offsets[lvl1adj + 1]; k++) {
-                    int lvl2adj = onehop_neighbors[k];
-                    if (twohop_flag_DIA[lvl2adj] && lvl2adj != i) {
-                        twohop_neighbors[number_of_lvl2adj++] = lvl2adj;
-                        twohop_flag_DIA[lvl2adj] = false;
+    void build_twohop_adjacency()
+    {
+        twohop_offsets.assign(static_cast<size_t>(number_of_vertices) + 1, 0);
+        vector<int> seen(static_cast<size_t>(number_of_vertices), -1);
+
+        const uint64_t reserve_hint = min<uint64_t>(number_of_edges, 1000000ULL);
+        twohop_neighbors.reserve(checked_size(reserve_hint, "two-hop reserve hint"));
+
+        for (int vertex = 0; vertex < number_of_vertices; vertex++) {
+            const size_t row_start = twohop_neighbors.size();
+
+            auto add_if_new = [&](int candidate) {
+                if (seen[static_cast<size_t>(candidate)] != vertex) {
+                    seen[static_cast<size_t>(candidate)] = vertex;
+                    twohop_neighbors.push_back(candidate);
+                }
+            };
+
+            const uint64_t begin = onehop_offsets[static_cast<size_t>(vertex)];
+            const uint64_t end = onehop_offsets[static_cast<size_t>(vertex) + 1];
+
+            for (uint64_t pos = begin; pos < end; pos++) {
+                const int lvl1adj = onehop_neighbors[checked_size(pos, "one-hop index")];
+                add_if_new(lvl1adj);
+
+                const uint64_t lvl2_begin = onehop_offsets[static_cast<size_t>(lvl1adj)];
+                const uint64_t lvl2_end = onehop_offsets[static_cast<size_t>(lvl1adj) + 1];
+                for (uint64_t lvl2_pos = lvl2_begin; lvl2_pos < lvl2_end; lvl2_pos++) {
+                    const int lvl2adj = onehop_neighbors[checked_size(lvl2_pos, "two-hop source index")];
+                    if (lvl2adj != vertex) {
+                        add_if_new(lvl2adj);
                     }
                 }
             }
 
-            twohop_offsets[i + 1] = number_of_lvl2adj;
+            sort(twohop_neighbors.begin() + static_cast<vector<int>::difference_type>(row_start),
+                 twohop_neighbors.end());
 
-            for (uint64_t j = twohop_offsets[i]; j < twohop_offsets[i + 1]; j++) {
-                twohop_flag_DIA[twohop_neighbors[j]] = true;
-            }
+            sort(onehop_neighbors.begin() + static_cast<vector<int>::difference_type>(begin),
+                 onehop_neighbors.begin() + static_cast<vector<int>::difference_type>(end));
 
-            // sort adjacencies
-            if (onehop_offsets[i + 1] != onehop_offsets[i]) {
-                qsort(onehop_neighbors + onehop_offsets[i], onehop_offsets[i + 1] - onehop_offsets[i], sizeof(int), h_sort_asce);
-            }
-            if (twohop_offsets[i + 1] != twohop_offsets[i]) {
-                qsort(twohop_neighbors + twohop_offsets[i], twohop_offsets[i + 1] - twohop_offsets[i], sizeof(int), h_sort_asce);
-            }
+            twohop_offsets[static_cast<size_t>(vertex) + 1] =
+                static_cast<uint64_t>(twohop_neighbors.size());
         }
 
-        delete[] twohop_flag_DIA;
-    }
-
-    void write_binary(char* output_file)
-    {
-        FILE* file_out = fopen(output_file, "wb");
-        assert(file_out != NULL);
-
-        size_t res = 0;
-        uint64_t edge_count_u64 = static_cast<uint64_t>(number_of_edges);
-        res += fwrite(&number_of_vertices, sizeof(int), 1, file_out);
-        res += fwrite(&edge_count_u64, sizeof(uint64_t), 1, file_out);
-        res += fwrite(&number_of_lvl2adj, sizeof(uint64_t), 1, file_out);
-        res += fwrite(onehop_neighbors, sizeof(int), number_of_edges, file_out);
-        res += fwrite(onehop_offsets, sizeof(uint64_t), number_of_vertices + 1, file_out);
-        res += fwrite(twohop_neighbors, sizeof(int), number_of_lvl2adj, file_out);
-        res += fwrite(twohop_offsets, sizeof(uint64_t), number_of_vertices + 1, file_out);
-
-        assert(res == static_cast<size_t>(3 + number_of_edges + (number_of_vertices + 1) + number_of_lvl2adj + (number_of_vertices + 1)));
-        fclose(file_out);
-    }
-
-    ~CPU_Graph()
-    {
-        delete[] onehop_neighbors;
-        delete[] onehop_offsets;
-        delete[] twohop_neighbors;
-        delete[] twohop_offsets;
+        number_of_lvl2adj = static_cast<uint64_t>(twohop_neighbors.size());
+        cout << "|2-hop|: " << number_of_lvl2adj << endl;
     }
 };
 
-
-
-// MAIN
 int main(int argc, char* argv[])
 {
-    // ENSURE PROPER USAGE
     if (argc != 3) {
-        printf("Usage: ./main <graph_file> <output_file>\n");
+        cerr << "Usage: ./binToSer <graph_file> <output_file>" << endl;
         return 1;
     }
-    FILE* graph_stream = fopen(argv[1], "rb");
-    if (graph_stream == NULL) {
-        printf("invalid graph file\n");
-        return 1;
-    }
-    fclose(graph_stream);
 
-    // GRAPH
-    CPU_Graph hg(argv[1]);
-    hg.write_binary(argv[2]);
-    
+    try {
+        CPU_Graph hg(argv[1]);
+        hg.write_binary(argv[2]);
+    }
+    catch (const exception& error) {
+        cerr << "binToSer: " << error.what() << endl;
+        return 1;
+    }
+
     return 0;
-}
-
-// sorts degrees in ascending order
-int h_sort_asce(const void* a, const void* b)
-{
-    int n1;
-    int n2;
-
-    n1 = *(int*)a;
-    n2 = *(int*)b;
-
-    if (n1 < n2) {
-        return -1;
-    }
-    else if (n1 > n2) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
 }

@@ -144,8 +144,8 @@ public:
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     const size_t sc_size = SC->size();
-                    ui chunk = sc_size >= tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC ?
-                               std::min<ull>(tasks_per_fetch_gpu_worker_g * gpu_min_thresh_SC, sc_size) : 0;
+                    ui chunk = sc_size >= host_to_gpu_transfer_size_g ?
+                               std::min<ull>(host_to_gpu_transfer_size_g, sc_size) : 0;
                     for (ui i = 0; i < chunk; i++)
                     {
                         TaskT *task = SC->top();

@@ -64,7 +64,7 @@ typedef unsigned long long int uintE;
 
 __device__ ui eta=1000*N_WARPS;
 bool ping_pong = true;
-double gpu_min_thresh_SC = 0.1; // a GPU takes tasks only if |SC| is more than gpu_min_thresh_SC * tasks_per_fetch_gpu_worker
+double gpu_min_thresh_SC = 1; // a GPU takes tasks only if |SC| is more than gpu_min_thresh_SC * tasks_per_fetch_gpu_worker
 ui tau_time_g = 1000; // in microseconds. controls cpu task decomposition threshold. 
 
 // #define HOST_BUFF_SZ 1000'000ULL
@@ -97,6 +97,7 @@ size_t tasks_per_fetch_gpu_worker_g = 50'000;
 
 // no. of tasks moved from gpu to host to be added to Sc
 size_t gpu_to_host_transfer_size_g = 1'00'000;
+size_t host_to_gpu_transfer_size_g = 1'00'000;
 
 condition_variable cv_master;
 bool master_ready = true;

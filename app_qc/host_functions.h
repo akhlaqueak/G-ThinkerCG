@@ -44,8 +44,8 @@ using namespace std;
 #define CLIQUES_OFFSET_SIZE 10000000
 #define CLIQUES_PERCENT 50
 // per warp
-#define WCLIQUES_SIZE 10000
-#define WCLIQUES_OFFSET_SIZE 1000
+#define WCLIQUES_SIZE 100000
+#define WCLIQUES_OFFSET_SIZE 10000
 #define WTASKS_SIZE 150000L
 #define WTASKS_OFFSET_SIZE 10000
 // global memory vertices, should be a multiple of 32 as to not waste space
