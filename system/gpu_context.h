@@ -389,12 +389,14 @@ public:
 
     void dump_to_host()
     {
-        cout<<"dumping to host"<<endl;
         if (Brd.empty())
             return;
 
         const ull src_ohead = Brd.ohead[0];
-        const ull src_otail = Brd.otail[0];
+        const ull src_otail_raw = std::min<ull>(Brd.otail[0], Brd.capacity[0]);
+        if (src_otail_raw <= src_ohead)
+            return;
+        const ull src_otail = src_ohead + ((src_otail_raw - src_ohead) / 3) * 3;
         const ull offset_count = src_otail - src_ohead;
         if (offset_count == 0)
             return;
@@ -499,7 +501,7 @@ public:
 
         const ull dst_otail = Bwr.otail[0];
         const ull dst_vstart = Bwr.vtail[0];
-        ull tasks_to_load = std::min<ull>(eta_limit, available_tasks);
+        ull tasks_to_load = std::min<ull>(std::min<ull>(eta_limit, host_to_gpu_transfer_size_g), available_tasks);
         const ull max_offset_count = tasks_to_load * 3;
         const ull max_offsets_start = src_otail - max_offset_count;
         ull total_vertices = 0;
@@ -528,7 +530,9 @@ public:
             }
 
             total_vertices = max_src_vend - min_src_vstart;
-            if ((dst_otail - base) + offset_count <= span && (dst_vstart - base) + total_vertices <= span)
+            const ull output_reserve_factor = ping_pong_mode ? 1 : 2;
+            if ((dst_otail - base) + output_reserve_factor * offset_count <= span &&
+                (dst_vstart - base) + output_reserve_factor * total_vertices <= span)
                 break;
 
             tasks_to_load /= 2;

@@ -321,8 +321,6 @@ public:
     {
         transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
         chkerr(cudaDeviceSynchronize());
-        chkerr(cudaMemset(dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-        chkerr(cudaMemset(dd.wcliques_offset, 0, sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE * NUMBER_OF_WARPS));
     }
     __device__ virtual void extend(QCBuffer &Brd, QCBuffer &Bwr, QCBuffer &H, ull *row_ptrs, VertexID *cols)
     {
@@ -495,17 +493,35 @@ public:
         {
             // sum to find tasks count
             atomicAdd(dd.total_tasks, dd.wtasks_count[WARP_IDX]);
-            atomicAdd(dd.total_cliques, dd.wcliques_count[WARP_IDX]);
-        }
-
-        if (IDX == 0)
-        {
-            (*(dd.cliques_offset_start)) = (*(dd.cliques_count)) + 1;
-            (*(dd.cliques_start)) = dd.cliques_offset[(*(dd.cliques_count))];
         }
     }
 
     // --- DEVICE EXPANSION KERNELS ---
+
+    __device__ bool d_reserve_global_clique(GPU_Data &dd, int clique_size, uint64_t &start_write)
+    {
+        unsigned long long clique_id = 0;
+        unsigned long long vertex_start = 0;
+
+        if (LANE_IDX == 0)
+        {
+            clique_id = atomicAdd(reinterpret_cast<unsigned long long *>(dd.cliques_count), 1ULL);
+            vertex_start = atomicAdd(reinterpret_cast<unsigned long long *>(dd.cliques_vertex_count),
+                                     static_cast<unsigned long long>(clique_size));
+
+            if (clique_id < CLIQUES_OFFSET_SIZE && vertex_start + clique_size <= CLIQUES_SIZE)
+            {
+                dd.cliques_offset[clique_id] = vertex_start;
+                dd.cliques_size[clique_id] = clique_size;
+            }
+        }
+
+        clique_id = __shfl_sync(0xFFFFFFFF, clique_id, 0);
+        vertex_start = __shfl_sync(0xFFFFFFFF, vertex_start, 0);
+        start_write = static_cast<uint64_t>(vertex_start);
+
+        return clique_id < CLIQUES_OFFSET_SIZE && vertex_start + clique_size <= CLIQUES_SIZE;
+    }
 
     // returns 1 if lookahead succesful, 0 otherwise
     __device__ int d_lookahead_pruning(GPU_Data &dd, Warp_Data &wd, Local_Data &ld)
@@ -572,24 +588,14 @@ public:
 
         if (wd.success[WIB_IDX])
         {
-            if (LANE_IDX == 0)
+            // write to global clique buffer
+            uint64_t start_write = 0;
+            if (d_reserve_global_clique(dd, wd.tot_vert[WIB_IDX], start_write))
             {
-                uint64_t local_count = dd.wcliques_count[WARP_IDX];
-                uint64_t local_size = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + local_count];
-                assert(local_count + 1 < WCLIQUES_OFFSET_SIZE);
-                assert(local_size + wd.tot_vert[WIB_IDX] <= WCLIQUES_SIZE);
-            }
-            __syncwarp();
-            // write to cliques
-            uint64_t start_write = (WCLIQUES_SIZE * WARP_IDX) + dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])];
-            for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE)
-            {
-                dd.wcliques_vertex[start_write + j] = Brd.vertices[wd.start[WIB_IDX] + j];
-            }
-            if (LANE_IDX == 0)
-            {
-                (dd.wcliques_count[WARP_IDX])++;
-                dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])] = start_write - (WCLIQUES_SIZE * WARP_IDX) + wd.tot_vert[WIB_IDX];
+                for (int j = LANE_IDX; j < wd.tot_vert[WIB_IDX]; j += WARP_SIZE)
+                {
+                    dd.cliques_vertex[start_write + j] = Brd.vertices[wd.start[WIB_IDX] + j];
+                }
             }
             return 1;
         }
@@ -1532,26 +1538,16 @@ public:
         // set to false if any threads in warp do not meet degree requirement
         clique = !(__any_sync(0xFFFFFFFF, !clique));
 
-        // if clique write to warp buffer for cliques
+        // if clique, append it to the global clique buffer
         if (clique)
         {
-            if (LANE_IDX == 0)
+            uint64_t start_write = 0;
+            if (d_reserve_global_clique(dd, wd.number_of_members[WIB_IDX], start_write))
             {
-                uint64_t local_count = dd.wcliques_count[WARP_IDX];
-                uint64_t local_size = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + local_count];
-                assert(local_count + 1 < WCLIQUES_OFFSET_SIZE);
-                assert(local_size + wd.number_of_members[WIB_IDX] <= WCLIQUES_SIZE);
-            }
-            __syncwarp();
-            uint64_t start_write = (WCLIQUES_SIZE * WARP_IDX) + dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])];
-            for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE)
-            {
-                dd.wcliques_vertex[start_write + k] = ld.vertices[k].vertexid;
-            }
-            if (LANE_IDX == 0)
-            {
-                (dd.wcliques_count[WARP_IDX])++;
-                dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + (dd.wcliques_count[WARP_IDX])] = start_write - (WCLIQUES_SIZE * WARP_IDX) + wd.number_of_members[WIB_IDX];
+                for (int k = LANE_IDX; k < wd.number_of_members[WIB_IDX]; k += WARP_SIZE)
+                {
+                    dd.cliques_vertex[start_write + k] = ld.vertices[k].vertexid;
+                }
             }
         }
     }
@@ -1560,6 +1556,10 @@ public:
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
         uint64_t start_write = Bwr.append(wd.total_vertices[WIB_IDX]);
+        if (start_write == ~0ULL)
+        {
+            return;
+        }
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
             Bwr.vertices[start_write + k] = ld.vertices[k].vertexid;
@@ -1840,7 +1840,7 @@ public:
     }
     virtual void move_tasks_to_Sc(vector<QCTask *> &collector, QCBuffer &H)
     {
-        cout << "D to H" << endl;
+        ui moved = 0;
         for (ui i = 0; i < gpu_to_host_transfer_size_g; i++)
         {
             SubgraphOffsets so = H.pop_host();
@@ -1862,6 +1862,11 @@ public:
             QCTask *task = new QCTask();
             task->context = QCContext(vertices, sglen);
             collector.push_back(task);
+            moved++;
+        }
+        if (moved > 0)
+        {
+            cout << "D to H: " << moved << endl;
         }
     }
 };

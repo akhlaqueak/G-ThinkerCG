@@ -113,18 +113,19 @@ public:
 
     __device__ ull append(ull sglen, ull md = 0)
     {
-        ull vt = 0;
+        ull vt = ~0ULL;
         if (LANEID == 0)
         {
             ull ot = atomicAdd(otail, 3);
-            vt = atomicAdd(vtail, sglen);
+            ull write_vt = atomicAdd(vtail, sglen);
             ui et = atomicAdd(n_tasks_proc, 1);
             const ull next_ot = ot + 3;
-            const ull next_vt = vt + sglen;
+            const ull next_vt = write_vt + sglen;
             const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
             const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
+            const bool out_of_bounds = next_ot > capacity[0] || (next_vt - vertex_base) > vertex_span;
 
-            if ((next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span) || next_ot > capacity[0])
+            if (out_of_bounds || (next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span))
                 overflow[0] = true;
 
             if (et + 1 > eta)
@@ -132,12 +133,16 @@ public:
 
             assert(md == 0 || md <= sglen);
 
-            if (capacity[0] == HOST_BUFF_SZ)
-                assert(next_ot <= HOST_OFFSET_SZ && next_vt <= HOST_BUFF_SZ);
+            if (!out_of_bounds)
+            {
+                if (capacity[0] == HOST_BUFF_SZ)
+                    assert(next_ot <= HOST_OFFSET_SZ && next_vt <= HOST_BUFF_SZ);
 
-            offsets[ot] = vt;
-            offsets[ot + 1] = (md == 0 ? 0 : vt + md);
-            offsets[ot + 2] = next_vt;
+                offsets[ot] = write_vt;
+                offsets[ot + 1] = (md == 0 ? 0 : write_vt + md);
+                offsets[ot + 2] = next_vt;
+                vt = write_vt;
+            }
         }
         vt = __shfl_sync(FULL, vt, 0);
         return vt;

@@ -19,8 +19,8 @@ public:
         defaults.num_cpu_workers = 28;
         defaults.num_gpu_workers = 1;
         defaults.tasks_per_fetch_gpu_worker = 500000;
-        defaults.tasks_per_fetch_cpu_worker = 50;
-        defaults.eta_per_warp = 1000;
+        defaults.tasks_per_fetch_cpu_worker = 10;
+        defaults.eta_per_warp = 2000;
         defaults.ping_pong = true;
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
@@ -91,7 +91,9 @@ public:
         cudaDeviceSynchronize();
 
         initialize_tasks(graph, hd);
-
+        cmd.runtime.tasks_per_fetch_gpu_worker=tasks_per_fetch_gpu_worker_g = std::min<size_t>(cmd.runtime.tasks_per_fetch_gpu_worker, hd.initial_vertices_count*0.8);
+        cout<<"No. of candidates: "<<hd.initial_vertices_count<<endl;
+        cout<<"gpuchunk changed to: "<<cmd.runtime.tasks_per_fetch_gpu_worker <<endl;
         for(ui i=0;i<hd.initial_vertices_count; i++){
             data_array.push_back(i);
         }
@@ -419,27 +421,18 @@ public:
 
         // GPU CLIQUES
         chkerr(cudaMalloc((void **)&dd.cliques_count, sizeof(uint64_t)));
+        chkerr(cudaMalloc((void **)&dd.cliques_vertex_count, sizeof(uint64_t)));
         chkerr(cudaMalloc((void **)&dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE));
         chkerr(cudaMalloc((void **)&dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
+        chkerr(cudaMalloc((void **)&dd.cliques_size, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
 
         chkerr(cudaMemset(dd.cliques_offset, 0, sizeof(uint64_t)));
+        chkerr(cudaMemset(dd.cliques_size, 0, sizeof(uint64_t)));
         chkerr(cudaMemset(dd.cliques_count, 0, sizeof(uint64_t)));
-
-        chkerr(cudaMalloc((void **)&dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
-        chkerr(cudaMalloc((void **)&dd.wcliques_offset, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
-        chkerr(cudaMalloc((void **)&dd.wcliques_vertex, (sizeof(int) * WCLIQUES_SIZE) * NUMBER_OF_WARPS));
-
-        chkerr(cudaMemset(dd.wcliques_offset, 0, (sizeof(uint64_t) * WCLIQUES_OFFSET_SIZE) * NUMBER_OF_WARPS));
-        chkerr(cudaMemset(dd.wcliques_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
-
-        chkerr(cudaMalloc((void **)&dd.total_cliques, sizeof(ull)));
-
-        chkerr(cudaMemset(dd.total_cliques, 0, sizeof(ull)));
+        chkerr(cudaMemset(dd.cliques_vertex_count, 0, sizeof(uint64_t)));
 
         chkerr(cudaMalloc((void **)&dd.buffer_offset_start, sizeof(uint64_t)));
         chkerr(cudaMalloc((void **)&dd.buffer_start, sizeof(uint64_t)));
-        chkerr(cudaMalloc((void **)&dd.cliques_offset_start, sizeof(uint64_t)));
-        chkerr(cudaMalloc((void **)&dd.cliques_start, sizeof(uint64_t)));
 
         // task scheduling
         chkerr(cudaMalloc((void **)&dd.current_task, sizeof(int)));
@@ -462,6 +455,7 @@ int main(int argc, char *argv[])
     uint64_t pre_max_quasi_cliques = dump_cliques(hc, dd, temp_results);
     temp_results.flush();
     temp_results.close();
+    double search_only_time_s = t.elapsed() / 1e6;
 
     //     // TIME
     auto start1 = chrono::high_resolution_clock::now();
@@ -493,6 +487,7 @@ int main(int argc, char *argv[])
 
     app.cleanup_runtime();
 
+    cout << "Search only time (s): " << search_only_time_s << endl;
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count before maximality check: " << pre_max_quasi_cliques << endl;
     cout << "Total maximal quasi-cliques: " << final_maximal_quasi_cliques << endl;

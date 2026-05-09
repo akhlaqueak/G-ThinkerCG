@@ -40,12 +40,10 @@ using namespace std;
 #define TASKS_PER_WARP 100
 #define BUFFER_SIZE 900000000
 #define BUFFER_OFFSET_SIZE 90000000
-#define CLIQUES_SIZE 100000000
-#define CLIQUES_OFFSET_SIZE 10000000
+#define CLIQUES_SIZE 1'000'000'000
+#define CLIQUES_OFFSET_SIZE 10'000'000
 #define CLIQUES_PERCENT 50
 // per warp
-#define WCLIQUES_SIZE 100000
-#define WCLIQUES_OFFSET_SIZE 10000
 #define WTASKS_SIZE 150000L
 #define WTASKS_OFFSET_SIZE 10000
 // global memory vertices, should be a multiple of 32 as to not waste space
@@ -219,8 +217,6 @@ struct GPU_Data
 
     uint64_t* buffer_offset_start;
     uint64_t* buffer_start;
-    uint64_t* cliques_offset_start;
-    uint64_t* cliques_start;
 
     // GPU GRAPH
     int* number_of_vertices;
@@ -233,14 +229,11 @@ struct GPU_Data
 
     // GPU CLIQUES
     uint64_t* cliques_count;
+    uint64_t* cliques_vertex_count;
+    // cliques_offset stores each clique's vertex start; cliques_size stores its length.
     uint64_t* cliques_offset;
+    uint64_t* cliques_size;
     int* cliques_vertex;
-
-    uint64_t* wcliques_count;
-    uint64_t* wcliques_offset;
-    int* wcliques_vertex;
-
-    ull* total_cliques;
 
     // task scheduling
     int* current_task;
@@ -326,7 +319,6 @@ void print_GPU_Data(GPU_Data& dd);
 void print_CPU_Graph(CPU_Graph& hg);
 void print_GPU_Graph(GPU_Data& dd, CPU_Graph& hg);
 void print_WTask_Buffers(GPU_Data& dd);
-void print_WClique_Buffers(GPU_Data& dd);
 void print_GPU_Cliques(GPU_Data& dd); 
 void print_CPU_Cliques(CPU_Cliques& hc);
 bool print_Data_Sizes(GPU_Data& dd);
@@ -386,7 +378,7 @@ __device__ void d_print_vertices(Vertex* vertices, int size);
 
 
 // DEBUG - MAX TRACKER VARIABLES
-uint64_t mts, mbs, mbo, mcs, mco, wts, wto, wcs, wco, mvs;
+uint64_t mts, mbs, mbo, mcs, mco, wts, wto, mvs;
 
 
 
@@ -463,34 +455,35 @@ uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     chkerr(cudaDeviceSynchronize());
 
     uint64_t gpu_cliques_count = 0;
+    uint64_t gpu_cliques_size = 0;
     chkerr(cudaMemcpy(&gpu_cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(&gpu_cliques_size, dd.cliques_vertex_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaDeviceSynchronize());
 
     if (gpu_cliques_count == 0)
     {
         cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
+        cudaMemset(dd.cliques_vertex_count, 0, sizeof(uint64_t));
         return dumped_cliques_count;
     }
 
-    if (gpu_cliques_count >= CLIQUES_OFFSET_SIZE)
+    if (gpu_cliques_count > CLIQUES_OFFSET_SIZE)
     {
         throw std::runtime_error("GPU clique count exceeds CLIQUES_OFFSET_SIZE");
     }
-
-    uint64_t gpu_cliques_size = 0;
-    chkerr(cudaMemcpy(&gpu_cliques_size, dd.cliques_offset + gpu_cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaDeviceSynchronize());
 
     if (gpu_cliques_size > CLIQUES_SIZE)
     {
         throw std::runtime_error("GPU clique vertex size exceeds CLIQUES_SIZE");
     }
 
-    std::vector<uint64_t> gpu_cliques_offset(gpu_cliques_count + 1);
-    chkerr(cudaMemcpy(gpu_cliques_offset.data(), dd.cliques_offset, sizeof(uint64_t) * (gpu_cliques_count + 1), cudaMemcpyDeviceToHost));
+    std::vector<uint64_t> gpu_cliques_offset(gpu_cliques_count);
+    std::vector<uint64_t> gpu_cliques_sizes(gpu_cliques_count);
+    chkerr(cudaMemcpy(gpu_cliques_offset.data(), dd.cliques_offset, sizeof(uint64_t) * gpu_cliques_count, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(gpu_cliques_sizes.data(), dd.cliques_size, sizeof(uint64_t) * gpu_cliques_count, cudaMemcpyDeviceToHost));
 
     for (uint64_t i = 0; i < gpu_cliques_count; i++) {
-        if (gpu_cliques_offset[i] > gpu_cliques_offset[i + 1] || gpu_cliques_offset[i + 1] > gpu_cliques_size) {
+        if (gpu_cliques_offset[i] > gpu_cliques_size || gpu_cliques_sizes[i] > gpu_cliques_size - gpu_cliques_offset[i]) {
             throw std::runtime_error("GPU clique offsets are corrupted");
         }
     }
@@ -504,7 +497,7 @@ uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
 
     for (uint64_t i = 0; i < gpu_cliques_count; i++) {
         uint64_t start = gpu_cliques_offset[i];
-        uint64_t end = gpu_cliques_offset[i + 1];
+        uint64_t end = start + gpu_cliques_sizes[i];
         temp_results << end - start << " ";
         for (uint64_t j = start; j < end; j++) {
             temp_results << output_vertex_id(gpu_cliques_vertex[j]) << " ";
@@ -513,6 +506,7 @@ uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     }
 
     cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
+    cudaMemset(dd.cliques_vertex_count, 0, sizeof(uint64_t));
     return dumped_cliques_count + gpu_cliques_count;
 }
 
@@ -604,18 +598,13 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
 
     // GPU CLIQUES
     chkerr(cudaFree(dd.cliques_count));
+    chkerr(cudaFree(dd.cliques_vertex_count));
     chkerr(cudaFree(dd.cliques_vertex));
     chkerr(cudaFree(dd.cliques_offset));
-
-    chkerr(cudaFree(dd.wcliques_count));
-    chkerr(cudaFree(dd.wcliques_vertex));
-    chkerr(cudaFree(dd.wcliques_offset));
+    chkerr(cudaFree(dd.cliques_size));
 
     chkerr(cudaFree(dd.buffer_offset_start));
     chkerr(cudaFree(dd.buffer_start));
-    chkerr(cudaFree(dd.cliques_offset_start));
-    chkerr(cudaFree(dd.cliques_start));
-
     // tasks scheduling
     chkerr(cudaFree(dd.current_task));
 }
@@ -981,18 +970,10 @@ bool print_Warp_Data_Sizes(GPU_Data& dd)
     int tasks_tsize = 0;
     int tasks_mcount = 0;
     int tasks_msize = 0;
-    uint64_t* cliques_counts = new uint64_t[NUMBER_OF_WARPS];
-    uint64_t* cliques_sizes = new uint64_t[NUMBER_OF_WARPS];
-    int cliques_tcount = 0;
-    int cliques_tsize = 0;
-    int cliques_mcount = 0;
-    int cliques_msize = 0;
 
     chkerr(cudaMemcpy(tasks_counts, dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(cliques_counts, dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
         chkerr(cudaMemcpy(tasks_sizes + i, dd.wtasks_offset + (i * WTASKS_OFFSET_SIZE) + tasks_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(cliques_sizes + i, dd.wcliques_offset + (i * WCLIQUES_OFFSET_SIZE) + cliques_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
     }
 
     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
@@ -1004,17 +985,9 @@ bool print_Warp_Data_Sizes(GPU_Data& dd)
         if (tasks_sizes[i] > tasks_msize) {
             tasks_msize = tasks_sizes[i];
         }
-        cliques_tcount += cliques_counts[i];
-        if (cliques_counts[i] > cliques_mcount) {
-            cliques_mcount = cliques_counts[i];
-        }
-        cliques_tsize += cliques_sizes[i];
-        if (cliques_sizes[i] > cliques_msize) {
-            cliques_msize = cliques_sizes[i];
-        }
     }
 
-    cout << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ") WCliques ( TC: " << cliques_tcount << " TS: " << cliques_tsize << " MC: " << cliques_mcount << " MS: " << cliques_msize << ")" << endl;
+    cout << "WTasks( TC: " << tasks_tcount << " TS: " << tasks_tsize << " MC: " << tasks_mcount << " MS: " << tasks_msize << ")" << endl;
 
     if (tasks_mcount > wto) {
         wto = tasks_mcount;
@@ -1022,22 +995,14 @@ bool print_Warp_Data_Sizes(GPU_Data& dd)
     if (tasks_msize > wts) {
         wts = tasks_msize;
     }
-    if (cliques_mcount > wco) {
-        wco = cliques_mcount;
-    }
-    if (cliques_msize > wcs) {
-        wcs = cliques_msize;
-    }
 
-    if (tasks_mcount > WTASKS_OFFSET_SIZE || tasks_msize > WTASKS_SIZE || cliques_mcount > WCLIQUES_OFFSET_SIZE || cliques_msize > WCLIQUES_SIZE) {
+    if (tasks_mcount > WTASKS_OFFSET_SIZE || tasks_msize > WTASKS_SIZE) {
         cout << "!!! WBUFFER SIZE ERROR !!!" << endl;
         return true;
     }
 
     delete[] tasks_counts;
     delete[] tasks_sizes;
-    delete[] cliques_counts;
-    delete[] cliques_sizes;
 
     return false;
 }
@@ -1046,29 +1011,19 @@ void print_All_Warp_Data_Sizes(GPU_Data& dd)
 {
     uint64_t* tasks_counts = new uint64_t[NUMBER_OF_WARPS];
     uint64_t* tasks_sizes = new uint64_t[NUMBER_OF_WARPS];
-    uint64_t* cliques_counts = new uint64_t[NUMBER_OF_WARPS];
-    uint64_t* cliques_sizes = new uint64_t[NUMBER_OF_WARPS];
 
     chkerr(cudaMemcpy(tasks_counts, dd.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(cliques_counts, dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
         chkerr(cudaMemcpy(tasks_sizes + i, dd.wtasks_offset + (i * WTASKS_OFFSET_SIZE) + tasks_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
-        chkerr(cudaMemcpy(cliques_sizes + i, dd.wcliques_offset + (i * WCLIQUES_OFFSET_SIZE) + cliques_counts[i], sizeof(uint64_t), cudaMemcpyDeviceToHost));
     }
 
     cout << "WTasks Sizes: " << flush;
     for (int i = 0; i < NUMBER_OF_WARPS; i++) {
         cout << i << ":" << tasks_counts[i] << " " << tasks_sizes[i] << " " << flush;
     }
-    cout << "\nWCliques Sizez: " << flush;
-    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-        cout << i << ":" << cliques_counts[i] << " " << cliques_sizes[i] << " " << flush;
-    }
 
     delete[] tasks_counts;
     delete[] tasks_sizes;
-    delete[] cliques_counts;
-    delete[] cliques_sizes;
 }
 
 bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every)
@@ -1114,7 +1069,7 @@ bool print_Data_Sizes(GPU_Data& dd)
     chkerr(cudaMemcpy(buffer_count, dd.buffer_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(buffer_size, dd.buffer_offset + (*buffer_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(cliques_size, dd.cliques_offset + (*cliques_count), sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(cliques_size, dd.cliques_vertex_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
     cout << "L: " << (*current_level) << " B: " << (*buffer_count) << " " << (*buffer_size) << " C: " << 
         (*cliques_count) << " " << (*cliques_size) << endl << endl;
@@ -1220,72 +1175,52 @@ void print_WTask_Buffers(GPU_Data& dd)
     delete[] wtasks_vertices;
 }
 
-void print_WClique_Buffers(GPU_Data& dd)
-{
-    uint64_t* wcliques_count = new uint64_t[NUMBER_OF_WARPS];
-    uint64_t* wcliques_offset = new uint64_t[NUMBER_OF_WARPS * WCLIQUES_OFFSET_SIZE];
-    int* wcliques_vertex = new int[NUMBER_OF_WARPS * WCLIQUES_SIZE];
-
-    chkerr(cudaMemcpy(wcliques_count, dd.wcliques_count, sizeof(uint64_t) * NUMBER_OF_WARPS, cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(wcliques_offset, dd.wcliques_offset, sizeof(uint64_t) * (NUMBER_OF_WARPS * WTASKS_OFFSET_SIZE), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(wcliques_vertex, dd.wcliques_vertex, sizeof(int) * (NUMBER_OF_WARPS * WTASKS_SIZE), cudaMemcpyDeviceToHost));
-
-    cout << endl << " --- Warp Clique Buffers details --- " << endl;
-    for (int i = 0; i < NUMBER_OF_WARPS; i++) {
-        int wcliques_offset_start = WTASKS_OFFSET_SIZE * i;
-        int wcliques_start = WTASKS_SIZE * i;
-
-        cout << endl << "Warp " << i << ": " << "Size : " << wcliques_count[i] << endl;
-        cout << "Offsets:" << endl;
-        for (int j = 0; j <= wcliques_count[i]; j++) {
-            cout << wcliques_offset[wcliques_offset_start + j] << " ";
-        }
-        cout << endl << "Vertex:" << endl;
-        for (int j = 0; j < wcliques_offset[wcliques_offset_start + wcliques_count[i]]; j++) {
-            cout << wcliques_vertex[wcliques_start + j] << " ";
-        }
-    }
-    cout << endl << endl;
-
-    delete[] wcliques_count;
-    delete[] wcliques_offset;
-    delete[] wcliques_vertex;
-}
-
 void print_GPU_Cliques(GPU_Data& dd)
 {
     uint64_t* cliques_count = new uint64_t;
+    uint64_t* cliques_vertex_count = new uint64_t;
     uint64_t* cliques_offset = new uint64_t[CLIQUES_OFFSET_SIZE];
+    uint64_t* cliques_size = new uint64_t[CLIQUES_OFFSET_SIZE];
     int* cliques_vertex = new int[CLIQUES_SIZE];
 
     chkerr(cudaMemcpy(cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(cliques_vertex_count, dd.cliques_vertex_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_offset, dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(cliques_size, dd.cliques_size, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_vertex, dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE, cudaMemcpyDeviceToHost));
 
     cout << endl << " --- (GPU_Cliques)device_cliques details --- " << endl;
-    cout << endl << "Cliques: " << "Size: " << (*cliques_count) << endl;
-    cout << endl << "Offsets:" << endl;
-    for (uint64_t i = 0; i <= (*cliques_count); i++) {
+    cout << endl << "Cliques: " << "Count: " << (*cliques_count) << " Vertex size: " << (*cliques_vertex_count) << endl;
+    cout << endl << "Starts:" << endl;
+    for (uint64_t i = 0; i < (*cliques_count); i++) {
         cout << cliques_offset[i] << " ";
+    }
+    cout << endl << "Sizes:" << endl;
+    for (uint64_t i = 0; i < (*cliques_count); i++) {
+        cout << cliques_size[i] << " ";
     }
 
     cout << endl << "Vertex:" << endl;
     for (uint64_t i = 0; i < (*cliques_count); i++) {
-        cout << i << " S: " << cliques_offset[i] << " E: " << cliques_offset[i+1] << " " << flush;
-        for (uint64_t j = cliques_offset[i]; j < cliques_offset[i + 1]; j++) {
+        uint64_t start = cliques_offset[i];
+        uint64_t end = start + cliques_size[i];
+        cout << i << " S: " << start << " E: " << end << " " << flush;
+        for (uint64_t j = start; j < end; j++) {
             cout << cliques_vertex[j] << " " << flush;
         }
         cout << endl;
     }
 
     delete cliques_count;
+    delete cliques_vertex_count;
     delete[] cliques_offset;
+    delete[] cliques_size;
     delete[] cliques_vertex;
 
     return;
 
     cout << endl << "Vertex:" << endl;
-    for (uint64_t i = 0; i < cliques_offset[(*cliques_count)]; i++) {
+    for (uint64_t i = 0; i < (*cliques_vertex_count); i++) {
         cout << cliques_vertex[i] << " ";
     }
     cout << endl;
@@ -1345,8 +1280,6 @@ void initialize_maxes()
     mco = 0;
     wts = 0;
     wto = 0;
-    wcs = 0;
-    wco = 0;
     mvs = 0;
 }
 
@@ -1358,8 +1291,6 @@ void print_maxes()
         << "BUFFER OFFSET SIZE: " << mbo << endl
         << "CLIQUES SIZE: " << mcs << endl
         << "CLIQUES OFFSET SIZE: " << mco << endl
-        << "WCLIQUES SIZE: " << wcs << endl
-        << "WCLIQUES OFFSET SIZE: " << wco << endl
         << "WTASKS SIZE: " << wts << endl
         << "WTASKS OFFSET SIZE: " << wto << endl
         << "VERTICES SIZE: " << mvs << endl
@@ -1868,47 +1799,7 @@ int RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 
 __global__ void transfer_cliques(GPU_Data dd)
 {
-    __shared__ uint64_t cliques_write[WARPS_PER_BLOCK];
-    __shared__ int cliques_offset_write[WARPS_PER_BLOCK];
-
-    // warp level
-    if (LANE_IDX == 0)
-    {
-        cliques_write[WIB_IDX] = 0;
-        cliques_offset_write[WIB_IDX] = 1;
-
-        for (int i = 0; i < WARP_IDX; i++) {
-            cliques_offset_write[WIB_IDX] += dd.wcliques_count[i];
-            cliques_write[WIB_IDX] += dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * i) + dd.wcliques_count[i]];
-        }
-    }
-    __syncwarp();
-    
-    if (LANE_IDX == 0 && dd.wcliques_count[WARP_IDX] > 0)
-    {
-        uint64_t global_vertex_end = (*(dd.cliques_start)) + cliques_write[WIB_IDX] +
-            dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd.wcliques_count[WARP_IDX]];
-        uint64_t global_offset_end = (*(dd.cliques_offset_start)) + cliques_offset_write[WIB_IDX] +
-            dd.wcliques_count[WARP_IDX] - 1;
-        assert(global_vertex_end <= CLIQUES_SIZE);
-        assert(global_offset_end < CLIQUES_OFFSET_SIZE);
-    }
-    __syncwarp();
-
-    //move to cliques
-    for (int i = LANE_IDX + 1; i <= dd.wcliques_count[WARP_IDX]; i += WARP_SIZE) {
-        dd.cliques_offset[(*(dd.cliques_offset_start)) + cliques_offset_write[WIB_IDX] + i - 2] = dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + i] + (*(dd.cliques_start)) + 
-            cliques_write[WIB_IDX];
-    }
-    for (int i = LANE_IDX; i < dd.wcliques_offset[(WCLIQUES_OFFSET_SIZE * WARP_IDX) + dd.wcliques_count[WARP_IDX]]; i += WARP_SIZE) {
-        dd.cliques_vertex[(*(dd.cliques_start)) + cliques_write[WIB_IDX] + i] = dd.wcliques_vertex[(WCLIQUES_SIZE * WARP_IDX) + i];
-    }
-
     if (IDX == 0) {
-        // handle tasks and buffer counts
-        (*(dd.cliques_count)) += (*(dd.total_cliques));
-
         (*(dd.total_tasks)) = 0;
-        (*(dd.total_cliques)) = 0;
     }
 }

@@ -68,7 +68,6 @@ public:
             if (not gc.H.empty())
             {
                 gc.load_from_host();
-                move_tasks_to_cpu();
             }
             else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
                 break;
