@@ -22,8 +22,16 @@ public:
 
         memset(local_hd.vertex_order_map, -1, sizeof(int) * hg->number_of_vertices);
 
+        local_hc.cliques_count = 0;
         local_hc.cliques_vertex.clear();
-        local_hc.cliques_offset.assign(1, 0);
+        if (store_cliques)
+        {
+            local_hc.cliques_offset.assign(1, 0);
+        }
+        else
+        {
+            local_hc.cliques_offset.clear();
+        }
     }
 
     ~QCCPUWorker() override
@@ -51,6 +59,9 @@ public:
 
     void merge_local_cliques_into(CPU_Cliques &dst)
     {
+        dst.cliques_count += local_hc.cliques_count;
+        local_hc.cliques_count = 0;
+
         if (local_hc.cliques_offset.size() <= 1)
             return;
 
@@ -63,7 +74,14 @@ public:
         }
 
         local_hc.cliques_vertex.clear();
-        local_hc.cliques_offset.assign(1, 0);
+        if (store_cliques)
+        {
+            local_hc.cliques_offset.assign(1, 0);
+        }
+        else
+        {
+            local_hc.cliques_offset.clear();
+        }
     }
 
 private:
@@ -76,6 +94,10 @@ private:
 
     void h_write_clique(CPU_Cliques &hc, Vertex *vertices, int clique_size)
     {
+        hc.cliques_count++;
+        if (!store_cliques)
+            return;
+
         uint64_t start_write = hc.cliques_vertex.size();
         for (int i = 0; i < clique_size; i++)
         {

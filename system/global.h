@@ -96,8 +96,8 @@ size_t tasks_per_fetch_g = 50;
 size_t tasks_per_fetch_gpu_worker_g = 50'000;
 
 // no. of tasks moved from gpu to host to be added to Sc
-size_t gpu_to_host_transfer_size_g = 1'00'000;
-size_t host_to_gpu_transfer_size_g = 1'00'000;
+size_t gpu_to_host_transfer_size_g = 1'000'000;
+size_t host_to_gpu_transfer_size_g = 1'000'000;
 size_t min_transfer_size_g = 100;
 
 condition_variable cv_master;

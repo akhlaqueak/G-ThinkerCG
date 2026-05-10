@@ -10,6 +10,30 @@ GPU_Data dd;
 CPU_Cliques hc;
 CPU_Graph *hg = nullptr;
 
+bool apply_remove_nonmax()
+{
+    for (int i = 1; i < cmd.argc; i++)
+    {
+        std::string arg = cmd.argv[i];
+        if (arg == "-rmnonmax" || arg == "--rmnonmax")
+        {
+            if (i + 1 >= cmd.argc)
+            {
+                return true;
+            }
+
+            std::string value = cmd.argv[i + 1];
+            if (!value.empty() && value[0] == '-')
+            {
+                return true;
+            }
+
+            return !(value == "0" || value == "false" || value == "False" || value == "off");
+        }
+    }
+    return false;
+}
+
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
 public:
@@ -18,7 +42,7 @@ public:
         CommandLine::RuntimeConfig defaults;
         defaults.num_cpu_workers = 28;
         defaults.num_gpu_workers = 1;
-        defaults.tasks_per_fetch_gpu_worker = 500000;
+        defaults.tasks_per_fetch_gpu_worker = 10000;
         defaults.tasks_per_fetch_cpu_worker = 10;
         defaults.eta_per_warp = 2000;
         defaults.ping_pong = true;
@@ -30,6 +54,9 @@ public:
         minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
+        bool remove_nonmax = apply_remove_nonmax();
+        double gpu_chunk_factor = cmd.GetOptionDoubleValue("-gpuchunkfactor", 0.8);
+        store_cliques = remove_nonmax;
 
         std::cout.imbue(std::locale());
 
@@ -58,16 +85,24 @@ public:
             scheduling_toggle = 0;
         }
 
+        if (gpu_chunk_factor <= 0 || gpu_chunk_factor > 1)
+        {
+            cout << "gpu chunk factor must be between 0 and 1; using 0.8" << endl;
+            gpu_chunk_factor = 0.8;
+        }
+
         cout << " ======= Parameters ========" << endl;
         cout << "Graph: " << graph_file << endl;
         cout << "Gamma: " << minimum_degree_ratio << endl;
         cout << "Min size: " << minimum_clique_size << endl;
         cout << "Output: " << output_file << endl;
+        cout << "Remove non-maximal: " << (remove_nonmax ? "true" : "false") << endl;
         cout << "Scheduling: " << (scheduling_toggle == 0 ? "dynamic" : "static") << endl;
         cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
         cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
         cout << "eta: " << eta_per_warp() << endl;
         cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
+        cout << "gpu chunk factor: " << gpu_chunk_factor << endl;
         cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << " ======= ********** ========" << endl;
 
@@ -91,13 +126,17 @@ public:
         cudaDeviceSynchronize();
 
         initialize_tasks(graph, hd);
-        cmd.runtime.tasks_per_fetch_gpu_worker=tasks_per_fetch_gpu_worker_g = std::min<size_t>(cmd.runtime.tasks_per_fetch_gpu_worker, hd.initial_vertices_count*0.8);
-        cout<<"No. of candidates: "<<hd.initial_vertices_count<<endl;
-        cout<<"gpuchunk changed to: "<<cmd.runtime.tasks_per_fetch_gpu_worker <<endl;
-        for(ui i=0;i<hd.initial_vertices_count; i++){
+        cout << "No. of candidates: " << hd.initial_vertices_count << endl;
+        // if (cmd.runtime.num_cpu_workers)
+        // {
+        //     cmd.runtime.tasks_per_fetch_gpu_worker = tasks_per_fetch_gpu_worker_g = std::min<size_t>(cmd.runtime.tasks_per_fetch_gpu_worker, hd.initial_vertices_count * gpu_chunk_factor);
+        //     cout << "gpuchunk changed to: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        // }
+        for (ui i = 0; i < hd.initial_vertices_count; i++)
+        {
             data_array.push_back(i);
         }
-        
+
         chkerr(cudaMalloc((void **)&dd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count));
         chkerr(cudaMemcpy(dd.initial_vertices, hd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count, cudaMemcpyHostToDevice));
         chkerr(cudaMalloc((void **)&dd.initial_vertices_count, sizeof(uint64_t)));
@@ -150,7 +189,7 @@ public:
 
         free_memory(hd, dd, hc);
     }
-      // processes 0th level of expansion
+    // processes 0th level of expansion
     void initialize_tasks(CPU_Graph &hg, CPU_Data &hd)
     {
         // intersection
@@ -310,7 +349,6 @@ public:
         }
     }
 
-
     ui get_results()
     {
         ui res = 0;
@@ -405,29 +443,44 @@ public:
         chkerr(cudaMalloc((void **)&dd.minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1)));
         chkerr(cudaMalloc((void **)&dd.minimum_clique_size, sizeof(int)));
         chkerr(cudaMalloc((void **)&dd.scheduling_toggle, sizeof(int)));
+        chkerr(cudaMalloc((void **)&dd.store_cliques, sizeof(bool)));
 
         chkerr(cudaMemcpy(dd.minimum_degree_ratio, &minimum_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.minimum_degrees, minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.scheduling_toggle, &scheduling_toggle, sizeof(int), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.store_cliques, &store_cliques, sizeof(bool), cudaMemcpyHostToDevice));
 
         chkerr(cudaMalloc((void **)&dd.total_tasks, sizeof(int)));
 
         chkerr(cudaMemset(dd.total_tasks, 0, sizeof(int)));
 
         // CPU CLIQUES
+        hc.cliques_count = 0;
         hc.cliques_vertex.clear();
-        hc.cliques_offset.assign(1, 0);
+        if (store_cliques)
+        {
+            hc.cliques_offset.assign(1, 0);
+        }
+        else
+        {
+            hc.cliques_offset.clear();
+        }
 
         // GPU CLIQUES
         chkerr(cudaMalloc((void **)&dd.cliques_count, sizeof(uint64_t)));
         chkerr(cudaMalloc((void **)&dd.cliques_vertex_count, sizeof(uint64_t)));
-        chkerr(cudaMalloc((void **)&dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE));
-        chkerr(cudaMalloc((void **)&dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
-        chkerr(cudaMalloc((void **)&dd.cliques_size, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
-
-        chkerr(cudaMemset(dd.cliques_offset, 0, sizeof(uint64_t)));
-        chkerr(cudaMemset(dd.cliques_size, 0, sizeof(uint64_t)));
+        dd.cliques_vertex = nullptr;
+        dd.cliques_offset = nullptr;
+        dd.cliques_size = nullptr;
+        if (store_cliques)
+        {
+            chkerr(cudaMalloc((void **)&dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE));
+            chkerr(cudaMalloc((void **)&dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
+            chkerr(cudaMalloc((void **)&dd.cliques_size, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
+            chkerr(cudaMemset(dd.cliques_offset, 0, sizeof(uint64_t)));
+            chkerr(cudaMemset(dd.cliques_size, 0, sizeof(uint64_t)));
+        }
         chkerr(cudaMemset(dd.cliques_count, 0, sizeof(uint64_t)));
         chkerr(cudaMemset(dd.cliques_vertex_count, 0, sizeof(uint64_t)));
 
@@ -444,7 +497,12 @@ int main(int argc, char *argv[])
     cmd = CommandLine(argc, argv);
 
     string temp_filename = "t_cliques.txt";
-    ofstream temp_results(temp_filename);
+    bool remove_nonmax = apply_remove_nonmax();
+    ofstream temp_results;
+    if (remove_nonmax)
+    {
+        temp_results.open(temp_filename);
+    }
 
     QCApp app;
     Timer t;
@@ -453,24 +511,25 @@ int main(int argc, char *argv[])
     chkerr(cudaDeviceSynchronize());
 
     uint64_t pre_max_quasi_cliques = dump_cliques(hc, dd, temp_results);
-    temp_results.flush();
-    temp_results.close();
+    if (remove_nonmax)
+    {
+        temp_results.flush();
+        temp_results.close();
+    }
     double search_only_time_s = t.elapsed() / 1e6;
+    cout << "Search only time (s): " << search_only_time_s << endl;
 
-    //     // TIME
-    auto start1 = chrono::high_resolution_clock::now();
-
-
-    // // RM NON-MAX
     string out_file = cmd.GetOptionValue("-o", "output.txt");
     cout << ">:NUMBER OF QUASI-CLIQUES BEFORE MAX CHECK: " << pre_max_quasi_cliques << endl;
 
-    int final_maximal_quasi_cliques = 0;
+    uint64_t output_quasi_cliques = 0;
+    auto start1 = chrono::high_resolution_clock::now();
+    if (remove_nonmax)
     {
         std::ifstream clique_input(temp_filename);
         if (clique_input.peek() != std::ifstream::traits_type::eof())
         {
-            final_maximal_quasi_cliques = RemoveNonMax(temp_filename.c_str(), out_file.c_str());
+            output_quasi_cliques = static_cast<uint64_t>(RemoveNonMax(temp_filename.c_str(), out_file.c_str()));
         }
         else
         {
@@ -478,20 +537,35 @@ int main(int argc, char *argv[])
             cout << ">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: 0" << endl;
         }
     }
+    else
+    {
+        cout << ">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: NA" << endl;
+    }
 
-    // TIME
     auto stop1 = chrono::high_resolution_clock::now();
     auto duration1 = chrono::duration_cast<chrono::milliseconds>(stop1 - start1);
-    cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
-
+    if (remove_nonmax)
+    {
+        cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << endl;
+    }
+    else
+    {
+        cout << "--->:COUNT ONLY POSTPROCESS TIME: " << duration1.count() << " ms" << endl;
+    }
 
     app.cleanup_runtime();
 
     cout << "Search only time (s): " << search_only_time_s << endl;
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "Total count before maximality check: " << pre_max_quasi_cliques << endl;
-    cout << "Total maximal quasi-cliques: " << final_maximal_quasi_cliques << endl;
-    cout << "Total spilled vertices: " << spilled_tasks << endl;
+    if (remove_nonmax)
+    {
+        cout << "Total maximal quasi-cliques: " << output_quasi_cliques << endl;
+    }
+    else
+    {
+        cout << "Total maximal quasi-cliques: NA" << endl;
+    }
 
     return 0;
 }

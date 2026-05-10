@@ -174,6 +174,7 @@ struct CPU_Data
 // CPU CLIQUES
 struct CPU_Cliques
 {
+    uint64_t cliques_count = 0;
     std::vector<uint64_t> cliques_offset;
     std::vector<int> cliques_vertex;
 };
@@ -214,6 +215,7 @@ struct GPU_Data
     int* minimum_degrees;
     int* minimum_clique_size;
     int* scheduling_toggle;
+    bool* store_cliques;
 
     uint64_t* buffer_offset_start;
     uint64_t* buffer_start;
@@ -387,6 +389,7 @@ double minimum_degree_ratio;
 int minimum_clique_size;
 int* minimum_degrees;
 int scheduling_toggle;
+bool store_cliques;
 std::vector<int> output_vertex_id_map;
 
 inline int output_vertex_id(int vertexid)
@@ -447,10 +450,19 @@ void calculate_minimum_degrees(CPU_Graph& hg)
 
 uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
 {
-    uint64_t dumped_cliques_count = hc.cliques_offset.empty() ? 0 : static_cast<uint64_t>(hc.cliques_offset.size() - 1);
+    uint64_t dumped_cliques_count = hc.cliques_count;
 
-    // flush CPU cliques first; otherwise they get overwritten by the GPU copy below
-    flush_cliques(hc, temp_results);
+    if (store_cliques)
+    {
+        // flush CPU cliques first; otherwise they get overwritten by the GPU copy below
+        flush_cliques(hc, temp_results);
+    }
+    else
+    {
+        hc.cliques_count = 0;
+        hc.cliques_vertex.clear();
+        hc.cliques_offset.clear();
+    }
 
     chkerr(cudaDeviceSynchronize());
 
@@ -465,6 +477,13 @@ uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
         cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
         cudaMemset(dd.cliques_vertex_count, 0, sizeof(uint64_t));
         return dumped_cliques_count;
+    }
+
+    if (!store_cliques)
+    {
+        cudaMemset(dd.cliques_count, 0, sizeof(uint64_t));
+        cudaMemset(dd.cliques_vertex_count, 0, sizeof(uint64_t));
+        return dumped_cliques_count + gpu_cliques_count;
     }
 
     if (gpu_cliques_count > CLIQUES_OFFSET_SIZE)
@@ -522,7 +541,15 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
         temp_results << "\n";
     }
     hc.cliques_vertex.clear();
-    hc.cliques_offset.assign(1, 0);
+    if (store_cliques)
+    {
+        hc.cliques_offset.assign(1, 0);
+    }
+    else
+    {
+        hc.cliques_offset.clear();
+    }
+    hc.cliques_count = 0;
 }
 
 void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
@@ -587,10 +614,12 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     chkerr(cudaFree(dd.minimum_degrees));
     chkerr(cudaFree(dd.minimum_clique_size));
     chkerr(cudaFree(dd.scheduling_toggle));
+    chkerr(cudaFree(dd.store_cliques));
 
     chkerr(cudaFree(dd.total_tasks));
 
     // CPU CLIQUES
+    hc.cliques_count = 0;
     hc.cliques_vertex.clear();
     hc.cliques_vertex.shrink_to_fit();
     hc.cliques_offset.clear();
@@ -599,9 +628,12 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     // GPU CLIQUES
     chkerr(cudaFree(dd.cliques_count));
     chkerr(cudaFree(dd.cliques_vertex_count));
-    chkerr(cudaFree(dd.cliques_vertex));
-    chkerr(cudaFree(dd.cliques_offset));
-    chkerr(cudaFree(dd.cliques_size));
+    if (dd.cliques_vertex)
+        chkerr(cudaFree(dd.cliques_vertex));
+    if (dd.cliques_offset)
+        chkerr(cudaFree(dd.cliques_offset));
+    if (dd.cliques_size)
+        chkerr(cudaFree(dd.cliques_size));
 
     chkerr(cudaFree(dd.buffer_offset_start));
     chkerr(cudaFree(dd.buffer_start));
@@ -1087,8 +1119,8 @@ bool print_Data_Sizes(GPU_Data& dd)
         mco = *cliques_count;
     }
 
-    if ((*buffer_count) > BUFFER_OFFSET_SIZE || (*buffer_size) > BUFFER_SIZE || (*cliques_count) > CLIQUES_OFFSET_SIZE ||
-        (*cliques_size) > CLIQUES_SIZE) {
+    if ((*buffer_count) > BUFFER_OFFSET_SIZE || (*buffer_size) > BUFFER_SIZE ||
+        (store_cliques && ((*cliques_count) > CLIQUES_OFFSET_SIZE || (*cliques_size) > CLIQUES_SIZE))) {
         cout << "!!! ARRAY SIZE ERROR !!!" << endl;
         return true;
     }
@@ -1179,12 +1211,23 @@ void print_GPU_Cliques(GPU_Data& dd)
 {
     uint64_t* cliques_count = new uint64_t;
     uint64_t* cliques_vertex_count = new uint64_t;
+
+    chkerr(cudaMemcpy(cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    chkerr(cudaMemcpy(cliques_vertex_count, dd.cliques_vertex_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+
+    if (!store_cliques)
+    {
+        cout << endl << " --- (GPU_Cliques)device_cliques details --- " << endl;
+        cout << endl << "Cliques: " << "Count: " << (*cliques_count) << " Vertex storage disabled" << endl;
+        delete cliques_count;
+        delete cliques_vertex_count;
+        return;
+    }
+
     uint64_t* cliques_offset = new uint64_t[CLIQUES_OFFSET_SIZE];
     uint64_t* cliques_size = new uint64_t[CLIQUES_OFFSET_SIZE];
     int* cliques_vertex = new int[CLIQUES_SIZE];
 
-    chkerr(cudaMemcpy(cliques_count, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
-    chkerr(cudaMemcpy(cliques_vertex_count, dd.cliques_vertex_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_offset, dd.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_size, dd.cliques_size, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE, cudaMemcpyDeviceToHost));
     chkerr(cudaMemcpy(cliques_vertex, dd.cliques_vertex, sizeof(int) * CLIQUES_SIZE, cudaMemcpyDeviceToHost));

@@ -76,7 +76,7 @@ public:
         for (int i = 0; i < num_cpu_workers; i++)
         {
             WorkerT *worker = new CPUWorkerT();
-            worker->start(); // i is thread id for that worker
+            worker->start(); 
             workers_list.enqueue(worker);
         }
         cout << "workers created, cpu: " << num_cpu_workers << ", gpu: " << num_gpu_workers << endl;

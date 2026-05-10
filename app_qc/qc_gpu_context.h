@@ -506,13 +506,20 @@ public:
         if (LANE_IDX == 0)
         {
             clique_id = atomicAdd(reinterpret_cast<unsigned long long *>(dd.cliques_count), 1ULL);
-            vertex_start = atomicAdd(reinterpret_cast<unsigned long long *>(dd.cliques_vertex_count),
-                                     static_cast<unsigned long long>(clique_size));
-
-            if (clique_id < CLIQUES_OFFSET_SIZE && vertex_start + clique_size <= CLIQUES_SIZE)
+            if (!(*(dd.store_cliques)))
             {
-                dd.cliques_offset[clique_id] = vertex_start;
-                dd.cliques_size[clique_id] = clique_size;
+                vertex_start = 0;
+            }
+            else
+            {
+                vertex_start = atomicAdd(reinterpret_cast<unsigned long long *>(dd.cliques_vertex_count),
+                                         static_cast<unsigned long long>(clique_size));
+
+                if (clique_id < CLIQUES_OFFSET_SIZE && vertex_start + clique_size <= CLIQUES_SIZE)
+                {
+                    dd.cliques_offset[clique_id] = vertex_start;
+                    dd.cliques_size[clique_id] = clique_size;
+                }
             }
         }
 
@@ -520,7 +527,7 @@ public:
         vertex_start = __shfl_sync(0xFFFFFFFF, vertex_start, 0);
         start_write = static_cast<uint64_t>(vertex_start);
 
-        return clique_id < CLIQUES_OFFSET_SIZE && vertex_start + clique_size <= CLIQUES_SIZE;
+        return (*(dd.store_cliques)) && clique_id < CLIQUES_OFFSET_SIZE && vertex_start + clique_size <= CLIQUES_SIZE;
     }
 
     // returns 1 if lookahead succesful, 0 otherwise

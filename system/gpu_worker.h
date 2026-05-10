@@ -49,12 +49,13 @@ public:
             cout << "Lv: " << this->Lv.size() << endl;
             gc.move_vertices_to_gpu(this->Lv);
         }
-        else if(this->Lt.size())
+        else if (this->Lt.size())
         {
             cout << "Lt: " << this->Lt.size() << endl;
             gc.move_tasks_from_Sc(this->Lt, gc.H);
         }
-        else return;
+        else
+            return;
 
         this->Lv.clear();
         this->Lt.clear();
@@ -112,13 +113,14 @@ public:
 
         if (!gc.Bwr.empty())
         {
-                gc.incrementLevel();
-                if (gc.isOverflow() or gc.Bwr.isApprochingEnd())
-                {
-                    gc.dump_to_host();
-                    move_tasks_to_cpu();
-                    show_progress(" ** dump done ** ");
-                    if (!gc.decrementLevel())
+            gc.incrementLevel();
+            // if (gc.isOverflow() or gc.Bwr.isApprochingEnd())
+            if (gc.isOverflow())
+            {
+                gc.dump_to_host();
+                move_tasks_to_cpu();
+                show_progress(" ** dump done ** ");
+                if (!gc.decrementLevel())
                     return false;
             }
         }

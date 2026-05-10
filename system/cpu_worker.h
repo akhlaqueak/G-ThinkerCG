@@ -30,10 +30,10 @@ protected:
 
 public:
 
-    CPUWorker() : Worker<TaskT>(tasks_per_fetch_g) {
-        this->Lv.reserve(tasks_per_fetch_g);
-        this->Lt.reserve(tasks_per_fetch_g);
-        this->Lo.reserve(tasks_per_fetch_g);
+    CPUWorker() : Worker<TaskT>(cmd.runtime.tasks_per_fetch_cpu_worker) {
+        this->Lv.reserve(cmd.runtime.tasks_per_fetch_cpu_worker);
+        this->Lt.reserve(cmd.runtime.tasks_per_fetch_cpu_worker);
+        this->Lo.reserve(cmd.runtime.tasks_per_fetch_cpu_worker);
     }
 
 
