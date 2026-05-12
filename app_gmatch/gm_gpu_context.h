@@ -113,6 +113,13 @@ class GMGPUContext : public GPUContext<GMBuffer, GMTask>
     }
 
 public:
+    struct BatchAppendResult
+    {
+        ull vt;
+        bool to_host;
+        bool failed;
+    };
+
     // temporary array to store local candidate ?????
     ui *tempv;
     // bool *templ;
@@ -129,6 +136,143 @@ public:
     {
     }
 
+    __device__ BatchAppendResult append_batch(ull sglen, ui num, StoreStrategy mode)
+    {
+        BatchAppendResult res{0, false, false};
+        ull lane_vt = 0;
+        unsigned int lane_to_host = 0;
+        unsigned int lane_failed = 0;
+
+        ull ot = 0, vt = 0;
+        ull host_ot = 0, host_vt = 0;
+
+        if (mode == StoreStrategy::EXPAND)
+        {
+            if (LANEID == 0)
+            {
+                ot = atomicAdd(Bwr.otail, 2ULL * num);
+                vt = atomicAdd(Bwr.vtail, sglen * num);
+                atomicAdd(Bwr.n_tasks_proc, num);
+
+                const ull next_ot = ot + 2ULL * num;
+                const ull next_vt = vt + sglen * num;
+                const ull vertex_base = Bwr.second_buffer ? Bwr.capacity[0] / 2 : 0;
+                const ull vertex_span = Bwr.second_buffer ? Bwr.capacity[0] / 2 : Bwr.capacity[0];
+
+                if (next_ot <= Bwr.capacity[0] && (next_vt - vertex_base) <= vertex_span)
+                {
+                    lane_vt = vt;
+                }
+                else
+                {
+                    Bwr.overflow[0] = true;
+                    lane_to_host = 1;
+                    host_ot = atomicAdd(H.otail, 2ULL * num);
+                    host_vt = atomicAdd(H.vtail, sglen * num);
+                    atomicAdd(H.n_tasks_proc, num);
+
+                    if (host_ot + 2ULL * num > HOST_OFFSET_SZ || host_vt + sglen * num > H.capacity[0])
+                    {
+                        H.overflow[0] = true;
+                        lane_failed = 1;
+                    }
+                    else
+                    {
+                        lane_vt = host_vt;
+                    }
+                }
+            }
+
+            ot = __shfl_sync(FULL, ot, 0);
+            vt = __shfl_sync(FULL, vt, 0);
+            host_ot = __shfl_sync(FULL, host_ot, 0);
+            host_vt = __shfl_sync(FULL, host_vt, 0);
+            lane_vt = __shfl_sync(FULL, lane_vt, 0);
+            lane_to_host = __shfl_sync(FULL, lane_to_host, 0);
+            lane_failed = __shfl_sync(FULL, lane_failed, 0);
+
+            if (lane_to_host)
+            {
+                for (ui i = LANEID; i < num; i += 32)
+                {
+                    Bwr.offsets[ot + i * 2] = vt + sglen * i;
+                    Bwr.offsets[ot + i * 2 + 1] = vt + sglen * i;
+                }
+
+                if (!lane_failed)
+                {
+                    for (ui i = LANEID; i < num; i += 32)
+                    {
+                        H.offsets[host_ot + i * 2] = host_vt + sglen * i;
+                        H.offsets[host_ot + i * 2 + 1] = host_vt + sglen * (i + 1);
+                    }
+                }
+            }
+            else
+            {
+                for (ui i = LANEID; i < num; i += 32)
+                {
+                    Bwr.offsets[ot + i * 2] = vt + sglen * i;
+                    Bwr.offsets[ot + i * 2 + 1] = vt + sglen * (i + 1);
+                }
+            }
+        }
+        else
+        {
+            if (LANEID == 0)
+            {
+                const ull total_len = sglen + num;
+                ot = atomicAdd(Bwr.otail, 2ULL);
+                vt = atomicAdd(Bwr.vtail, total_len);
+                atomicAdd(Bwr.n_tasks_proc, num);
+
+                const ull next_ot = ot + 2;
+                const ull next_vt = vt + total_len;
+                const ull vertex_base = Bwr.second_buffer ? Bwr.capacity[0] / 2 : 0;
+                const ull vertex_span = Bwr.second_buffer ? Bwr.capacity[0] / 2 : Bwr.capacity[0];
+
+                if (next_ot <= Bwr.capacity[0] && (next_vt - vertex_base) <= vertex_span)
+                {
+                    Bwr.offsets[ot] = vt;
+                    Bwr.offsets[ot + 1] = vt + total_len;
+                    lane_vt = vt;
+                }
+                else
+                {
+                    Bwr.overflow[0] = true;
+                    lane_to_host = 1;
+                    Bwr.offsets[ot] = vt;
+                    Bwr.offsets[ot + 1] = vt;
+
+                    host_ot = atomicAdd(H.otail, 2ULL);
+                    host_vt = atomicAdd(H.vtail, total_len);
+                    atomicAdd(H.n_tasks_proc, num);
+
+                    if (host_ot + 2 > HOST_OFFSET_SZ || host_vt + total_len > H.capacity[0])
+                    {
+                        H.overflow[0] = true;
+                        lane_failed = 1;
+                    }
+                    else
+                    {
+                        H.offsets[host_ot] = host_vt;
+                        H.offsets[host_ot + 1] = host_vt + total_len;
+                        lane_vt = host_vt;
+                    }
+                }
+            }
+
+            lane_vt = __shfl_sync(FULL, lane_vt, 0);
+            lane_to_host = __shfl_sync(FULL, lane_to_host, 0);
+            lane_failed = __shfl_sync(FULL, lane_failed, 0);
+        }
+
+        res.vt = lane_vt;
+        res.to_host = lane_to_host;
+        res.failed = lane_failed;
+        return res;
+    }
+
     __device__ virtual void process(GMBuffer &Brd, ull *row_ptrs, VertexID *cols) {}
 
     virtual void move_tasks_from_Sc(std::vector<GMTask *> &src_tasks, GMBuffer &H)
@@ -137,9 +281,10 @@ public:
         for (GMTask *task : src_tasks)
         {
             ui sz = task->context.cur_depth;
-            ull loc = H.append_host(sz);
+            ull loc = H.append_host(sz + 1);
+            H.vertices[loc] = sz;
             for (ui i = 0; i < sz; ++i)
-                H.vertices[loc + i] = task->context.embedding[matching_order[i]];
+                H.vertices[loc + 1 + i] = task->context.embedding[matching_order[i]];
             delete task;
         }
         // cout<<"All copied"<<endl;
@@ -155,14 +300,13 @@ public:
             if (so.empty())
                 break;
             VertexID *data = H.vertices;
+            ull sglen64 = data[so.st];
+            if (sglen64 == 0 || sglen64 > gpu_qg.GetVertexCount())
+                throw std::runtime_error("Invalid GM task header while moving tasks from host buffer");
+            ui sglen = static_cast<ui>(sglen64);
 
-            if (so.md == 0)
+            if (plan.strategyHost[sglen] == StoreStrategy::EXPAND)
             {
-                // expand strategy
-                ull sglen64 = so.en - so.st;
-                if (sglen64 > gpu_qg.GetVertexCount())
-                    throw std::runtime_error("Invalid task size while moving GM tasks from host buffer");
-                ui sglen = static_cast<ui>(sglen64);
                 GMTask *task = new GMTask();
                 task->context.embedding = new ui[gpu_qg.GetVertexCount()];
                 task->context.idx_embedding = new ui[gpu_qg.GetVertexCount()];
@@ -170,7 +314,7 @@ public:
 
                 for (ui i = 0; i < sglen; i++)
                 {
-                    ui v = data[so.st + i];
+                    ui v = data[so.st + 1 + i];
                     ui qv = matching_order[i];
                     task->context.embedding[qv] = v;
                     int idx = binary_search(i, v);
@@ -188,16 +332,11 @@ public:
             }
             else
             {
-                // prefix strategy
-                ull sglen64 = so.md - so.st + 1;
-                if (sglen64 > gpu_qg.GetVertexCount())
-                    throw std::runtime_error("Invalid prefix task size while moving GM tasks from host buffer");
-                ui sglen = static_cast<ui>(sglen64);
                 ui *idx = new ui[sglen - 1]; // common idx_maping
                 bool valid_prefix=true;
                 for (ui i = 0; i < sglen - 1; i++)
                 {
-                    int idv = binary_search(i, data[so.st + i]);
+                    int idv = binary_search(i, data[so.st + 1 + i]);
                     if (idv == -1)
                     {
                         valid_prefix=false;
@@ -206,7 +345,7 @@ public:
                     idx[i] = static_cast<ui>(idv);
                 }
 
-                for (ull j = so.md; valid_prefix && j < so.en; j++)
+                for (ull j = so.st + sglen; valid_prefix && j < so.en; j++)
                 {
                     int idv = binary_search(sglen - 1, data[j]); // -1 because candidates index start from 0
                     if (idv == -1)
@@ -219,7 +358,7 @@ public:
                     for (ui i = 0; i < sglen - 1; ++i)
                     {
                         ui qv = matching_order[i];
-                        task->context.embedding[qv] = data[so.st + i];
+                        task->context.embedding[qv] = data[so.st + 1 + i];
                         task->context.idx_embedding[qv] = idx[i];
                     }
                     ui qv = matching_order[sglen - 1];
@@ -282,10 +421,11 @@ public:
 
             ull v = sources[vp];
 
-            unsigned int vt = Bwr.append(1); // allocates a subgraph by atomic operations
+            unsigned int vt = Bwr.append(2); // header + one matched vertex
             if (LANEID == 0)
             {
-                Bwr.vertices[vt] = v; // sources[v];
+                Bwr.vertices[vt] = 1;
+                Bwr.vertices[vt + 1] = v; // sources[v];
             }
         }
     }
@@ -306,29 +446,11 @@ public:
             if (so.empty())
                 break;
 
-            if (so.md == 0)
-                CUR_MODE = StoreStrategy::EXPAND;
-            else
-                CUR_MODE = StoreStrategy::PREFIX;
-
-            // if (isOverflow())
-            // {
-            //     dumpToHost(so);
-            //     break;
-            // }
-
-            ull sglen64 = 0;
-            if (CUR_MODE == StoreStrategy::EXPAND)
-            {
-                sglen64 = so.en - so.st;
-            }
-            else if (CUR_MODE == StoreStrategy::PREFIX)
-            {
-                sglen64 = so.md - so.st + 1;
-            }
+            ull sglen64 = Brd.vertices[so.st];
             assert(sglen64 <= querySize[0]);
             ui id = static_cast<ui>(sglen64);
             ui sglen = static_cast<ui>(sglen64);
+            CUR_MODE = strategy[id];
 
             NEXT_MODE = strategy[id + 1];
             ui u = matchOrder[id];
@@ -337,8 +459,8 @@ public:
 
             if (shareIntersection[id] && CUR_MODE == StoreStrategy::PREFIX)
             {
-                if (so.st + LANEID < so.md)
-                    partial_subgraphs[WARPID][LANEID] = Brd.vertices[so.st + LANEID];
+                if (LANEID < sglen - 1)
+                    partial_subgraphs[WARPID][LANEID] = Brd.vertices[so.st + 1 + LANEID];
                 __syncwarp();
 
                 // finds least degree vertex
@@ -445,8 +567,8 @@ public:
                     }
                     ui pre_len = len;
 
-                    const ui prefix_slot = static_cast<ui>(so.md - so.st);
-                    for (ull subgraph_id = so.md; subgraph_id < so.en; ++subgraph_id)
+                    const ui prefix_slot = sglen - 1;
+                    for (ull subgraph_id = so.st + sglen; subgraph_id < so.en; ++subgraph_id)
                     {
 
                         if (LANEID == 0)
@@ -541,19 +663,21 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                    auto alloc = append_batch(sglen + 1, min, StoreStrategy::EXPAND);
+                                    auto alloc = append_batch(sglen + 2, min, StoreStrategy::EXPAND);
                                     if (alloc.failed)
                                         return;
                                     auto &dst = alloc.to_host ? H : Bwr;
                                     auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
+                                        if (i == LANEID)
+                                            dst.vertices[vt + i * (sglen + 2)] = sglen + 1;
                                         for (ui j = 0; j < sglen; ++j)
                                         {
-                                            auto k = vt + i * (sglen + 1) + j;
+                                            auto k = vt + i * (sglen + 2) + 1 + j;
                                             dst.vertices[k] = partial_subgraphs[WARPID][j];
                                         }
-                                        dst.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                        dst.vertices[vt + i * (sglen + 2) + 1 + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                     }
                                 }
                             }
@@ -562,18 +686,20 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                    auto alloc = append_batch(sglen, min, StoreStrategy::PREFIX);
+                                    auto alloc = append_batch(sglen + 1, min, StoreStrategy::PREFIX);
                                     if (alloc.failed)
                                         return;
                                     auto &dst = alloc.to_host ? H : Bwr;
                                     auto vt = alloc.vt;
+                                    if (LANEID == 0)
+                                        dst.vertices[vt] = sglen + 1;
                                     for (ui i = LANEID; i < sglen; i += 32)
                                     {
-                                        auto k = vt + i;
+                                        auto k = vt + 1 + i;
                                         dst.vertices[k] = partial_subgraphs[WARPID][i];
                                     }
                                     for (ui i = LANEID; i < min; i += 32)
-                                        dst.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                        dst.vertices[vt + 1 + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                 }
                             }
                         }
@@ -582,8 +708,8 @@ public:
             }
             else
             {
-                if (so.st + LANEID < so.en)
-                    partial_subgraphs[WARPID][LANEID] = Brd.vertices[so.st + LANEID];
+                if (LANEID < sglen)
+                    partial_subgraphs[WARPID][LANEID] = Brd.vertices[so.st + 1 + LANEID];
                 __syncwarp();
 
                 // select the pivot with least # of candidates
@@ -711,19 +837,21 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                             {
                                 ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                auto alloc = append_batch(sglen + 1, min, StoreStrategy::EXPAND);
+                                auto alloc = append_batch(sglen + 2, min, StoreStrategy::EXPAND);
                                 if (alloc.failed)
                                     return;
                                 auto &dst = alloc.to_host ? H : Bwr;
                                 auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
+                                    if (i == LANEID)
+                                        dst.vertices[vt + i * (sglen + 2)] = sglen + 1;
                                     for (ui j = 0; j < sglen; ++j)
                                     {
-                                        auto k = vt + i * (sglen + 1) + j;
+                                        auto k = vt + i * (sglen + 2) + 1 + j;
                                         dst.vertices[k] = partial_subgraphs[WARPID][j];
                                     }
-                                    dst.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                    dst.vertices[vt + i * (sglen + 2) + 1 + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                 }
                             }
                         }
@@ -732,18 +860,20 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                             {
                                 ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                auto alloc = append_batch(sglen, min, StoreStrategy::PREFIX);
+                                auto alloc = append_batch(sglen + 1, min, StoreStrategy::PREFIX);
                                 if (alloc.failed)
                                     return;
                                 auto &dst = alloc.to_host ? H : Bwr;
                                 auto vt = alloc.vt;
+                                if (LANEID == 0)
+                                    dst.vertices[vt] = sglen + 1;
                                 for (ui i = LANEID; i < sglen; i += 32)
                                 {
-                                    auto k = vt + i;
+                                    auto k = vt + 1 + i;
                                     dst.vertices[k] = partial_subgraphs[WARPID][i];
                                 }
                                 for (ui i = LANEID; i < min; i += 32)
-                                    dst.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                    dst.vertices[vt + 1 + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                             }
                         }
                     }

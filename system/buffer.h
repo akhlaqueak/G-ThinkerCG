@@ -1,31 +1,16 @@
 #ifndef SYSTEM_BUFFER_H
 #define SYSTEM_BUFFER_H
 
-// Prefix
-/**************************************
- * ---------------------------
- * | st md en | st' md' en'|
- * ---------------------------
- *   st    md          en
- * --|-----|-----------|-----------
- * | x x x y y y y y y a a a b b b
- *  -------|-----------|-----------
- *  prefix | extended  |
- *         |candidates |
- **************************************/
-
 class SubgraphOffsets
 {
 public:
     ull st;
-    ull md;
     ull en;
-    DEVHOST SubgraphOffsets(ull s, ull m, ull e) : st(s), md(m), en(e) {}
-    DEVHOST SubgraphOffsets(ull s, ull e) : st(s), md(0), en(e) {}
-    DEVHOST SubgraphOffsets() : st(0), md(0), en(0) {}
+    DEVHOST SubgraphOffsets(ull s, ull e) : st(s), en(e) {}
+    DEVHOST SubgraphOffsets() : st(0), en(0) {}
     DEVHOST bool empty()
     {
-        return st == 0 && md == 0 && en == 0;
+        return st == 0 && en == 0;
     }
 };
 
@@ -76,50 +61,47 @@ public:
         std::cout << "Device allocated Buffer: " << capacity[0] << std::endl;
     }
 
-    ull append_host(ull sglen, ull md = 0)
+    ull append_host(ull sglen)
     {
         ull ot = otail[0], vt = vtail[0];
-        if (ot + 3 > capacity[0] || vt + sglen > capacity[0])
+        if (ot + 2 > capacity[0] || vt + sglen > capacity[0])
         {
             throw std::runtime_error("Host buffer overflow");
         }
-        assert(md == 0 || md <= sglen);
-        otail[0] += 3;
+        otail[0] += 2;
         vtail[0] += sglen;
         offsets[ot] = vt;
-        offsets[ot + 1] = (md == 0 ? 0 : vt + md);
-        offsets[ot + 2] = vtail[0];
+        offsets[ot + 1] = vtail[0];
         return vt;
     }
 
-    SubgraphOffsets append_host_to_device(ull sglen, ull md = 0)
+    SubgraphOffsets append_host_to_device(ull sglen)
     {
         ull ot = otail[0];
         ull vt = vtail[0];
 
-        if (ot + 3 > capacity[0] || vt + sglen > capacity[0])
+        if (ot + 2 > capacity[0] || vt + sglen > capacity[0])
         {
             throw std::runtime_error("Device buffer overflow");
         }
-        assert(md == 0 || md <= sglen);
 
-        ull host_offsets[3] = {vt, (md == 0 ? 0 : vt + md), vt + sglen};
+        ull host_offsets[2] = {vt, vt + sglen};
         chkerr(cudaMemcpy(offsets + ot, host_offsets, sizeof(host_offsets), cudaMemcpyHostToDevice));
 
-        otail[0] = ot + 3;
+        otail[0] = ot + 2;
         vtail[0] = vt + sglen;
-        return {vt, md, vt + sglen};
+        return {vt, vt + sglen};
     }
 
-    __device__ ull append(ull sglen, ull md = 0)
+    __device__ ull append(ull sglen)
     {
         ull vt = ~0ULL;
         if (LANEID == 0)
         {
-            ull ot = atomicAdd(otail, 3);
+            ull ot = atomicAdd(otail, 2);
             ull write_vt = atomicAdd(vtail, sglen);
             ui et = atomicAdd(n_tasks_proc, 1);
-            const ull next_ot = ot + 3;
+            const ull next_ot = ot + 2;
             const ull next_vt = write_vt + sglen;
             const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
             const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
@@ -131,17 +113,19 @@ public:
             if (et + 1 > eta)
                 eta_filled[0] = true;
 
-            assert(md == 0 || md <= sglen);
-
             if (!out_of_bounds)
             {
                 if (capacity[0] == HOST_BUFF_SZ)
                     assert(next_ot <= HOST_OFFSET_SZ && next_vt <= HOST_BUFF_SZ);
 
                 offsets[ot] = write_vt;
-                offsets[ot + 1] = (md == 0 ? 0 : write_vt + md);
-                offsets[ot + 2] = next_vt;
+                offsets[ot + 1] = next_vt;
                 vt = write_vt;
+            }
+            else if (next_ot <= capacity[0])
+            {
+                offsets[ot] = write_vt;
+                offsets[ot + 1] = write_vt;
             }
         }
         vt = __shfl_sync(FULL, vt, 0);
@@ -149,20 +133,20 @@ public:
     }
     __device__ ull append(SubgraphOffsets &so)
     {
-        return append(so.en - so.st, so.md == 0 ? 0 : so.md - so.st);
+        return append(so.en - so.st);
     }
     __device__ SubgraphOffsets next()
     {
         ull s;
         if (LANEID == 0)
         {
-            s = atomicAdd(ohead, 3);
+            s = atomicAdd(ohead, 2);
         }
         s = __shfl_sync(FULL, s, 0);
         if (s < otail[0])
-            return {offsets[s], offsets[s + 1], offsets[s + 2]}; // md is invalid
+            return {offsets[s], offsets[s + 1]};
         else
-            return {0, 0, 0};
+            return {0, 0};
     }
 
     __device__ SubgraphOffsets pop()
@@ -170,60 +154,25 @@ public:
         ull s;
         if (LANEID == 0)
         {
-            s = atomicDecrementNonNegative(otail, 3);
+            s = atomicDecrementNonNegative(otail, 2);
         }
         s = __shfl_sync(FULL, s, 0);
         if (s != 0)
-            return {offsets[s - 3], offsets[s - 2], offsets[s - 1]};
+            return {offsets[s - 2], offsets[s - 1]};
         else
-            return {0, 0, 0};
+            return {0, 0};
     }
 
     SubgraphOffsets pop_host()
     {
         // removing from the tail
         if (empty())
-            return {0, 0, 0};
+            return {0, 0};
 
-        otail[0] -= 3;
+        otail[0] -= 2;
         ull s = otail[0];
 
-        return {offsets[s], offsets[s + 1], offsets[s + 2]}; // md is invalid
-    }
-
-    __device__ SubgraphOffsets next(StoreStrategy mode)
-    {
-        // A block will try to get a batch of subgraphs
-        ull s;
-        if (mode == StoreStrategy::EXPAND)
-        {
-            if (LANEID == 0)
-            {
-                s = atomicAdd(ohead, 3);
-            }
-            s = __shfl_sync(FULL, s, 0);
-            if (s < otail[0])
-                return {offsets[s], 0, offsets[s + 2]}; // md is invalid
-            else
-                return {0, 0, 0};
-        }
-        else if (mode == StoreStrategy::PREFIX)
-        {
-            if (LANEID == 0)
-            {
-                s = atomicAdd(ohead, 3);
-            }
-            s = __shfl_sync(FULL, s, 0);
-            if (s < otail[0])
-                return {offsets[s], offsets[s + 1], offsets[s + 2]};
-            else
-                return {0, 0, 0};
-        }
-        else
-        {
-            assert(false);
-            return {0, 0, 0};
-        }
+        return {offsets[s], offsets[s + 1]};
     }
 
     bool empty()
@@ -235,7 +184,7 @@ public:
     {
         if (empty())
             return 0;
-        return (otail[0] - ohead[0]) / 3;
+        return (otail[0] - ohead[0]) / 2;
     }
 
     void clear()
@@ -254,7 +203,7 @@ public:
         const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
         const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
         return (vtail[0] - vertex_base) >= static_cast<ull>(0.8 * vertex_span) ||
-               otail[0] + 3 > capacity[0];
+               otail[0] + 2 > capacity[0];
     }
     void allocatePtrs()
     {
@@ -315,51 +264,9 @@ public:
         if (empty())
             cout << msg << "- empty -" << endl;
         else
-            cout << msg << (otail[0] - ohead[0]) / 3 << " tasks (oh:" << ohead[0] << " ot:" << otail[0] << " vt:" << vtail[0] << ") " << endl;
+            cout << msg << (otail[0] - ohead[0]) / 2 << " tasks (oh:" << ohead[0] << " ot:" << otail[0] << " vt:" << vtail[0] << ") " << endl;
     }
 
-    __device__ ull append_batch(ull sglen, ui num, StoreStrategy mode)
-    {
-        ull vt, ot;
-        if (mode == StoreStrategy::EXPAND)
-        {
-            if (LANEID == 0)
-            {
-                atomicAdd(n_tasks_proc, num);
-                ot = atomicAdd(otail, 3 * num);
-                vt = atomicAdd(vtail, sglen * num);
-            }
-            vt = __shfl_sync(FULL, vt, 0);
-            ot = __shfl_sync(FULL, ot, 0);
-            for (ui i = LANEID; i < num; i += 32)
-            {
-                offsets[ot + i * 3] = vt + sglen * i;
-                offsets[ot + i * 3 + 1] = 0;
-                offsets[ot + i * 3 + 2] = vt + sglen * (i + 1);
-            }
-            return vt;
-        }
-        else if (mode == StoreStrategy::PREFIX)
-        {
-            if (LANEID == 0)
-            {
-                ot = atomicAdd(otail, 3);
-                vt = atomicAdd(vtail, sglen + num);
-                atomicAdd(n_tasks_proc, num);
-
-                offsets[ot] = vt;
-                offsets[ot + 1] = vt + sglen;
-                offsets[ot + 2] = vt + sglen + num;
-            }
-            vt = __shfl_sync(FULL, vt, 0);
-            return vt;
-        }
-        else
-        {
-            assert(false);
-            return 0;
-        }
-    }
 };
 
 #endif

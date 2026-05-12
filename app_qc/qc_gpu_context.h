@@ -381,6 +381,26 @@ public:
             if (LANE_IDX == 0)
             {
                 wd.num_mem[WIB_IDX] = num_mem;
+            }
+            __syncwarp();
+
+            int number_of_covered = 0;
+            for (uint64_t j = wd.start[WIB_IDX] + wd.num_mem[WIB_IDX] + LANE_IDX; j < wd.end[WIB_IDX]; j += WARP_SIZE)
+            {
+                if (Brd.label[j] != 2)
+                {
+                    break;
+                }
+                number_of_covered++;
+            }
+            for (int k = 1; k < 32; k *= 2)
+            {
+                number_of_covered += __shfl_xor_sync(0xFFFFFFFF, number_of_covered, k);
+            }
+
+            if (LANE_IDX == 0)
+            {
+                wd.number_of_covered[WIB_IDX] = number_of_covered;
                 wd.num_cand[WIB_IDX] = wd.tot_vert[WIB_IDX] - wd.num_mem[WIB_IDX];
                 wd.expansions[WIB_IDX] = wd.num_cand[WIB_IDX];
             }
@@ -394,11 +414,11 @@ public:
             }
 
             // --- NEXT LEVEL ---
-            for (int j = 0; j < wd.expansions[WIB_IDX]; j++)
+            for (int j = wd.number_of_covered[WIB_IDX]; j < wd.expansions[WIB_IDX]; j++)
             {
 
                 // REMOVE ONE VERTEX
-                if (j > 0)
+                if (j != wd.number_of_covered[WIB_IDX])
                 {
                     method_return = d_remove_one_vertex(dd, wd, ld);
                     if (method_return)
@@ -441,6 +461,14 @@ public:
                 {
                     ld.vertices[wd.number_of_members[WIB_IDX]] = make_vertex(Brd, wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1);
                     // ld.vertices[wd.number_of_members[WIB_IDX]] = dd.read_vertices[wd.start[WIB_IDX] + wd.total_vertices[WIB_IDX] - 1];
+                }
+                __syncwarp();
+
+                for (int index = wd.num_mem[WIB_IDX] + 1 + LANE_IDX;
+                     index <= wd.num_mem[WIB_IDX] + wd.number_of_covered[WIB_IDX];
+                     index += WARP_SIZE)
+                {
+                    ld.vertices[index].label = 0;
                 }
                 __syncwarp();
 
@@ -1563,17 +1591,23 @@ public:
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
         uint64_t start_write = Bwr.append(wd.total_vertices[WIB_IDX]);
+        QCBuffer *write_buffer = &Bwr;
         if (start_write == ~0ULL)
         {
-            return;
+            start_write = H.append(wd.total_vertices[WIB_IDX]);
+            write_buffer = &H;
+            if (start_write == ~0ULL)
+            {
+                return;
+            }
         }
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
-            Bwr.vertices[start_write + k] = ld.vertices[k].vertexid;
-            Bwr.label[start_write + k] = ld.vertices[k].label;
-            Bwr.indeg[start_write + k] = ld.vertices[k].indeg;
-            Bwr.exdeg[start_write + k] = ld.vertices[k].exdeg;
-            Bwr.lvl2adj[start_write + k] = 0;
+            write_buffer->vertices[start_write + k] = ld.vertices[k].vertexid;
+            write_buffer->label[start_write + k] = ld.vertices[k].label;
+            write_buffer->indeg[start_write + k] = ld.vertices[k].indeg;
+            write_buffer->exdeg[start_write + k] = ld.vertices[k].exdeg;
+            write_buffer->lvl2adj[start_write + k] = 0;
         }
         // if (LANE_IDX == 0)
         // {

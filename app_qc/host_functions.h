@@ -248,6 +248,7 @@ struct Warp_Data
     uint64_t end[WARPS_PER_BLOCK];
     int tot_vert[WARPS_PER_BLOCK];
     int num_mem[WARPS_PER_BLOCK];
+    int number_of_covered[WARPS_PER_BLOCK];
     int num_cand[WARPS_PER_BLOCK];
     int expansions[WARPS_PER_BLOCK];
 
