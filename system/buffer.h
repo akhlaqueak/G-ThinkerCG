@@ -224,6 +224,7 @@ public:
     {
         if (second_buffer)
         {
+            // one of the buffer is second_buffer when ping_pong mode is enabled by gpu_context, otherwise both buffers are not second_buffer
             otail[0] = capacity[0] / 2;
             vtail[0] = capacity[0] / 2;
             ohead[0] = capacity[0] / 2;
@@ -262,8 +263,8 @@ public:
     void print(string msg)
     {
         if (empty())
-            cout << msg << "- empty -" << endl;
-        else
+            cout << msg << "- empty -";
+        // else
             cout << msg << (otail[0] - ohead[0]) / 2 << " tasks (oh:" << ohead[0] << " ot:" << otail[0] << " vt:" << vtail[0] << ") " << endl;
     }
 

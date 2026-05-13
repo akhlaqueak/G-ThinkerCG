@@ -113,9 +113,10 @@ public:
 
         if (!gc.Bwr.empty())
         {
+            bool overflow = gc.isOverflow();
             gc.incrementLevel();
             // if (gc.isOverflow() or gc.Bwr.isApprochingEnd())
-            if (gc.isOverflow())
+            if (overflow)
             {
                 gc.dump_to_host();
                 move_tasks_to_cpu();

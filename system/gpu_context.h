@@ -231,7 +231,7 @@ public:
         if (not H.empty())
         {
             cout << "Host used Memory (%): " << std::fixed << std::setprecision(2) << (double)H.vtail[0] / HOST_BUFF_SZ * 100 << endl;
-            // cout << "Host tasks: " << H.otail[0] - H.ohead[0] << endl;
+            cout << "Host tasks: " << H.otail[0] - H.ohead[0] << endl;
             H.print("H: ");
         }
     }
@@ -256,7 +256,7 @@ public:
         ull valid_offset_count = 0;
         for (ull i = 0; i < offset_count; i += 2)
         {
-            if (offsets[i + 1] > offsets[i])
+            if (offsets[i + 1] > offsets[i] && offsets[i + 1] <= Brd.capacity[0])
             {
                 offsets[valid_offset_count++] = offsets[i];
                 offsets[valid_offset_count++] = offsets[i + 1];
@@ -265,6 +265,7 @@ public:
 
         if (valid_offset_count == 0)
         {
+            Brd.ohead[0] = src_otail;
             delete[] offsets;
             return;
         }
@@ -329,14 +330,15 @@ public:
                 H.copy_host_range(Brd, local_dst, sg_st, sglen);
             }
         }
+        Brd.ohead[0] = src_otail;
         delete[] offsets;
     }
 
     void load_from_host()
     {
         if (H.empty())
-        return;
-        
+            return;
+
         const ull src_ohead = H.ohead[0];
         const ull src_otail = H.otail[0];
         const ull available_tasks = (src_otail - src_ohead) / 2;
@@ -388,6 +390,7 @@ public:
             return;
         }
         cout<<"loading from host "<< tasks_to_load <<endl;
+        buffers_status();
 
         ull *translated_offsets = new ull[offset_count];
         ull write_idx = 0;
@@ -407,6 +410,17 @@ public:
         Bwr.otail[0] = dst_otail + offset_count;
         Bwr.vtail[0] = dst_vstart + total_vertices;
         H.otail[0] = offsets_start;
+        if (H.empty())
+        {
+            H.clear();
+        }
+        else
+        {
+            ull remaining_vtail = 0;
+            for (ull i = H.ohead[0]; i < H.otail[0]; i += 2)
+                remaining_vtail = std::max(remaining_vtail, H.offsets[i + 1]);
+            H.vtail[0] = remaining_vtail;
+        }
         delete[] translated_offsets;
         delete[] offsets;
     }
