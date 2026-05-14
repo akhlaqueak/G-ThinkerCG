@@ -4,6 +4,9 @@
 #include "qc_task.h"
 #include "qc_gpu_context.h"
 #include "qc_cpu_worker.h"
+#include <cctype>
+#include <ctime>
+#include <sys/stat.h>
 ull spilled_tasks;
 CPU_Data hd;
 GPU_Data dd;
@@ -32,6 +35,68 @@ bool apply_remove_nonmax()
         }
     }
     return false;
+}
+
+std::string quote_command_arg(const std::string &arg)
+{
+    if (arg.empty())
+        return "''";
+
+    bool needs_quote = false;
+    for (char c : arg)
+    {
+        if (std::isspace(static_cast<unsigned char>(c)) || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`')
+        {
+            needs_quote = true;
+            break;
+        }
+    }
+
+    if (!needs_quote)
+        return arg;
+
+    std::string quoted = "'";
+    for (char c : arg)
+    {
+        if (c == '\'')
+            quoted += "'\\''";
+        else
+            quoted += c;
+    }
+    quoted += "'";
+    return quoted;
+}
+
+std::string supplied_command()
+{
+    std::string command;
+    for (int i = 0; i < cmd.argc; i++)
+    {
+        if (i > 0)
+            command += " ";
+        command += quote_command_arg(cmd.argv[i]);
+    }
+    return command;
+}
+
+std::string executable_modified_time()
+{
+    if (cmd.argc <= 0 || cmd.argv[0] == nullptr)
+        return "unavailable";
+
+    struct stat st;
+    if (stat(cmd.argv[0], &st) != 0)
+        return "unavailable";
+
+    char buffer[64];
+    std::tm tm_value;
+    if (localtime_r(&st.st_mtime, &tm_value) == nullptr)
+        return "unavailable";
+
+    if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %Z", &tm_value) == 0)
+        return "unavailable";
+
+    return buffer;
 }
 
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
@@ -91,6 +156,8 @@ public:
             gpu_chunk_factor = 0.8;
         }
 
+        cout << "Command: " << supplied_command() << endl;
+        cout << "Executable compiled time: " << executable_modified_time() << endl;
         cout << " ======= Parameters ========" << endl;
         cout << "Graph: " << graph_file << endl;
         cout << "Gamma: " << minimum_degree_ratio << endl;
@@ -115,6 +182,7 @@ public:
         CPU_Graph &graph = *hg;
         cout << "|V| = " << graph.number_of_vertices << endl;
         cout << "|E| = " << graph.number_of_edges << endl;
+        cout << "|2-hop| = " << graph.number_of_lvl2adj << endl;
         graph_stream.close();
         calculate_minimum_degrees(graph);
 
@@ -132,9 +200,38 @@ public:
         //     cmd.runtime.tasks_per_fetch_gpu_worker = tasks_per_fetch_gpu_worker_g = std::min<size_t>(cmd.runtime.tasks_per_fetch_gpu_worker, hd.initial_vertices_count * gpu_chunk_factor);
         //     cout << "gpuchunk changed to: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         // }
-        for (ui i = 0; i < hd.initial_vertices_count; i++)
+        size_t oversized_roots = 0;
+        size_t oversized_tasks = 0;
+        if (cmd.runtime.num_gpu_workers > 0)
         {
-            data_array.push_back(i);
+            QCCPUWorker cpu_only_roots;
+            for (size_t i = 0; i < hd.initial_vertices_count; i++)
+            {
+                size_t estimated_vertices = cpu_only_roots.estimate_initial_task_vertices(i);
+                if (estimated_vertices > WVERTICES_SIZE)
+                {
+                    oversized_roots++;
+                    oversized_tasks += cpu_only_roots.process_initial_task_on_cpu(i);
+                }
+                else
+                {
+                    data_array.push_back(static_cast<ui>(i));
+                }
+            }
+            cpu_only_roots.merge_local_cliques_into(hc);
+        }
+        else
+        {
+            for (ui i = 0; i < hd.initial_vertices_count; i++)
+            {
+                data_array.push_back(i);
+            }
+        }
+
+        if (oversized_roots > 0)
+        {
+            cout << "Oversized GPU roots processed on CPU: " << oversized_roots
+                 << " (built tasks: " << oversized_tasks << ")" << endl;
         }
 
         chkerr(cudaMalloc((void **)&dd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count));

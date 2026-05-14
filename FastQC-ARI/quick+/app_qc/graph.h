@@ -839,6 +839,8 @@ VERTEX * Graph::Cliques(char *szgraph_filename, int & num_of_cands)
 		nrm_start++;
 	}
 
+	printf("No. of candidates: %d\n", num_of_cands);
+
 	//=== first round cover prunning ===
 
 	nmax_deg = 0;
@@ -3252,6 +3254,7 @@ int Graph::LoadGraph(char* szgraph_file) // create 1-hop neighbors
 void Graph::GenLevel2NBs()  // create 2-hop neighbors
 {
 	int i, j, k, *pnb_list, nlist_len, nnb_no;
+	uint64_t total_lvl2_nbs = 0;
 	bool *pbflags;
 
 	mpplvl2_nbs = new int*[mnum_of_vertices]; // mpplvl2_nbs[i] = node i's level-2 neighbors, first element keeps the 2-hop-list length
@@ -3283,6 +3286,7 @@ void Graph::GenLevel2NBs()  // create 2-hop neighbors
 			qsort(pnb_list, nlist_len, sizeof(int), comp_int); //2-hop-list are also sorted.
 		mpplvl2_nbs[i] = new int[nlist_len+1];
 		mpplvl2_nbs[i][0] = nlist_len; //first element keeps the 2-hop-list length
+		total_lvl2_nbs += nlist_len;
 		if(nlist_len>0)
 			memcpy(&mpplvl2_nbs[i][1], pnb_list, sizeof(int)*nlist_len);
 
@@ -3291,6 +3295,7 @@ void Graph::GenLevel2NBs()  // create 2-hop neighbors
 	}
 	delete []pbflags;
 	delete []pnb_list;
+	printf("|2-hop| = %llu\n", static_cast<unsigned long long>(total_lvl2_nbs));
 }
 
 void Graph::OutputLvl2Graph(char* szoutput_filename) // seems just for debugging GenLevel2NBs() in Line 1850

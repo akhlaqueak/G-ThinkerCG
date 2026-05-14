@@ -1,8 +1,6 @@
 #ifndef MC_GPU_APP
 #define MC_GPU_APP
 
-#define TEMPSIZE 200'000
-#define QBuff_SIZE 100'000'000
 
 class QCBuffer : public BufferBase
 {
@@ -1853,6 +1851,11 @@ public:
         for (QCTask *task : src_tasks)
         {
             ui sz = task->context.num_vertices;
+            if (sz > WVERTICES_SIZE)
+            {
+                throw std::runtime_error("GPU received a task larger than WVERTICES_SIZE");
+            }
+
             SubgraphOffsets so = this->H.append_host_to_device(sz);
             ull loc = so.st;
             std::vector<VertexID> vertices(sz);

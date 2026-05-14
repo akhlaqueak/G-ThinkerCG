@@ -6,6 +6,7 @@ class QCCPUWorker : public CPUWorker<QCTask>
 public:
     CPU_Data local_hd;
     CPU_Cliques local_hc;
+    bool force_cpu_only = false;
 
     QCCPUWorker() : CPUWorker<QCTask>()
     {
@@ -61,7 +62,7 @@ public:
     {
         dst.cliques_count += local_hc.cliques_count;
         local_hc.cliques_count = 0;
-
+        cout<<"found"<<dst.cliques_count<<endl;
         if (local_hc.cliques_offset.size() <= 1)
             return;
 
@@ -84,12 +85,53 @@ public:
         }
     }
 
+    size_t estimate_initial_task_vertices(size_t root_index)
+    {
+        if (root_index >= local_hd.initial_vertices_count)
+            return 0;
+
+        Vertex root = local_hd.initial_vertices[root_index];
+        size_t candidate_count = 0;
+        for (uint64_t i = hg->twohop_offsets[root.vertexid]; i < hg->twohop_offsets[root.vertexid + 1]; i++)
+        {
+            int vertexid = hg->twohop_neighbors[i];
+            int source_index = local_hd.initial_order_map[vertexid];
+            if (source_index > -1 && static_cast<size_t>(source_index) < root_index)
+                candidate_count++;
+        }
+        return candidate_count + 1;
+    }
+
+    size_t process_initial_task_on_cpu(size_t root_index)
+    {
+        VertexID index = static_cast<VertexID>(root_index);
+        QCTask *task = task_spawn(index);
+        if (task->context.vertices == nullptr || task->context.num_vertices == 0)
+        {
+            delete task;
+            return 0;
+        }
+
+        bool previous_force_cpu_only = force_cpu_only;
+        force_cpu_only = true;
+        compute(task->context);
+        force_cpu_only = previous_force_cpu_only;
+        delete task;
+        spill_Lo();
+        return 1;
+    }
+
 private:
-    void enqueue_task(Vertex *vertices, size_t num_vertices)
+    void add_ready_task(Vertex *vertices, size_t num_vertices)
     {
         QCTask *new_task = new QCTask();
         new_task->context = QCContext(vertices, num_vertices);
         this->add_task(new_task);
+    }
+
+    void enqueue_task(Vertex *vertices, size_t num_vertices)
+    {
+        add_ready_task(vertices, num_vertices);
     }
 
     void h_write_clique(CPU_Cliques &hc, Vertex *vertices, int clique_size)
@@ -895,7 +937,15 @@ private:
 
                     if (time_over(st))
                     {
-                        enqueue_task(vertices, total_vertices);
+                        if (force_cpu_only || (num_gpu_workers > 0 && total_vertices > WVERTICES_SIZE))
+                        {
+                            h_expand_level(hg, hd, hc, vertices, total_vertices, st);
+                            delete[] vertices;
+                        }
+                        else
+                        {
+                            enqueue_task(vertices, total_vertices);
+                        }
                     }
                     else
                     {

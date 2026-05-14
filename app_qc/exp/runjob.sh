@@ -20,10 +20,10 @@ CONFIG_FILE="$SCRIPT_DIR/configs.txt"
 mkdir -p "$LOG_DIR"
 : > "$LOG_DIR/failed.log"
 
-TIMEOUT=10m
+TIMEOUT=30m
 while read -r ds k g; do
     # for sol in cg quick fastqc; do
-    for sol in cg; do
+    for sol in cg1; do
         rc=0
         fname="$LOG_DIR/$sol-$ds-$k-$g"
         timeout $TIMEOUT "$SCRIPT_DIR/$sol" -f "$ds_path/$ds.sbin" -k "$k" -g "$g" > "$fname-hybrid.log" 2>&1 || rc=$?
