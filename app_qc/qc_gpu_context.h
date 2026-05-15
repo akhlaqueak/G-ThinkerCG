@@ -1607,11 +1607,6 @@ public:
             write_buffer->exdeg[start_write + k] = ld.vertices[k].exdeg;
             write_buffer->lvl2adj[start_write + k] = 0;
         }
-        // if (LANE_IDX == 0)
-        // {
-        //     (dd.wtasks_count[WARP_IDX])++;
-        //     dd.wtasks_offset[(WTASKS_OFFSET_SIZE * WARP_IDX) + (dd.wtasks_count[WARP_IDX])] = start_write - (WTASKS_SIZE * WARP_IDX) + wd.total_vertices[WIB_IDX];
-        // }
     }
 
     // --- HELPER KERNELS ---
@@ -1851,11 +1846,6 @@ public:
         for (QCTask *task : src_tasks)
         {
             ui sz = task->context.num_vertices;
-            if (sz > WVERTICES_SIZE)
-            {
-                throw std::runtime_error("GPU received a task larger than WVERTICES_SIZE");
-            }
-
             SubgraphOffsets so = this->H.append_host_to_device(sz);
             ull loc = so.st;
             std::vector<VertexID> vertices(sz);

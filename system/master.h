@@ -17,6 +17,7 @@ public:
 
     // Contains all data loaded from file
     deque<VertexID> data_array;
+    queue<VertexID> big_task_array;
 
     stack<TaskT *> *SC;
     ui eta_per_warp_ = 1000;
@@ -120,7 +121,7 @@ public:
                                { return master_ready; });
             }
 
-            if ((data_array.empty() and is_SC_empty()) or workers_list.empty())
+            if ((data_array.empty() and big_task_array.empty() and is_SC_empty()) or workers_list.empty())
                 continue;
 
             WorkerT *worker = (WorkerT *)workers_list.dequeue();
@@ -158,6 +159,7 @@ public:
             }
             else
             {
+                // It's a CPU worker
                 {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     if (!SC->empty())
@@ -172,6 +174,18 @@ public:
                         }
                         assigned_work = (chunk > 0);
                     }
+                }
+                if (!assigned_work && not big_task_array.empty())
+                {
+                    ui chunk = std::min<ull>(big_task_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
+                    chunk = max(chunk, 1);
+                    for (ui i = 0; i < chunk; i++)
+                    {
+                        VertexID item = big_task_array.front();
+                        worker->Lv.push_back(item);
+                        big_task_array.pop();
+                    }
+                    assigned_work = (chunk > 0);
                 }
                 if (!assigned_work && not data_array.empty())
                 {
@@ -191,7 +205,7 @@ public:
                 worker->notify();
             else
                 workers_list.enqueue(worker);
-        } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and is_SC_empty()));
+        } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and big_task_array.empty() and is_SC_empty()));
         global_end_label = true;
         notify_all_workers();
     }

@@ -5,6 +5,7 @@
 #include "qc_gpu_context.h"
 #include "qc_cpu_worker.h"
 #include <cctype>
+#include <cstdlib>
 #include <ctime>
 #include <sys/stat.h>
 ull spilled_tasks;
@@ -102,6 +103,27 @@ std::string executable_modified_time()
 class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
 public:
+    size_t initial_task_vertices_count(size_t root_index) const
+    {
+        if (root_index >= hd.initial_vertices_count)
+            return 0;
+
+        const CPU_Graph &graph = *hg;
+        const Vertex &root = hd.initial_vertices[root_index];
+        size_t vertices_count = 1;
+
+        for (uint64_t i = graph.twohop_offsets[root.vertexid]; i < graph.twohop_offsets[root.vertexid + 1]; i++)
+        {
+            int vertexid = graph.twohop_neighbors[i];
+            int source_index = hd.initial_order_map[vertexid];
+
+            if (source_index > -1 && static_cast<size_t>(source_index) < root_index)
+                vertices_count++;
+        }
+
+        return vertices_count;
+    }
+
     QCApp()
     {
         CommandLine::RuntimeConfig defaults;
@@ -200,38 +222,22 @@ public:
         //     cmd.runtime.tasks_per_fetch_gpu_worker = tasks_per_fetch_gpu_worker_g = std::min<size_t>(cmd.runtime.tasks_per_fetch_gpu_worker, hd.initial_vertices_count * gpu_chunk_factor);
         //     cout << "gpuchunk changed to: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         // }
-        size_t oversized_roots = 0;
-        size_t oversized_tasks = 0;
-        if (cmd.runtime.num_gpu_workers > 0)
+        for (ui i = 0; i < hd.initial_vertices_count; i++)
         {
-            QCCPUWorker cpu_only_roots;
-            for (size_t i = 0; i < hd.initial_vertices_count; i++)
-            {
-                size_t estimated_vertices = cpu_only_roots.estimate_initial_task_vertices(i);
-                if (estimated_vertices > WVERTICES_SIZE)
-                {
-                    oversized_roots++;
-                    oversized_tasks += cpu_only_roots.process_initial_task_on_cpu(i);
-                }
-                else
-                {
-                    data_array.push_back(static_cast<ui>(i));
-                }
-            }
-            cpu_only_roots.merge_local_cliques_into(hc);
-        }
-        else
-        {
-            for (ui i = 0; i < hd.initial_vertices_count; i++)
-            {
+            if (initial_task_vertices_count(i) > WVERTICES_SIZE)
+                big_task_array.push(i);
+            else
                 data_array.push_back(i);
-            }
         }
-
-        if (oversized_roots > 0)
+        if (!big_task_array.empty())
         {
-            cout << "Oversized GPU roots processed on CPU: " << oversized_roots
-                 << " (built tasks: " << oversized_tasks << ")" << endl;
+            cout << "Large top-level tasks (CPU-first): " << big_task_array.size() << endl;
+            if (cmd.runtime.num_cpu_workers == 0)
+            {
+                cerr << "Error: " << big_task_array.size()
+                     << " top-level tasks exceed WVERTICES_SIZE and require at least one CPU worker." << endl;
+                std::exit(EXIT_FAILURE);
+            }
         }
 
         chkerr(cudaMalloc((void **)&dd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count));
