@@ -64,15 +64,23 @@ class MCGPUContext : public GPUContext<MCBuffer, MCTask>
 
 public:
     ull *total_counts; // can be accessed on GPU
+    ull *max_clique_sizes; // per-warp maximum clique size
     ui *QBuff;
 
 
     ull get_results()
     {
-
         ull res = 0;
         for (ui i = 0; i < N_WARPS; i++)
             res += total_counts[i];
+        return res;
+    }
+
+    ull get_max_clique_size()
+    {
+        ull res = 0;
+        for (ui i = 0; i < N_WARPS; i++)
+            res = std::max(res, max_clique_sizes[i]);
         return res;
     }
 
@@ -81,6 +89,7 @@ public:
         chkerr(cudaMalloc((void **)&tempv, TEMPSIZE * N_WARPS * sizeof(VertexID)));
         chkerr(cudaMalloc((void **)&templ, TEMPSIZE * N_WARPS * sizeof(Label)));
         chkerr(cudaMallocManaged((void **)&total_counts, N_WARPS * sizeof(ull)));
+        chkerr(cudaMallocManaged((void **)&max_clique_sizes, N_WARPS * sizeof(ull)));
 
         chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (data_graph.GetVertexCount() + 1)));
         chkerr(cudaMalloc(&(cols), sizeof(VertexID) * data_graph.GetEdgeCount()));
@@ -88,7 +97,10 @@ public:
         cudaMemcpy(cols, data_graph.GetCols(), sizeof(VertexID) * data_graph.GetEdgeCount(), cudaMemcpyHostToDevice);
 
         for (ui i = 0; i < N_WARPS; i++)
+        {
             total_counts[i] = 0;
+            max_clique_sizes[i] = 0;
+        }
     }
 
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
@@ -118,9 +130,12 @@ public:
             chkerr(cudaFree(templ));
         if (total_counts)
             chkerr(cudaFree(total_counts));
+        if (max_clique_sizes)
+            chkerr(cudaFree(max_clique_sizes));
         tempv = nullptr;
         templ = nullptr;
         total_counts = nullptr;
+        max_clique_sizes = nullptr;
     }
 
     __device__ bool examineClique(SubgraphOffsets *so)
@@ -421,7 +436,10 @@ public:
             if (examineClique(&so))
             {
                 if (LANEID == 0)
+                {
                     atomicAdd(total_counts + GLWARPID, 1);
+                    max_clique_sizes[GLWARPID] = max(max_clique_sizes[GLWARPID], so.en - so.st);
+                }
             }
             else
             {

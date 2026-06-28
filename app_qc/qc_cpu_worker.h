@@ -6,6 +6,7 @@ class QCCPUWorker : public CPUWorker<QCTask>
 public:
     CPU_Data local_hd;
     CPU_Cliques local_hc;
+    bool active_big_root_lineage;
 
     QCCPUWorker() : CPUWorker<QCTask>()
     {
@@ -32,6 +33,8 @@ public:
         {
             local_hc.cliques_offset.clear();
         }
+
+        active_big_root_lineage = false;
     }
 
     ~QCCPUWorker() override
@@ -60,7 +63,9 @@ public:
     void merge_local_cliques_into(CPU_Cliques &dst)
     {
         dst.cliques_count += local_hc.cliques_count;
+        dst.max_clique_size = std::max(dst.max_clique_size, local_hc.max_clique_size);
         local_hc.cliques_count = 0;
+        local_hc.max_clique_size = 0;
 
         if (local_hc.cliques_offset.size() <= 1)
             return;
@@ -85,16 +90,41 @@ public:
     }
 
 private:
-    void enqueue_task(Vertex *vertices, size_t num_vertices)
+    bool is_large_top_level_root(size_t root_index) const
+    {
+        if (root_index >= local_hd.initial_vertices_count)
+            return false;
+
+        const Vertex &root = local_hd.initial_vertices[root_index];
+        size_t vertices_count = 1;
+
+        for (uint64_t i = hg->twohop_offsets[root.vertexid]; i < hg->twohop_offsets[root.vertexid + 1]; i++)
+        {
+            int vertexid = hg->twohop_neighbors[i];
+            int source_index = local_hd.initial_order_map[vertexid];
+
+            if (source_index > -1 && static_cast<size_t>(source_index) < root_index)
+                vertices_count++;
+        }
+
+        return vertices_count > WVERTICES_SIZE;
+    }
+
+    void enqueue_task(Vertex *vertices, size_t num_vertices, bool from_big_root)
     {
         QCTask *new_task = new QCTask();
         new_task->context = QCContext(vertices, num_vertices);
-        this->add_task(new_task);
+        new_task->context.from_big_root = from_big_root;
+        if (num_vertices > WVERTICES_SIZE)
+            this->add_large_task(new_task);
+        else
+            this->add_task(new_task);
     }
 
     void h_write_clique(CPU_Cliques &hc, Vertex *vertices, int clique_size)
     {
         hc.cliques_count++;
+        hc.max_clique_size = std::max<uint64_t>(hc.max_clique_size, clique_size);
         if (!store_cliques)
             return;
 
@@ -893,9 +923,9 @@ private:
                         vertices[k].lvl2adj = 0;
                     }
 
-                    if (time_over(st) && total_vertices <= WVERTICES_SIZE)
+                    if (time_over(st))
                     {
-                        enqueue_task(vertices, total_vertices);
+                        enqueue_task(vertices, total_vertices, active_big_root_lineage);
                     }
                     else
                     {
@@ -1063,11 +1093,25 @@ private:
 public:
     virtual QCTask *task_spawn(VertexID &index)
     {
+        const bool from_big_root = is_large_top_level_root(index);
+        const uint64_t before_count = local_hc.cliques_count;
         size_t task_vertices_count;
         Vertex *vertices = h_build_initial_task(*hg, local_hd, local_hc, index, task_vertices_count);
+        const uint64_t spawned_cliques = local_hc.cliques_count - before_count;
+        if (from_big_root)
+        {
+            qc_big_root_cliques_found.fetch_add(spawned_cliques, std::memory_order_relaxed);
+        }
         QCTask *t = new QCTask();
         if (vertices != nullptr)
+        {
             t->context = QCContext(vertices, task_vertices_count);
+            t->context.from_big_root = from_big_root;
+            if (from_big_root)
+            {
+                qc_big_root_tasks_spawned.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
         return t;
     }
 
@@ -1075,7 +1119,15 @@ public:
     {
         if (context.vertices == nullptr || context.num_vertices == 0)
             return;
+        const uint64_t before_count = local_hc.cliques_count;
+        active_big_root_lineage = context.from_big_root;
         h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices, now());
+        active_big_root_lineage = false;
+        if (context.from_big_root)
+        {
+            qc_big_root_tasks_executed.fetch_add(1, std::memory_order_relaxed);
+            qc_big_root_cliques_found.fetch_add(local_hc.cliques_count - before_count, std::memory_order_relaxed);
+        }
     }
 };
 

@@ -82,10 +82,12 @@ ui tau_time_g = 1000; // in microseconds. controls cpu task decomposition thresh
 
 // Global task queue
 void *global_SC;
+void *global_big_SC;
 
 // std::shared_mutex SC_mtx;
 // share_mutex is not available on CUDA at Polaris
 std::shared_timed_mutex SC_mtx;
+std::shared_timed_mutex big_SC_mtx;
 
 // Number of compers. Compers means threads
 size_t num_cpu_workers;

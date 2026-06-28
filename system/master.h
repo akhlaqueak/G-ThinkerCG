@@ -17,9 +17,10 @@ public:
 
     // Contains all data loaded from file
     deque<VertexID> data_array;
-    queue<VertexID> big_task_array;
+    queue<VertexID> big_data_array;
 
     stack<TaskT *> *SC;
+    stack<TaskT *> *big_SC;
     ui eta_per_warp_ = 1000;
     ui eta_total_ = 1000 * N_WARPS;
 
@@ -28,15 +29,18 @@ public:
     {
         std::cout.imbue(std::locale(""));
         global_SC = SC = new stack<TaskT *>();
+        global_big_SC = big_SC = new stack<TaskT *>();
         global_end_label = false;
-        cudaMemcpyToSymbol(eta, &eta_total_, sizeof(ui));
     }
 
     void set_eta(ui eta_per_warp)
     {
         eta_per_warp_ = eta_per_warp;
         eta_total_ = eta_per_warp_ * N_WARPS;
-        cudaMemcpyToSymbol(eta, &eta_total_, sizeof(ui));
+        if (num_gpu_workers > 0)
+        {
+            cudaMemcpyToSymbol(eta, &eta_total_, sizeof(ui));
+        }
     }
 
     ui eta_per_warp() const
@@ -85,17 +89,19 @@ public:
 
     bool is_SC_empty()
     {
-        shared_lock<shared_timed_mutex> lock(SC_mtx);
-        // shared_lock lock(SC_mtx);
-        // unique_lock lock(SC_mtx);
-        return SC->empty();
+        shared_lock<shared_timed_mutex> sc_lock(SC_mtx);
+        shared_lock<shared_timed_mutex> big_lock(big_SC_mtx);
+        return SC->empty() && big_SC->empty();
     }
     size_t SC_size()
     {
         shared_lock<shared_timed_mutex> lock(SC_mtx);
-        // shared_lock lock(SC_mtx);
-        // unique_lock lock(SC_mtx);
         return SC->size();
+    }
+    size_t big_SC_size()
+    {
+        shared_lock<shared_timed_mutex> lock(big_SC_mtx);
+        return big_SC->size();
     }
     void notify_all_workers()
     {
@@ -121,7 +127,7 @@ public:
                                { return master_ready; });
             }
 
-            if ((data_array.empty() and big_task_array.empty() and is_SC_empty()) or workers_list.empty())
+            if ((data_array.empty() and big_data_array.empty() and is_SC_empty()) or workers_list.empty())
                 continue;
 
             WorkerT *worker = (WorkerT *)workers_list.dequeue();
@@ -161,6 +167,22 @@ public:
             {
                 // It's a CPU worker
                 {
+                    unique_lock<shared_timed_mutex> lock(big_SC_mtx);
+                    if (!big_SC->empty())
+                    {
+                        ui chunk = std::min<ui>(big_SC->size() / (workers_list.size() + 1), worker->tasks_per_fetch);
+                        chunk = std::max<ui>(chunk, 1);
+                        for (ui i = 0; i < chunk && !big_SC->empty(); i++)
+                        {
+                            TaskT *task = big_SC->top();
+                            worker->Lt.push_back(task);
+                            big_SC->pop();
+                        }
+                        assigned_work = (chunk > 0);
+                    }
+                }
+                if (!assigned_work)
+                {
                     unique_lock<shared_timed_mutex> lock(SC_mtx);
                     if (!SC->empty())
                     {
@@ -175,15 +197,15 @@ public:
                         assigned_work = (chunk > 0);
                     }
                 }
-                if (!assigned_work && not big_task_array.empty())
+                if (!assigned_work && not big_data_array.empty())
                 {
-                    ui chunk = std::min<ull>(big_task_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
+                    ui chunk = std::min<ull>(big_data_array.size() / (workers_list.size() + 1), worker->tasks_per_fetch);
                     chunk = max(chunk, 1);
                     for (ui i = 0; i < chunk; i++)
                     {
-                        VertexID item = big_task_array.front();
+                        VertexID item = big_data_array.front();
                         worker->Lv.push_back(item);
-                        big_task_array.pop();
+                        big_data_array.pop();
                     }
                     assigned_work = (chunk > 0);
                 }
@@ -205,7 +227,7 @@ public:
                 worker->notify();
             else
                 workers_list.enqueue(worker);
-        } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and big_task_array.empty() and is_SC_empty()));
+        } while (not(workers_list.size() == num_cpu_workers + num_gpu_workers and data_array.empty() and big_data_array.empty() and is_SC_empty()));
         global_end_label = true;
         notify_all_workers();
     }

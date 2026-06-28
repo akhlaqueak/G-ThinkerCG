@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #define TIME_NOW std::chrono::steady_clock::now()
 
 class Timer
@@ -105,28 +107,40 @@ class CommandLine {
        argv = _argv;
      }
    
-     void BadArgument() {
-       std::cout << "usage: " << argv[0] << " bad argument" << std::endl;
-       abort();
+     [[noreturn]] void BadArgument(const std::string& message = "bad argument") {
+       const char* program = (argc > 0 && argv != nullptr && argv[0] != nullptr) ? argv[0] : "program";
+       throw std::invalid_argument(std::string(program) + ": " + message);
+     }
+
+     bool OptionHasValue(int index) {
+       return index + 1 < argc && argv[index + 1] != nullptr;
      }
    
      char* GetOptionValue(const std::string& option) {
        for (int i = 1; i < argc; i++)
-         if ((std::string)argv[i] == option)
+         if ((std::string)argv[i] == option) {
+           if (!OptionHasValue(i))
+             BadArgument("missing value for option " + option);
            return argv[i + 1];
+         }
        return NULL;
      }
    
      std::string GetOptionValue(const std::string& option, std::string defaultValue) {
        for (int i = 1; i < argc; i++)
-         if ((std::string)argv[i] == option)
+         if ((std::string)argv[i] == option) {
+           if (!OptionHasValue(i))
+             BadArgument("missing value for option " + option);
            return (std::string)argv[i + 1];
+         }
        return defaultValue;
      }
    
      int GetOptionIntValue(const std::string& option, int defaultValue) {
        for (int i = 1; i < argc; i++)
          if ((std::string)argv[i] == option) {
+           if (!OptionHasValue(i))
+             BadArgument("missing value for option " + option);
            int r = atoi(argv[i + 1]);
            return r;
          }
@@ -136,6 +150,8 @@ class CommandLine {
      long GetOptionLongValue(const std::string& option, long defaultValue) {
        for (int i = 1; i < argc; i++)
          if ((std::string)argv[i] == option) {
+           if (!OptionHasValue(i))
+             BadArgument("missing value for option " + option);
            long r = atol(argv[i + 1]);
            return r;
          }
@@ -145,9 +161,11 @@ class CommandLine {
      double GetOptionDoubleValue(const std::string& option, double defaultValue) {
        for (int i = 1; i < argc; i++)
          if ((std::string)argv[i] == option) {
+           if (!OptionHasValue(i))
+             BadArgument("missing value for option " + option);
            double val;
            if (sscanf(argv[i + 1], "%lf", &val) == EOF) {
-             BadArgument();
+             BadArgument("invalid floating-point value for option " + option);
            }
            return val;
        }

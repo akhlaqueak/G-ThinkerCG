@@ -11,9 +11,11 @@ public:
 
     TaskContainer Lt;
     TaskContainer Lo;
+    TaskContainer big_Lo;
 
     vector<VertexID> Lv;
     stack<TaskT *> *SC;
+    stack<TaskT *> *big_SC;
 
     ui tasks_per_fetch;
     ull spilled_tasks = 0;
@@ -26,9 +28,11 @@ public:
     {
         tasks_per_fetch = n_tasks;
         SC = (stack<TaskT *> *)global_SC;
+        big_SC = (stack<TaskT *> *)global_big_SC;
         Lv.reserve(n_tasks);
         Lt.reserve(n_tasks);
         Lo.reserve(n_tasks);
+        big_Lo.reserve(n_tasks);
     }
 
     virtual ~Worker()
@@ -46,16 +50,33 @@ public:
 
     void spill_Lo()
     {
-        unique_lock<shared_timed_mutex> lock(SC_mtx);
-        for (TaskT *task : Lo)
-            SC->push(task);
-        Lo.clear();
+        if (!Lo.empty())
+        {
+            unique_lock<shared_timed_mutex> lock(SC_mtx);
+            for (TaskT *task : Lo)
+                SC->push(task);
+            Lo.clear();
+        }
+        if (!big_Lo.empty())
+        {
+            unique_lock<shared_timed_mutex> lock(big_SC_mtx);
+            for (TaskT *task : big_Lo)
+                big_SC->push(task);
+            big_Lo.clear();
+        }
     }
 
     void add_task(TaskT *task)
     {
         Lo.push_back(task);
         if (Lo.size() > LO_SPILL_THRESH)
+            spill_Lo();
+    }
+
+    void add_large_task(TaskT *task)
+    {
+        big_Lo.push_back(task);
+        if (big_Lo.size() > LO_SPILL_THRESH)
             spill_Lo();
     }
 
@@ -85,7 +106,7 @@ public:
             if (global_end_label)
                 break;
             run();
-            if (Lo.size())
+            if (Lo.size() || big_Lo.size())
                 spill_Lo();
             {
                 // creating this scope for lock

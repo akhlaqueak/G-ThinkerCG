@@ -9,6 +9,9 @@ ull spilled_tasks;
 class MCApp : public Master<MCCPUWorker, MCGPUContext>
 {
 public:
+    bool gpu_enabled_;
+    ull max_clique_size_ = 0;
+
     MCApp()
     {
         CommandLine::RuntimeConfig defaults;
@@ -22,6 +25,7 @@ public:
         defaults.data_graph = "./data/com-friendster.ungraph.txt.bin";
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
+        gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string fp = cmd.runtime.data_graph;
         std::cout.imbue(std::locale());
         cout << " ======= Parameters ========" << endl;
@@ -51,10 +55,14 @@ public:
             GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
 
             if (cw)
+            {
                 res += cw->total_counts;
+                max_clique_size_ = std::max<ull>(max_clique_size_, cw->max_sz);
+            }
             else if (gw)
             {
                 res += gw->getContext()->get_results();
+                max_clique_size_ = std::max(max_clique_size_, gw->getContext()->get_max_clique_size());
                 spilled_tasks = gw->spilled_tasks;
                 gw->getContext()->cleanup();
             }
@@ -62,6 +70,11 @@ public:
             delete w;
         }
         return res;
+    }
+
+    ull get_max_clique_size() const
+    {
+        return max_clique_size_;
     }
 };
 
@@ -72,8 +85,10 @@ int main(int argc, char *argv[])
     MCApp app;
     Timer t;
     app.run();
+    ull total_count = app.get_results();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-    cout << "Total count: " << app.get_results() << endl;
+    cout << "Total count: " << total_count << endl;
+    cout << "Largest clique size: " << app.get_max_clique_size() << endl;
     cout << "Total spilled tasks: " << spilled_tasks << endl;
 
     return 0;

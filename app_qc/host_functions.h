@@ -33,16 +33,12 @@ using namespace std;
 #define WIB_IDX (threadIdx.x / WARP_SIZE)
 #define WARPS_PER_BLOCK (BLOCK_SIZE / WARP_SIZE)
 #define NUMBER_OF_WARPS (NUM_OF_BLOCKS * WARPS_PER_BLOCK)
-#define NUMBER_OF_THREADS (NUM_OF_BLOCKS * BLOCK_SIZE)
 
 // DATA STRUCTURE SIZE
-#define TASKS_SIZE 2500
-#define TASKS_PER_WARP 100
 #define BUFFER_SIZE 900000000
 #define BUFFER_OFFSET_SIZE 90000000
 #define CLIQUES_SIZE 1'000'000'000
 #define CLIQUES_OFFSET_SIZE 30'000'000
-#define CLIQUES_PERCENT 50
 // per warp
 #define WTASKS_SIZE 150000L
 #define WTASKS_OFFSET_SIZE 10000
@@ -51,18 +47,8 @@ using namespace std;
 // shared memory vertices
 #define VERTICES_SIZE 70
 
-#define EXPAND_THRESHOLD (TASKS_PER_WARP * NUMBER_OF_WARPS)
-#define CLIQUES_DUMP (CLIQUES_SIZE * (CLIQUES_PERCENT / 100.0))
- 
 // PROGRAM RUN SETTINGS
-// cpu settings
-#define CPU_LEVELS 1
 #define CPU_EXPAND_THRESHOLD 1
-// whether the program will run entirely on the CPU or not, 0-CPU/GPU 1-CPU only
-#define CPU_MODE 0
-
-// debug toggle 0-normal/1-debug
-#define DEBUG_TOGGLE 0
 
 struct Vertex
 {
@@ -175,6 +161,7 @@ struct CPU_Data
 struct CPU_Cliques
 {
     uint64_t cliques_count = 0;
+    uint64_t max_clique_size = 0;
     std::vector<uint64_t> cliques_offset;
     std::vector<int> cliques_vertex;
 };
@@ -232,6 +219,7 @@ struct GPU_Data
     // GPU CLIQUES
     uint64_t* cliques_count;
     uint64_t* cliques_vertex_count;
+    uint64_t* max_clique_size;
     // cliques_offset stores each clique's vertex start; cliques_size stores its length.
     uint64_t* cliques_offset;
     uint64_t* cliques_size;
@@ -241,56 +229,6 @@ struct GPU_Data
     int* current_task;
 };
 
-// WARP DATA
-struct Warp_Data
-{
-    uint64_t start[WARPS_PER_BLOCK];
-    uint64_t end[WARPS_PER_BLOCK];
-    int tot_vert[WARPS_PER_BLOCK];
-    int num_mem[WARPS_PER_BLOCK];
-    int number_of_covered[WARPS_PER_BLOCK];
-    int num_cand[WARPS_PER_BLOCK];
-    int expansions[WARPS_PER_BLOCK];
-
-    int number_of_members[WARPS_PER_BLOCK];
-    int number_of_candidates[WARPS_PER_BLOCK];
-    int total_vertices[WARPS_PER_BLOCK];
-
-    Vertex shared_vertices[VERTICES_SIZE * WARPS_PER_BLOCK];
-
-    int removed_count[WARPS_PER_BLOCK];
-    int remaining_count[WARPS_PER_BLOCK];
-    int num_val_cands[WARPS_PER_BLOCK];
-    int rw_counter[WARPS_PER_BLOCK];
-
-    int min_ext_deg[WARPS_PER_BLOCK];
-    int lower_bound[WARPS_PER_BLOCK];
-    int upper_bound[WARPS_PER_BLOCK];
-
-    int tightened_upper_bound[WARPS_PER_BLOCK];
-    int min_clq_indeg[WARPS_PER_BLOCK];
-    int min_indeg_exdeg[WARPS_PER_BLOCK];
-    int min_clq_totaldeg[WARPS_PER_BLOCK];
-    int sum_clq_indeg[WARPS_PER_BLOCK];
-    int sum_candidate_indeg[WARPS_PER_BLOCK];
-
-    bool invalid_bounds[WARPS_PER_BLOCK];
-    bool success[WARPS_PER_BLOCK];
-
-    int number_of_crit_adj[WARPS_PER_BLOCK];
-
-    // for dynamic intersection
-    int count[WARPS_PER_BLOCK];
-};
-
-// LOCAL DATA
-struct Local_Data
-{
-    Vertex* vertices;
-};
-
-
-
 // METHODS
 // general
 void calculate_minimum_degrees(CPU_Graph& hg);
@@ -298,9 +236,9 @@ void search(CPU_Graph& hg, ofstream& temp_results);
 void allocate_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, CPU_Graph& hg);
 void initialize_tasks(CPU_Graph& hg, CPU_Data& hd);
 void move_to_gpu(CPU_Data& hd, GPU_Data& dd);
-uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& output_file);
+uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& output_file, bool read_gpu = true);
 void flush_cliques(CPU_Cliques& hc, ofstream& temp_results);
-void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc);
+void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, bool free_gpu = true);
 int RemoveNonMax(const char* szset_filename, const char* szoutput_filename);
 
 // expansion
@@ -334,36 +272,6 @@ bool print_Warp_Data_Sizes_Every(GPU_Data& dd, int every);
 void print_All_Warp_Data_Sizes_Every(GPU_Data& dd, int every);
 void initialize_maxes();
 void print_maxes();
-
-
-
-// expansion
-__device__ int d_lookahead_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_remove_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_add_one_vertex(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_critical_vertex_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_check_for_clique(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_write_to_tasks(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ void d_diameter_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int pvertexid);
-__device__ void d_diameter_pruning_cv(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int number_of_crit_adj);
-__device__ void d_calculate_LU_bounds(GPU_Data& dd, Warp_Data& wd, Local_Data& ld, int number_of_candidates);
-__device__ bool d_degree_pruning(GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-
-// helper
-__device__ void d_sort(Vertex* target, int size, int (*func)(Vertex&, Vertex&));
-__device__ void d_sort_i(int* target, int size, int (*func)(int, int));
-__device__ int d_sort_vert_Q(Vertex& v1, Vertex& v2);
-__device__ int d_sort_vert_cv(Vertex& v1, Vertex& v2);
-__device__ int d_sort_degs(int n1, int n2);
-__device__ int d_bsearch_array(int* search_array, int array_size, int search_number);
-__device__ bool d_cand_isvalid_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ bool d_vert_isextendable_LU(Vertex& vertex, GPU_Data& dd, Warp_Data& wd, Local_Data& ld);
-__device__ int d_get_mindeg(int number_of_members, GPU_Data& dd);
-
-// debug
-__device__ void d_print_vertices(Vertex* vertices, int size);
-
-
 
 // TODO (HIGH PRIORITY)
 // - 
@@ -449,7 +357,7 @@ void calculate_minimum_degrees(CPU_Graph& hg)
 
 
 
-uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
+uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results, bool read_gpu)
 {
     uint64_t dumped_cliques_count = hc.cliques_count;
 
@@ -461,8 +369,14 @@ uint64_t dump_cliques(CPU_Cliques& hc, GPU_Data& dd, ofstream& temp_results)
     else
     {
         hc.cliques_count = 0;
+        hc.max_clique_size = 0;
         hc.cliques_vertex.clear();
         hc.cliques_offset.clear();
+    }
+
+    if (!read_gpu)
+    {
+        return dumped_cliques_count;
     }
 
     chkerr(cudaDeviceSynchronize());
@@ -551,18 +465,11 @@ void flush_cliques(CPU_Cliques& hc, ofstream& temp_results)
         hc.cliques_offset.clear();
     }
     hc.cliques_count = 0;
+    hc.max_clique_size = 0;
 }
 
-void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
+void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, bool free_gpu)
 {
-    // GPU GRAPH
-    chkerr(cudaFree(dd.number_of_vertices));
-    chkerr(cudaFree(dd.number_of_edges));
-    chkerr(cudaFree(dd.onehop_neighbors));
-    chkerr(cudaFree(dd.onehop_offsets));
-    chkerr(cudaFree(dd.twohop_neighbors));
-    chkerr(cudaFree(dd.twohop_offsets));
-
     // CPU DATA
     delete hd.buffer_count;
     delete[] hd.buffer_offset;
@@ -583,6 +490,27 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
     hd.initial_vertices = nullptr;
     hd.initial_vertices_count = 0;
     hd.initial_order_map = nullptr;
+
+    // CPU CLIQUES
+    hc.cliques_count = 0;
+    hc.max_clique_size = 0;
+    hc.cliques_vertex.clear();
+    hc.cliques_vertex.shrink_to_fit();
+    hc.cliques_offset.clear();
+    hc.cliques_offset.shrink_to_fit();
+
+    if (!free_gpu)
+    {
+        return;
+    }
+
+    // GPU GRAPH
+    chkerr(cudaFree(dd.number_of_vertices));
+    chkerr(cudaFree(dd.number_of_edges));
+    chkerr(cudaFree(dd.onehop_neighbors));
+    chkerr(cudaFree(dd.onehop_offsets));
+    chkerr(cudaFree(dd.twohop_neighbors));
+    chkerr(cudaFree(dd.twohop_offsets));
 
     // GPU DATA
     chkerr(cudaFree(dd.current_level));
@@ -619,16 +547,10 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc)
 
     chkerr(cudaFree(dd.total_tasks));
 
-    // CPU CLIQUES
-    hc.cliques_count = 0;
-    hc.cliques_vertex.clear();
-    hc.cliques_vertex.shrink_to_fit();
-    hc.cliques_offset.clear();
-    hc.cliques_offset.shrink_to_fit();
-
     // GPU CLIQUES
     chkerr(cudaFree(dd.cliques_count));
     chkerr(cudaFree(dd.cliques_vertex_count));
+    chkerr(cudaFree(dd.max_clique_size));
     if (dd.cliques_vertex)
         chkerr(cudaFree(dd.cliques_vertex));
     if (dd.cliques_offset)
@@ -1340,108 +1262,6 @@ void print_maxes()
         << "VERTICES SIZE: " << mvs << endl
         << endl;
 }
-
-
-
-// Quick enumeration order sort keys
-__device__ int d_sort_vert_Q(Vertex& v1, Vertex& v2)
-{
-    // order is: member -> covered -> cands -> cover
-    // keys are: indeg -> exdeg -> lvl2adj -> vertexid
-
-    if (v1.label == 1 && v2.label != 1)
-        return -1;
-    else if (v1.label != 1 && v2.label == 1)
-        return 1;
-    else if (v1.label == 2 && v2.label != 2)
-        return -1;
-    else if (v1.label != 2 && v2.label == 2)
-        return 1;
-    else if (v1.label == 0 && v2.label != 0)
-        return -1;
-    else if (v1.label != 0 && v2.label == 0)
-        return 1;
-    else if (v1.label == 3 && v2.label != 3)
-        return -1;
-    else if (v1.label != 3 && v2.label == 3)
-        return 1;
-    else if (v1.indeg > v2.indeg)
-        return -1;
-    else if (v1.indeg < v2.indeg)
-        return 1;
-    else if (v1.exdeg > v2.exdeg)
-        return -1;
-    else if (v1.exdeg < v2.exdeg)
-        return 1;
-    else if (v1.lvl2adj > v2.lvl2adj)
-        return -1;
-    else if (v1.lvl2adj < v2.lvl2adj)
-        return 1;
-    else if (v1.vertexid > v2.vertexid)
-        return -1;
-    else if (v1.vertexid < v2.vertexid)
-        return 1;
-    else
-        return 0;
-}
-
-__device__ int d_sort_vert_cv(Vertex& v1, Vertex& v2)
-{
-    // put crit adj vertices before candidates
-
-    if (v1.label == 4 && v2.label != 4)
-        return -1;
-    else if (v1.label != 4 && v2.label == 4)
-        return 1;
-    else
-        return 0;
-}
-
-__device__ int d_sort_degs(int n1, int n2)
-{
-    // descending order
-
-    if (n1 > n2) {
-        return -1;
-    }
-    else if (n1 < n2) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-
-
-// // --- DEBUG KERNELS ---
-
-__device__ void d_print_vertices(Vertex* vertices, int size)
-{
-    printf("\nOffsets:\n0 %i\nVertex:\n", size);
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].vertexid);
-    }
-    printf("\nLabel:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].label);
-    }
-    printf("\nIndeg:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].indeg);
-    }
-    printf("\nExdeg:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].exdeg);
-    }
-    printf("\nLvl2adj:\n");
-    for (int i = 0; i < size; i++) {
-        printf("%i ", vertices[i].lvl2adj);
-    }
-    printf("\n");
-}
-
-
-
 // --- RM NON-MAX (from Quick) ---
 
 int comp_int(const void* e1, const void* e2)
@@ -1838,12 +1658,4 @@ int RemoveNonMax(const char* szset_filename, const char* szoutput_filename)
 
     printf(">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: %d\n", gntotal_max_cliques);
     return gntotal_max_cliques;
-}
-
-
-__global__ void transfer_cliques(GPU_Data dd)
-{
-    if (IDX == 0) {
-        (*(dd.total_tasks)) = 0;
-    }
 }

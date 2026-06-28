@@ -9,6 +9,8 @@
 class GMApp : public Master<GMCPUWorker, GMGPUContext>
 {
 public:
+    bool gpu_enabled_;
+
     GMApp(ui argc, char *argv[])
     {
         cmd.SetArgs(argc, argv);
@@ -25,6 +27,7 @@ public:
         defaults.plan_strategy = "hybrid";
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
+        gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string dg = cmd.runtime.data_graph;
         int query_type = cmd.runtime.query_type;
         plan_strategy = cmd.runtime.plan_strategy;

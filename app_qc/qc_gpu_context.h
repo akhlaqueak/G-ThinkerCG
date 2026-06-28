@@ -1,6 +1,73 @@
 #ifndef MC_GPU_APP
 #define MC_GPU_APP
 
+struct Warp_Data
+{
+    uint64_t start[WARPS_PER_BLOCK];
+    uint64_t end[WARPS_PER_BLOCK];
+    int tot_vert[WARPS_PER_BLOCK];
+    int num_mem[WARPS_PER_BLOCK];
+    int number_of_covered[WARPS_PER_BLOCK];
+    int num_cand[WARPS_PER_BLOCK];
+    int expansions[WARPS_PER_BLOCK];
+
+    int number_of_members[WARPS_PER_BLOCK];
+    int number_of_candidates[WARPS_PER_BLOCK];
+    int total_vertices[WARPS_PER_BLOCK];
+
+    Vertex shared_vertices[VERTICES_SIZE * WARPS_PER_BLOCK];
+
+    int removed_count[WARPS_PER_BLOCK];
+    int remaining_count[WARPS_PER_BLOCK];
+    int num_val_cands[WARPS_PER_BLOCK];
+    int rw_counter[WARPS_PER_BLOCK];
+
+    int min_ext_deg[WARPS_PER_BLOCK];
+    int lower_bound[WARPS_PER_BLOCK];
+    int upper_bound[WARPS_PER_BLOCK];
+
+    int tightened_upper_bound[WARPS_PER_BLOCK];
+    int min_clq_indeg[WARPS_PER_BLOCK];
+    int min_indeg_exdeg[WARPS_PER_BLOCK];
+    int min_clq_totaldeg[WARPS_PER_BLOCK];
+    int sum_clq_indeg[WARPS_PER_BLOCK];
+    int sum_candidate_indeg[WARPS_PER_BLOCK];
+
+    bool invalid_bounds[WARPS_PER_BLOCK];
+    bool success[WARPS_PER_BLOCK];
+
+    int number_of_crit_adj[WARPS_PER_BLOCK];
+
+    // for dynamic intersection
+    int count[WARPS_PER_BLOCK];
+};
+
+struct Local_Data
+{
+    Vertex *vertices;
+};
+
+__device__ int d_lookahead_pruning(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ int d_remove_one_vertex(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ int d_add_one_vertex(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ int d_critical_vertex_pruning(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ void d_check_for_clique(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ void d_write_to_tasks(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ void d_diameter_pruning(GPU_Data &dd, Warp_Data &wd, Local_Data &ld, int pvertexid);
+__device__ void d_diameter_pruning_cv(GPU_Data &dd, Warp_Data &wd, Local_Data &ld, int number_of_crit_adj);
+__device__ void d_calculate_LU_bounds(GPU_Data &dd, Warp_Data &wd, Local_Data &ld, int number_of_candidates);
+__device__ bool d_degree_pruning(GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ void d_sort(Vertex *target, int size, int (*func)(Vertex &, Vertex &));
+__device__ void d_sort_i(int *target, int size, int (*func)(int, int));
+__device__ int d_sort_vert_Q(Vertex &v1, Vertex &v2);
+__device__ int d_sort_vert_cv(Vertex &v1, Vertex &v2);
+__device__ int d_sort_degs(int n1, int n2);
+__device__ int d_bsearch_array(int *search_array, int array_size, int search_number);
+__device__ bool d_cand_isvalid_LU(Vertex &vertex, GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ bool d_vert_isextendable_LU(Vertex &vertex, GPU_Data &dd, Warp_Data &wd, Local_Data &ld);
+__device__ int d_get_mindeg(int number_of_members, GPU_Data &dd);
+__device__ void d_print_vertices(Vertex *vertices, int size);
+__global__ void transfer_cliques(GPU_Data dd);
 
 class QCBuffer : public BufferBase
 {
@@ -185,13 +252,20 @@ public:
         }
         __syncwarp();
 
-        if (candidate_count == 0 || wd.total_vertices[WIB_IDX] > WVERTICES_SIZE) {
+        if (candidate_count == 0) {
             return false;
         }
 
         if (wd.total_vertices[WIB_IDX] <= VERTICES_SIZE) {
             ld.vertices = wd.shared_vertices + (VERTICES_SIZE * WIB_IDX);
         } else {
+            if (wd.total_vertices[WIB_IDX] > WVERTICES_SIZE) {
+                if (LANE_IDX == 0) {
+                    printf("d_build_initial_task overflow: total_vertices=%d exceeds WVERTICES_SIZE=%d for root_index=%llu\n",
+                           wd.total_vertices[WIB_IDX], WVERTICES_SIZE, root_index);
+                }
+                asm("trap;");
+            }
             ld.vertices = dd.global_vertices + (WVERTICES_SIZE * WARP_IDX);
         }
 
@@ -333,7 +407,7 @@ public:
 
         /*
          * The program alternates between reading and writing between to 'tasks' arrays in device global memory. The program will read from one tasks, expand to the next level by generating and pruning, then it will write to the
-         * other tasks array. It will write the first EXPAND_THRESHOLD to the tasks array and the rest to the top of the buffer. The buffers acts as a stack containing the excess data not being expanded from tasks. Since the
+         * other tasks array. It writes a bounded amount to the tasks array and the rest to the top of the buffer. The buffers acts as a stack containing the excess data not being expanded from tasks. Since the
          * buffer acts as a stack, in a last-in first-out manner, a subsection of the search space will be expanded until completion. This system allows the problem to essentially be divided into smaller problems and thus
          * require less memory to handle.
          */
@@ -1574,6 +1648,11 @@ public:
         // if clique, append it to the global clique buffer
         if (clique)
         {
+            if (LANE_IDX == 0)
+            {
+                atomicMax(reinterpret_cast<unsigned long long *>(dd.max_clique_size),
+                          static_cast<unsigned long long>(wd.number_of_members[WIB_IDX]));
+            }
             uint64_t start_write = 0;
             if (d_reserve_global_clique(dd, wd.number_of_members[WIB_IDX], start_write))
             {
@@ -1904,4 +1983,91 @@ public:
         }
     }
 };
+
+__device__ int d_sort_vert_Q(Vertex &v1, Vertex &v2)
+{
+    if (v1.label == 1 && v2.label != 1)
+        return -1;
+    else if (v1.label != 1 && v2.label == 1)
+        return 1;
+    else if (v1.label == 2 && v2.label != 2)
+        return -1;
+    else if (v1.label != 2 && v2.label == 2)
+        return 1;
+    else if (v1.label == 0 && v2.label != 0)
+        return -1;
+    else if (v1.label != 0 && v2.label == 0)
+        return 1;
+    else if (v1.label == 3 && v2.label != 3)
+        return -1;
+    else if (v1.label != 3 && v2.label == 3)
+        return 1;
+    else if (v1.indeg > v2.indeg)
+        return -1;
+    else if (v1.indeg < v2.indeg)
+        return 1;
+    else if (v1.exdeg > v2.exdeg)
+        return -1;
+    else if (v1.exdeg < v2.exdeg)
+        return 1;
+    else if (v1.lvl2adj > v2.lvl2adj)
+        return -1;
+    else if (v1.lvl2adj < v2.lvl2adj)
+        return 1;
+    else if (v1.vertexid > v2.vertexid)
+        return -1;
+    else if (v1.vertexid < v2.vertexid)
+        return 1;
+    else
+        return 0;
+}
+
+__device__ int d_sort_vert_cv(Vertex &v1, Vertex &v2)
+{
+    if (v1.label == 4 && v2.label != 4)
+        return -1;
+    else if (v1.label != 4 && v2.label == 4)
+        return 1;
+    else
+        return 0;
+}
+
+__device__ int d_sort_degs(int n1, int n2)
+{
+    if (n1 > n2)
+        return -1;
+    else if (n1 < n2)
+        return 1;
+    else
+        return 0;
+}
+
+__device__ void d_print_vertices(Vertex *vertices, int size)
+{
+    printf("\nOffsets:\n0 %i\nVertex:\n", size);
+    for (int i = 0; i < size; i++)
+        printf("%i ", vertices[i].vertexid);
+    printf("\nLabel:\n");
+    for (int i = 0; i < size; i++)
+        printf("%i ", vertices[i].label);
+    printf("\nIndeg:\n");
+    for (int i = 0; i < size; i++)
+        printf("%i ", vertices[i].indeg);
+    printf("\nExdeg:\n");
+    for (int i = 0; i < size; i++)
+        printf("%i ", vertices[i].exdeg);
+    printf("\nLvl2adj:\n");
+    for (int i = 0; i < size; i++)
+        printf("%i ", vertices[i].lvl2adj);
+    printf("\n");
+}
+
+__global__ void transfer_cliques(GPU_Data dd)
+{
+    if (IDX == 0)
+    {
+        (*(dd.total_tasks)) = 0;
+    }
+}
+
 #endif
