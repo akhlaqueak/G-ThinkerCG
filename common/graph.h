@@ -10,6 +10,7 @@ typedef std::pair<CondOperator, uintV> CondType;
 typedef std::vector<std::vector<CondType>> AllCondType;
 
 enum GraphType { QUERY, DATA }; 
+// VSGM
 
 enum PresetPatternType {
     P0,   // triangle, hold because enum begins with 0

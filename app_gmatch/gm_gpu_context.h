@@ -421,7 +421,7 @@ public:
 
             ull v = sources[vp];
 
-            unsigned int vt = Bwr.append(2); // header + one matched vertex
+            ull vt = Bwr.append(2); // header + one matched vertex
             if (LANEID == 0)
             {
                 Bwr.vertices[vt] = 1;
@@ -447,7 +447,13 @@ public:
                 break;
 
             ull sglen64 = Brd.vertices[so.st];
-            assert(sglen64 <= querySize[0]);
+            if (sglen64 == 0 || sglen64 > querySize[0])
+            {
+                if (LANEID == 0)
+                    printf("GM invalid task header: st=%llu en=%llu header=%llu qsz=%u\n",
+                           so.st, so.en, sglen64, querySize[0]);
+                asm("trap;");
+            }
             ui id = static_cast<ui>(sglen64);
             ui sglen = static_cast<ui>(sglen64);
             CUR_MODE = strategy[id];
@@ -465,7 +471,21 @@ public:
 
                 // finds least degree vertex
                 ui bnCount = preBackNeighborCount[id];
+                if (bnCount == 0)
+                {
+                    if (LANEID == 0)
+                        printf("GM invalid prefix bnCount=0: id=%u sglen=%u st=%llu en=%llu mode=%d share=%d\n",
+                               id, sglen, so.st, so.en, static_cast<int>(CUR_MODE), static_cast<int>(shareIntersection[id]));
+                    asm("trap;");
+                }
                 ui u_prime = preBackNeighbors[querySize[0] * id];
+                if (u_prime >= querySize[0])
+                {
+                    if (LANEID == 0)
+                        printf("GM invalid prefix u_prime: id=%u sglen=%u bnCount=%u u_prime=%u qsz=%u st=%llu en=%llu\n",
+                               id, sglen, bnCount, u_prime, querySize[0], so.st, so.en);
+                    asm("trap;");
+                }
                 ui u_prime_M = partial_subgraphs[WARPID][ID2order[u_prime]];
                 uintE u_prime_M_st = row_ptrs[u_prime_M];
                 uintE u_prime_M_en = row_ptrs[u_prime_M + 1];
@@ -670,8 +690,7 @@ public:
                                     auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
-                                        if (i == LANEID)
-                                            dst.vertices[vt + i * (sglen + 2)] = sglen + 1;
+                                        dst.vertices[vt + i * (sglen + 2)] = sglen + 1;
                                         for (ui j = 0; j < sglen; ++j)
                                         {
                                             auto k = vt + i * (sglen + 2) + 1 + j;
@@ -714,7 +733,21 @@ public:
 
                 // select the pivot with least # of candidates
                 ui bnCount = backNeighborCount[id];
+                if (bnCount == 0)
+                {
+                    if (LANEID == 0)
+                        printf("GM invalid expand bnCount=0: id=%u sglen=%u st=%llu en=%llu mode=%d share=%d\n",
+                               id, sglen, so.st, so.en, static_cast<int>(CUR_MODE), static_cast<int>(shareIntersection[id]));
+                    asm("trap;");
+                }
                 ui u_prime = backNeighbors[querySize[0] * id];
+                if (u_prime >= querySize[0])
+                {
+                    if (LANEID == 0)
+                        printf("GM invalid expand u_prime: id=%u sglen=%u bnCount=%u u_prime=%u qsz=%u st=%llu en=%llu\n",
+                               id, sglen, bnCount, u_prime, querySize[0], so.st, so.en);
+                    asm("trap;");
+                }
                 ui u_prime_M = partial_subgraphs[WARPID][ID2order[u_prime]];
                 uintE u_prime_M_st = row_ptrs[u_prime_M];
                 uintE u_prime_M_en = row_ptrs[u_prime_M + 1];
@@ -844,8 +877,7 @@ public:
                                 auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
-                                    if (i == LANEID)
-                                        dst.vertices[vt + i * (sglen + 2)] = sglen + 1;
+                                    dst.vertices[vt + i * (sglen + 2)] = sglen + 1;
                                     for (ui j = 0; j < sglen; ++j)
                                     {
                                         auto k = vt + i * (sglen + 2) + 1 + j;

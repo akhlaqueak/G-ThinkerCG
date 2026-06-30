@@ -72,6 +72,8 @@ public:
 
     void create_workers()
     {
+        require_gpu_if_requested(num_gpu_workers);
+
         for (int i = 0; i < num_gpu_workers; i++)
         {
             WorkerT *worker = new GPUWorkerT(eta_total_);

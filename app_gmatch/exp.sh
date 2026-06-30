@@ -20,50 +20,25 @@
 # wikipedia_link_ru
 # link-dynamic-frwiki
 ds="
-edit-dewiki
-wikipedia_link_sv
-sx-stackoverflow
-soc-sinaweibo
-edit-eswiki
-wikipedia_link_it
-wikipedia_link_nl
-trackers
-edit-nlwiki
-orkut-groupmemberships
-wikipedia_link_war
-edit-ptwiki
-dbpedia-link
-wikipedia_link_es
-edit-svwiki
-wikipedia_link_ceb
-edit-itwiki
-link-dynamic-itwiki
-livejournal-groupmemberships
-edit-enwiktionary
-delicious-ti
-edit-plwiki
-edit-cebwiki
-edit-ruwiki
-wiki-Talk
-zhishi-all
-delicious-ui
-edit-shwiki
-edit-zhwiki
-edit-frwiktionary
-edit-arwiki
 soc-livejournal
-as-skitter
-edit-viwiki
-wiki-topcats
-edit-jawiki
-edit-ukwiki
-zhishi-baidu-internallink
 socfb-B-anon
-edit-mgwiktionary
-soc-pokec"
+soc-pokec
+delicious-ui
+orkut-links
+as-skitter
+sx-stackoverflow
+link-dynamic-itwiki
+zhishi-baidu-internallink
+wiki-Talk
+link-dynamic-frwiki
+zhishi-all
+wiki-topcats
+soc-sinaweibo
+"
 
 
-quer="2 5 8"
+quer="2 5 6 7 8 9"
+timeout_threshold="30m"
 mkdir -p logs
 : > logs/failed.log
 
@@ -71,20 +46,29 @@ run_case() {
     local logfile="$1"
     shift
 
-    if ! timeout 10m "$@" > "$logfile" 2>&1; then
-        local rc=$?
-        echo "Run failed (exit code: $rc): $*" >> logs/failed.log
+    # if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
+    #     echo "Skipping $logfile"
+    #     return
+    # fi
+
+    timeout "$timeout_threshold" "$@" > "$logfile" 2>&1
+    local rc=$?
+
+    if [ "$rc" -ne 0 ]; then
+        echo "Run failed (exit code: $rc): timeout $timeout_threshold $*" >> logs/failed.log
+        echo "Run failed (exit code: $rc): timeout $timeout_threshold $*" >> $logfile
     fi
 }
 
 cp run run-exp
 for d in $ds; do 
     for q in $quer; do
-    #    run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
-    #    run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0
-       run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0  -tau 100000
-       run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000
-    #    run_case "logs/$d-$q-nocpu-expand.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -s expand
+        # run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0
+        # run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
+        # run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
+        run_case "logs/$d-$q-nocpu-pingpong.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 1 -gpuchunk 100000 
+        # run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 1
+
     done
 done
 

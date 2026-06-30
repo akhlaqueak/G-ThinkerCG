@@ -1,6 +1,9 @@
 #ifndef SYSTEM_UTIL_H
 #define SYSTEM_UTIL_H
 
+#include <stdexcept>
+#include <string>
+
 __device__ bool binarySearch(uintV *arr, uintE low, uintE high, ui val)
 {
     uintE mid;
@@ -101,6 +104,26 @@ void deviceQuery()
         printf("  Warp size: %d\n\n", prop.warpSize);
     }
 }
+
+inline void require_gpu_if_requested(size_t requested_gpu_workers)
+{
+    if (requested_gpu_workers == 0)
+        return;
+
+    int nDevices = 0;
+    cudaError_t err = cudaGetDeviceCount(&nDevices);
+    if (err != cudaSuccess)
+    {
+        throw std::runtime_error(
+            std::string("GPU workers requested, but CUDA device discovery failed: ") +
+            cudaGetErrorString(err));
+    }
+    if (nDevices <= 0)
+    {
+        throw std::runtime_error("GPU workers requested, but no CUDA-capable GPU was found.");
+    }
+}
+
 void deviceSynch()
 {
     cudaError_t err = cudaDeviceSynchronize();
