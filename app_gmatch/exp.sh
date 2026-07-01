@@ -20,25 +20,35 @@
 # wikipedia_link_ru
 # link-dynamic-frwiki
 ds="
-soc-livejournal
-socfb-B-anon
-soc-pokec
-delicious-ui
-orkut-links
+edit-shwiki
+edit-cebwiki
+edit-mgwiktionary
+edit-svwiki
+edit-zhwiki
+edit-viwiki
+edit-frwiktionary
+delicious-ti
+edit-enwiktionary
+trackers
+edit-eswiki
+edit-ruwiki
+edit-nlwiki
+edit-frwiki
 as-skitter
-sx-stackoverflow
-link-dynamic-itwiki
+edit-itwiki
+soc-livejournal
+dbpedia-link
+socfb-B-anon
+edit-jawiki
 zhishi-baidu-internallink
-wiki-Talk
-link-dynamic-frwiki
 zhishi-all
-wiki-topcats
-soc-sinaweibo
+edit-plwiki
+wikipedia_link_ceb
 "
 
 
 quer="2 5 6 7 8 9"
-timeout_threshold="30m"
+timeout_threshold="10m"
 mkdir -p logs
 : > logs/failed.log
 
@@ -46,10 +56,10 @@ run_case() {
     local logfile="$1"
     shift
 
-    # if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
-    #     echo "Skipping $logfile"
-    #     return
-    # fi
+    if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
+        echo "Skipping $logfile"
+        return
+    fi
 
     timeout "$timeout_threshold" "$@" > "$logfile" 2>&1
     local rc=$?
@@ -65,25 +75,30 @@ for d in $ds; do
     for q in $quer; do
         # run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0
         # run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
-        # run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
-        run_case "logs/$d-$q-nocpu-pingpong.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 1 -gpuchunk 100000 
-        # run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 1
+        run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
+        # run_case "logs/$d-$q-nocpu-pingpong.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 1 -gpuchunk 100000 
+        run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 1
 
     done
 done
-
 get_results(){
+exps="nocpu with_cpu_gpu"
+# exps="g2aimd nocpu-pingpong nocpu nogpu with_cpu_gpu"
+
 for d in $ds; do 
     for q in $quer; do
-        fname="logs/$d-$q-$exp.log"
+        echo -en "$d $q "
+        for exp in $exps; do
+            fname="logs/$d-$q-$exp.log"
 
-        if grep -q "Total time" "$fname" 2>/dev/null; then
-            grep "Total time" "$fname" | awk '{print $NF}'
-        else
-            echo "NA"
-        fi
+            if grep -q "Total time" "$fname" 2>/dev/null; then
+                grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+            else
+                echo -en "X "
+            fi
+        done
+        echo 
     done
 done
 }
-
-exp=with_cpu_gpu
+get_results
