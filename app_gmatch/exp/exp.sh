@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=queryset2
+#SBATCH --job-name=Gthinker
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=4G
@@ -45,9 +45,12 @@ zhishi-all
 edit-plwiki
 wikipedia_link_ceb
 "
+ds="wikipedia_link_war
+livejournal-groupmemberships
+wikipedia_link_sv
+web-wikipedia_link_en13-all"
 
-
-quer="18 24 25"
+quer="2 5 6 7 8 9 18 24 25"
 timeout_threshold="10m"
 mkdir -p logs
 : > logs/failed.log
@@ -55,18 +58,27 @@ mkdir -p logs
 run_case() {
     local logfile="$1"
     shift
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    cmd_str=${cmd_str% }
 
     if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
         echo "Skipping $logfile"
         return
     fi
 
-    timeout "$timeout_threshold" "$@" > "$logfile" 2>&1
+    echo "Running: timeout $timeout_threshold $cmd_str"
+    {
+        echo "Command: timeout $timeout_threshold $cmd_str"
+        echo
+    } > "$logfile"
+
+    timeout "$timeout_threshold" "$@" >> "$logfile" 2>&1
     local rc=$?
 
     if [ "$rc" -ne 0 ]; then
-        echo "Run failed (exit code: $rc): timeout $timeout_threshold $*" >> logs/failed.log
-        echo "Run failed (exit code: $rc): timeout $timeout_threshold $*" >> $logfile
+        echo "Run failed (exit code: $rc): timeout $timeout_threshold $cmd_str" >> logs/failed.log
+        echo "Run failed (exit code: $rc): timeout $timeout_threshold $cmd_str" >> "$logfile"
     fi
 }
 

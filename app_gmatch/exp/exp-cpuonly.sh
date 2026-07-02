@@ -43,20 +43,34 @@ TIME_THRESH=1h
 run_case() {
     local logfile="$1"
     shift
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    cmd_str=${cmd_str% }
 
-    timeout $TIME_THRESH "$@" > "$logfile" 2>&1
+    if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
+        echo "Skipping $logfile"
+        return
+    fi
+
+    echo "Running: timeout $TIME_THRESH $cmd_str"
+    {
+        echo "Command: timeout $TIME_THRESH $cmd_str"
+        echo
+    } > "$logfile"
+
+    timeout "$TIME_THRESH" "$@" >> "$logfile" 2>&1
     local rc=$?
 
     if [ "$rc" -ne 0 ]; then
         if [ "$rc" -eq 124 ]; then
-            echo "Run timed out after $TIME_THRESH (exit code: $rc): $*" >> logs/failed.log
-            echo "Run timed out after $TIME_THRESH (exit code: $rc): $*" >> "$logfile"
+            echo "Run timed out after $TIME_THRESH (exit code: $rc): $cmd_str" >> logs/failed.log
+            echo "Run timed out after $TIME_THRESH (exit code: $rc): $cmd_str" >> "$logfile"
         elif [ "$rc" -eq 134 ]; then
-            echo "Run aborted (SIGABRT, exit code: $rc): $*" >> logs/failed.log
-            echo "Run aborted (SIGABRT, exit code: $rc): $*" >> "$logfile"
+            echo "Run aborted (SIGABRT, exit code: $rc): $cmd_str" >> logs/failed.log
+            echo "Run aborted (SIGABRT, exit code: $rc): $cmd_str" >> "$logfile"
         else
-            echo "Run failed (exit code: $rc): $*" >> logs/failed.log
-            echo "Run failed (exit code: $rc): $*" >> "$logfile"
+            echo "Run failed (exit code: $rc): $cmd_str" >> logs/failed.log
+            echo "Run failed (exit code: $rc): $cmd_str" >> "$logfile"
         fi
     fi
 }
@@ -70,11 +84,7 @@ for d in $ds; do
     #    run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 10
     #    run_case "logs/$d-$q-nocpu-expand.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -s expand
     
-    if [ -f "logs/$d-$q-nogpu.log" ] && grep -q "Total time" "logs/$d-$q-nogpu.log"; then
-        echo "Skipping logs/$d-$q-nogpu.log"
-    else
         run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -gpu 0
-    fi
     done
 done
 
