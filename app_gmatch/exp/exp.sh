@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=Gthinker
+#SBATCH --job-name=Qset1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=4G
@@ -45,13 +45,12 @@ zhishi-all
 edit-plwiki
 wikipedia_link_ceb
 "
-ds="wikipedia_link_war
-livejournal-groupmemberships
-wikipedia_link_sv
-web-wikipedia_link_en13-all"
 
-quer="2 5 6 7 8 9 18 24 25"
+
+quer="4 5 6 7 8 9 18 24 25 26 27"
 timeout_threshold="10m"
+skip_existing_logs=1
+skip_completed_logs=1
 mkdir -p logs
 : > logs/failed.log
 
@@ -62,7 +61,12 @@ run_case() {
     printf -v cmd_str '%q ' "$@"
     cmd_str=${cmd_str% }
 
-    if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
+    if [ "$skip_existing_logs" -eq 1 ] && [ -f "$logfile" ]; then
+        echo "Skipping existing $logfile"
+        return
+    fi
+
+    if [ "$skip_completed_logs" -eq 1 ] && [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
         echo "Skipping $logfile"
         return
     fi

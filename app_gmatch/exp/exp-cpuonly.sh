@@ -40,6 +40,8 @@ quer="2 5 6 7 8 9"
 mkdir -p logs
 : > logs/failed.log
 TIME_THRESH=1h
+skip_existing_logs=0
+skip_completed_logs=1
 run_case() {
     local logfile="$1"
     shift
@@ -47,7 +49,12 @@ run_case() {
     printf -v cmd_str '%q ' "$@"
     cmd_str=${cmd_str% }
 
-    if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
+    if [ "$skip_existing_logs" -eq 1 ] && [ -f "$logfile" ]; then
+        echo "Skipping existing $logfile"
+        return
+    fi
+
+    if [ "$skip_completed_logs" -eq 1 ] && [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
         echo "Skipping $logfile"
         return
     fi
