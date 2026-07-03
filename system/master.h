@@ -60,7 +60,7 @@ public:
         tasks_per_fetch_gpu_worker_g = config.tasks_per_fetch_gpu_worker;
         tasks_per_fetch_g = config.tasks_per_fetch_cpu_worker;
         tau_time_g = config.tau_time_us;
-        ping_pong = config.ping_pong;
+        g_ping_pong_flag = config.ping_pong;
         set_eta(config.eta_per_warp);
     }
 

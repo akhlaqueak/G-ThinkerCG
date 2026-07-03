@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=amperenodes
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
 #SBATCH --no-requeue
 #SBATCH --gres=gpu:1
 #SBATCH --output=%x.out
@@ -45,7 +45,6 @@ zhishi-all
 edit-plwiki
 wikipedia_link_ceb
 "
-sleep infinity
 
 quer="10 11 12 13 14 15 16 17"
 timeout_threshold="10m"

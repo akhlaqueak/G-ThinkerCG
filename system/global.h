@@ -63,7 +63,7 @@ typedef unsigned long long int uintE;
 #define GTHID (BLKID * N_THREADS + THID)
 
 __device__ ui eta=1000*N_WARPS;
-bool ping_pong = true;
+bool g_ping_pong_flag = true;
 double gpu_min_thresh_SC = 1; // a GPU takes tasks only if |SC| is more than gpu_min_thresh_SC * tasks_per_fetch_gpu_worker
 ui tau_time_g = 1000; // in microseconds. controls cpu task decomposition threshold. 
 

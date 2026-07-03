@@ -31,17 +31,25 @@ fi
 start=$(date +%s)
 echo "Syncing changed files.."
 
-# find changed files
-changed_files=$(find . -type f -newer "$STAMP_FILE" ! -path "./.git/*")
-
 count=0
 tmpfile=$(mktemp)
 
-for file in $changed_files; do
-  [[ "$file" == "$STAMP_FILE" ]] && continue
-  printf '%s\n' "${file#./}" >> "$tmpfile"
-  count=$((count+1))
-done
+# Prefer git-tracked changes since mtime-only detection can miss edited files
+# after operations like checkout/apply_patch. Also keep the mtime fallback for
+# non-git files that changed since the last sync.
+{
+  git status --porcelain=v1 --untracked-files=all 2>/dev/null | while IFS= read -r line; do
+    file="${line:3}"
+    [[ -n "$file" ]] && printf '%s\n' "$file"
+  done
+
+  find . -type f -newer "$STAMP_FILE" ! -path "./.git/*" -print | while IFS= read -r file; do
+    [[ "$file" == "./$STAMP_FILE" ]] && continue
+    printf '%s\n' "${file#./}"
+  done
+} | awk '!seen[$0]++' > "$tmpfile"
+
+count=$(wc -l < "$tmpfile" | tr -d ' ')
 
 if [ "$count" -gt 0 ]; then
   ensure_ssh_master

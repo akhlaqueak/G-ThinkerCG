@@ -49,7 +49,7 @@ wikipedia_link_ceb
 
 quer="4 5 6 7 8 9 18 24 25 26 27"
 timeout_threshold="10m"
-skip_existing_logs=1
+skip_existing_logs=0
 skip_completed_logs=1
 mkdir -p logs
 : > logs/failed.log

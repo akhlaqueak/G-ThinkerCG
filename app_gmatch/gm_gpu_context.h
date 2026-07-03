@@ -38,6 +38,7 @@ class GMGPUContext : public GPUContext<GMBuffer, GMTask>
     ui *movingLvl;
 
     ull *total_counts;
+    ull saved_total_count_ = 0;
 
     virtual void initialize()
     {
@@ -102,9 +103,8 @@ class GMGPUContext : public GPUContext<GMBuffer, GMTask>
         // chkerr(cudaMalloc((void **)&templ, TEMPSIZE * N_WARPS * sizeof(bool)));
         chkerr(cudaMalloc((void **)&pre_intersection, TEMPSIZE * N_WARPS * sizeof(ui)));
 
-        chkerr(cudaMallocManaged((void **)&total_counts, N_WARPS * sizeof(ull)));
-        for (ui i = 0; i < N_WARPS; i++)
-            total_counts[i] = 0;
+        chkerr(cudaMallocManaged((void **)&total_counts, sizeof(ull)));
+        total_counts[0] = 0;
 
         chkerr(cudaMalloc(&(row_ptrs), sizeof(ull) * (gpu_dg.GetVertexCount() + 1)));
         chkerr(cudaMalloc(&(cols), sizeof(VertexID) * gpu_dg.GetEdgeCount()));
@@ -127,11 +127,19 @@ public:
     ui *pre_intersection;
     ull get_results()
     {
-        ull res = 0;
-        for (ui i = 0; i < N_WARPS; i++)
-            res += total_counts[i];
-        return res;
+        return total_counts[0];
     }
+
+    void init_chunk() override
+    {
+        saved_total_count_ = total_counts[0];
+    }
+
+    void abort_chunk() override
+    {
+        total_counts[0] = saved_total_count_;
+    }
+
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
     }
@@ -367,6 +375,7 @@ public:
                     collector.push_back(task);
                 }
                 delete[] idx;
+                
             }
         }
     }
@@ -434,8 +443,9 @@ public:
         StoreStrategy CUR_MODE, NEXT_MODE;
 
         __shared__ ui partial_subgraphs[WARPS_EACH_BLK][8];
+        __shared__ ull warp_sums[WARPS_EACH_BLK];
 
-        size_t local_thread_count = 0;
+        ull local_thread_count = 0;
 
         while (true)
         {
@@ -912,7 +922,24 @@ public:
                 } while (base_i < pu_en);
             }
         }
-        atomicAdd(total_counts + GLWARPID, local_thread_count);
+        ull warp_count = local_thread_count;
+        for (int offset = 16; offset > 0; offset >>= 1)
+            warp_count += __shfl_down_sync(FULL, warp_count, offset);
+
+        if (LANEID == 0)
+            warp_sums[WARPID] = warp_count;
+
+        __syncthreads();
+
+        if (WARPID == 0)
+        {
+            ull block_count = (LANEID < WARPS_EACH_BLK) ? warp_sums[LANEID] : 0;
+            for (int offset = 16; offset > 0; offset >>= 1)
+                block_count += __shfl_down_sync(FULL, block_count, offset);
+
+            if (LANEID == 0)
+                atomicAdd(total_counts, block_count);
+        }
     }
 };
 

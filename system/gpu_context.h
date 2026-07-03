@@ -46,6 +46,8 @@ public:
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols) = 0;
     virtual void initialize() = 0;
     virtual void init_level() {};
+    virtual void init_chunk() {}
+    virtual void abort_chunk() {}
 
     void cleanup()
     {

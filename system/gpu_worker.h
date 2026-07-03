@@ -44,10 +44,13 @@ public:
     {
         if (gc.v_proc[0] >= gc.sources_num[0])
             gc.sources_num[0] = 0;
+        gc.set_layered_mode(); // in every  layered mode, pingpong mode is enabled only call was for Lv and pingpong flag is on... 
         if (this->Lv.size())
         {
             cout << "Lv: " << this->Lv.size() << endl;
             gc.move_vertices_to_gpu(this->Lv);
+            if (g_ping_pong_flag)
+                gc.set_ping_pong_mode();
         }
         else if (this->Lt.size())
         {
@@ -60,10 +63,6 @@ public:
         this->Lv.clear();
         this->Lt.clear();
         Timer prog_trigger;
-        if (ping_pong)
-            gc.set_ping_pong_mode();
-        else
-            gc.set_layered_mode();
         while (true)
         {
             if (not gc.H.empty())
