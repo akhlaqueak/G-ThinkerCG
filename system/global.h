@@ -79,7 +79,6 @@ ui tau_time_g = 1000; // in microseconds. controls cpu task decomposition thresh
 #define DST
 #define LO_SPILL_THRESH 1000
 
-
 // Global task queue
 void *global_SC;
 void *global_big_SC;

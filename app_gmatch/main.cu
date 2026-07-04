@@ -31,7 +31,7 @@ public:
         std::string dg = cmd.runtime.data_graph;
         int query_type = cmd.runtime.query_type;
         plan_strategy = cmd.runtime.plan_strategy;
-        cout << " ======= Parameters ========" << endl;
+        cout << " ======= Parameters =========" << endl;
         cout << "Data Graph: " << dg << endl;
         cout << "Query Graph: " << query_type << endl;
         cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;

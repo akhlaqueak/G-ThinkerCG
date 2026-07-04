@@ -1,7 +1,7 @@
 #pragma once
 
 #include "worker.h"
-// __global__ functions can't be defined as members
+// __global__ functions can't be defined as members.
 template <class T>
 __global__ void generateInitialTasks(T gc)
 {

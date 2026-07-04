@@ -1,6 +1,7 @@
 #!/bin/bash
 
-BASE_DIR="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$SCRIPT_DIR"
 STAMP_FILE=".last_sync_time"
 GIT_STAMP=".last_git_commit"
 SSH_CONTROL_DIR="${HOME}/.ssh/cm"
@@ -9,6 +10,7 @@ SSH_OPTS="-o ControlMaster=auto -o ControlPersist=1h -o ControlPath=${SSH_CONTRO
 REMOTE_DIR="/home/akhlaque.ak@gmail.com/G-ThinkerCG/"
 
 mkdir -p "$SSH_CONTROL_DIR"
+cd "$BASE_DIR" || exit 1
 
 ensure_ssh_master() {
   local ssh_start ssh_end
