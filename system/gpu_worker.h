@@ -1,7 +1,7 @@
 #pragma once
 
 #include "worker.h"
-// __global__ functions can't be defined as members.
+// __global__ functions can't be defined as members
 template <class T>
 __global__ void generateInitialTasks(T gc)
 {
@@ -42,15 +42,19 @@ public:
 
     virtual void run()
     {
-        if (gc.v_proc[0] >= gc.sources_num[0])
-            gc.sources_num[0] = 0;
-        gc.set_layered_mode(); // in every  layered mode, pingpong mode is enabled only call was for Lv and pingpong flag is on... 
+        // if (gc.v_proc[0] >= gc.sources_num[0])
+        //     gc.sources_num[0] = 0;
+        // every run invocation, run function sets layered mode, 
+        // pingpong mode is enabled only call was for Lv and pingpong flag is on... 
+        gc.set_layered_mode(); 
         if (this->Lv.size())
         {
             cout << "Lv: " << this->Lv.size() << endl;
             gc.move_vertices_to_gpu(this->Lv);
-            if (g_ping_pong_flag)
+            if (g_ping_pong_flag){
                 gc.set_ping_pong_mode();
+                gc.init_chunk();
+            }
         }
         else if (this->Lt.size())
         {
@@ -71,7 +75,8 @@ public:
             }
             else if ((!gc.topLevelWorkExist()) && gc.Bwr.empty() && gc.Brd.empty())
                 break;
-            if (gc.sources_num[0] > 0)
+            // if (gc.sources_num[0] > 0)
+            if (gc.v_proc[0] < gc.sources_num[0])
             {
                 generateInitialTasks<<<BLK_NUMS, BLK_DIM>>>(gc);
                 deviceSynch();
@@ -146,16 +151,24 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        // show_progress("pingpong after ");
-
+        #define ABORT_CHUNK
         if (gc.isOverflow())
         {
-            gc.dump_to_host();   // dumps remaining unxpanded Brd tasks to H
-            gc.incrementLevel(); // switch Bwr => Brd
-            gc.dump_to_host();   // now dump Brd to host...
-            gc.set_layered_mode();
-            // show_progress("pingpong overflow done ");
-            move_tasks_to_cpu();
+            #ifdef ABORT_CHUNK
+                show_progress("pingpong after ");
+                gc.resetLevel();
+                gc.abort_chunk();
+                gc.v_proc[0] = 0;
+                gc.H.clear();
+                g_ping_pong_flag = false;
+                gc.set_layered_mode();
+            #else
+                gc.dump_to_host();   // dumps remaining unxpanded Brd tasks to H
+                gc.incrementLevel(); // switch Bwr => Brd
+                gc.dump_to_host();   
+                gc.set_layered_mode();
+                move_tasks_to_cpu();
+            #endif
             return false;
         }
         gc.incrementLevel();
@@ -165,7 +178,6 @@ public:
         }
         return true;
     }
-
     void show_progress(std::string msg = "Progress Report")
     {
         std::cout << "== " << msg << " ==" << std::endl;
@@ -196,3 +208,4 @@ public:
         return &gc;
     }
 };
+// this is also last line

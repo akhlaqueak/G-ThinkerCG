@@ -59,6 +59,7 @@ public:
         num_gpu_workers = config.num_gpu_workers;
         tasks_per_fetch_gpu_worker_g = config.tasks_per_fetch_gpu_worker;
         tasks_per_fetch_g = config.tasks_per_fetch_cpu_worker;
+        host_to_gpu_transfer_size_g = config.hg_steal;
         tau_time_g = config.tau_time_us;
         g_ping_pong_flag = config.ping_pong;
         set_eta(config.eta_per_warp);
@@ -138,6 +139,7 @@ public:
 
             if (dynamic_cast<GPUWorkerT *>(worker))
             {
+                // GPU Worker
                 if (not data_array.empty())
                 {
                     ui chunk = std::min<ull>(data_array.size(), worker->tasks_per_fetch);

@@ -3,8 +3,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem-per-cpu=4G
-#SBATCH --partition=amperenodes
-#SBATCH --time=12:00:00
+#SBATCH --partition=amperenodes-medium
+#SBATCH --time=22:00:00
 #SBATCH --no-requeue
 #SBATCH --gres=gpu:1
 #SBATCH --output=%x.out
@@ -19,6 +19,7 @@
 # orkut-links
 # wikipedia_link_ru
 # link-dynamic-frwiki
+sleep infinity
 ds="
 edit-shwiki
 edit-cebwiki
