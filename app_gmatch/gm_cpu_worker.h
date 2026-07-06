@@ -79,9 +79,12 @@ public:
     {
         ftime(&thread_local_time);
         st = now();
-    
-        LFTJ(context.cur_depth, cpu_qg, edge_matrix, candidates, candidates_count, matching_order, context.embedding, 
-                    context.idx_embedding, bn, bn_count);
+
+        if (context.prefix_candidate_idx != nullptr)
+            process_prefix_task(context);
+        else
+            LFTJ(context.cur_depth, cpu_qg, edge_matrix, candidates, candidates_count, matching_order, context.embedding,
+                 context.idx_embedding, bn, bn_count);
     }
 
     double countElaspedTime()
@@ -107,6 +110,34 @@ public:
             t->context.embedding[u] = embedding[u];
             t->context.idx_embedding[u] = idx_embedding[u];
         }
+
+        add_task(t);
+    }
+
+    void spawn_prefix_task(ui cur_depth, ui *embedding, ui *idx_embedding, ui *order, ui query_vertices_num)
+    {
+        ui remaining = idx_count[cur_depth] - idx[cur_depth];
+        if (remaining == 0)
+            return;
+
+        GMTask *t = new GMTask();
+        t->context.query_vertices_num = query_vertices_num;
+        t->context.cur_depth = cur_depth;
+        t->context.embedding = new ui[query_vertices_num];
+        t->context.idx_embedding = new ui[query_vertices_num];
+        t->context.prefix_candidate_idx = new ui[remaining];
+        t->context.prefix_candidate_count = remaining;
+
+        for (ui i = 0; i < cur_depth; ++i)
+        {
+            ui u = order[i];
+            t->context.embedding[u] = embedding[u];
+            t->context.idx_embedding[u] = idx_embedding[u];
+        }
+
+        memcpy(t->context.prefix_candidate_idx,
+               valid_candidate_idx[cur_depth] + idx[cur_depth],
+               remaining * sizeof(ui));
 
         add_task(t);
     }
@@ -243,6 +274,21 @@ public:
                           embedding, idx_embedding, bn, bn_count);
     }
 
+    void process_prefix_task(GMContext &context)
+    {
+        ui cur_depth = context.cur_depth;
+        for (ui i = 0; i < cur_depth; ++i)
+            visited_arr[context.embedding[matching_order[i]]] = true;
+
+        idx[cur_depth] = 0;
+        idx_count[cur_depth] = context.prefix_candidate_count;
+        memcpy(valid_candidate_idx[cur_depth], context.prefix_candidate_idx,
+               context.prefix_candidate_count * sizeof(ui));
+
+        search_from_depth(cur_depth, cur_depth, cpu_qg, edge_matrix, candidates, candidates_count, matching_order,
+                          context.embedding, context.idx_embedding, bn, bn_count);
+    }
+
     void search_from_depth(int enter_depth, int cur_depth, Graph_CPU &cpu_qg, Edges ***edge_matrix, ui **candidates,
                            ui *candidates_count, ui *order, ui *embedding, ui *idx_embedding, ui **bn, ui *bn_count)
     {
@@ -250,6 +296,13 @@ public:
 
         while (true) {
             while (idx[cur_depth] < idx_count[cur_depth]) {
+                if (plan.strategyHost[cur_depth] == StoreStrategy::PREFIX && time_over(st))
+                {
+                    spawn_prefix_task(cur_depth, embedding, idx_embedding, order, cpu_qg.getVerticesCount());
+                    idx[cur_depth] = idx_count[cur_depth];
+                    break;
+                }
+
                 ui valid_idx = valid_candidate_idx[cur_depth][idx[cur_depth]];
 
                 ui u = order[cur_depth];

@@ -69,11 +69,15 @@ struct GMContext
     ui cur_depth;
 
     ui *embedding, *idx_embedding;
+    ui *prefix_candidate_idx;
+    ui prefix_candidate_count;
 
     GMContext()
     {
         embedding = NULL;
         idx_embedding = NULL;
+        prefix_candidate_idx = NULL;
+        prefix_candidate_count = 0;
     }
     ~GMContext()
     {
@@ -81,6 +85,8 @@ struct GMContext
             delete[] embedding;
         if (idx_embedding != NULL)
             delete[] idx_embedding;
+        if (prefix_candidate_idx != NULL)
+            delete[] prefix_candidate_idx;
     }
 };
 // using GMTask = Task<ContextValue>;
