@@ -403,7 +403,7 @@ public:
 
         const ull dst_otail = Bwr.otail[0];
         const ull dst_vstart = Bwr.vtail[0];
-        ull tasks_to_load = std::min<ull>(std::min<ull>(eta_limit, host_to_gpu_transfer_size_g), available_tasks);
+        ull tasks_to_load = std::min<ull>(std::max<ull>(eta_limit, host_to_gpu_transfer_size_g), available_tasks);
         const ull max_offset_count = tasks_to_load * 2;
         const ull max_offsets_start = src_otail - max_offset_count;
         ull total_vertices = 0;
