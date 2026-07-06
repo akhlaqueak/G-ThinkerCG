@@ -151,7 +151,7 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        #define ABORT_CHUNK
+        // #define ABORT_CHUNK
         if (gc.isOverflow())
         {
             #ifdef ABORT_CHUNK

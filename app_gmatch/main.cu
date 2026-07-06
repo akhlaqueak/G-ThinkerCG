@@ -6,6 +6,24 @@
 #include "gm_cpu_worker.h"
 #include "gm_gpu_context.h"
 
+static void print_help(const char *program)
+{
+    cout << "Usage: " << program << " -dg <graph.bin> -q <query_id> [options]" << endl;
+    cout << "Required:" << endl;
+    cout << "  -dg <path>         Data graph binary file" << endl;
+    cout << "  -q <id>            Query/pattern id" << endl;
+    cout << "Options:" << endl;
+    cout << "  -cpu <n>           CPU workers. Default: 32" << endl;
+    cout << "  -gpu <n>           GPU workers. Default: 1" << endl;
+    cout << "  -eta <n>           ETA per warp. Default: 2000" << endl;
+    cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 1" << endl;
+    cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
+    cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
+    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
+    cout << "  -pingpong <0|1>    Enable ping-pong mode. Default: 1" << endl;
+    cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
+}
+
 class GMApp : public Master<GMCPUWorker, GMGPUContext>
 {
 public:
@@ -14,11 +32,13 @@ public:
     GMApp(ui argc, char *argv[])
     {
         cmd.SetArgs(argc, argv);
+        if (cmd.GetOptionValue("-dg") == NULL || cmd.GetOptionValue("-q") == NULL)
+            throw std::invalid_argument("missing required arguments");
         CommandLine::RuntimeConfig defaults;
         defaults.num_cpu_workers = 32;
         defaults.num_gpu_workers = 1;
-        defaults.tasks_per_fetch_gpu_worker = 1000000;
-        defaults.tasks_per_fetch_cpu_worker = 50;
+        defaults.tasks_per_fetch_gpu_worker = 100000;
+        defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
         defaults.tau_time_us = 10;
         defaults.ping_pong = true;
@@ -32,15 +52,17 @@ public:
         int query_type = cmd.runtime.query_type;
         plan_strategy = cmd.runtime.plan_strategy;
         cout << " ======= Parameters =========" << endl;
-        cout << "Data Graph: " << dg << endl;
-        cout << "Query Graph: " << query_type << endl;
-        cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
-        cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
-        cout << "eta: " << eta_per_warp() << endl;
-        cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
-        cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
-        cout << "hg_steal: " << cmd.runtime.hg_steal << endl;
-        cout << "plan strategy: " << plan_strategy << endl;
+        cout << "-dg: " << dg << endl;
+        cout << "-q: " << query_type << endl;
+        cout << "-cpu: " << cmd.runtime.num_cpu_workers << endl;
+        cout << "-gpu: " << cmd.runtime.num_gpu_workers << endl;
+        cout << "-eta: " << eta_per_warp() << endl;
+        cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
+        cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
+        cout << "-tau: " << cmd.runtime.tau_time_us << endl;
+        cout << "-pingpong: " << (cmd.runtime.ping_pong ? 1 : 0) << endl;
+        cout << "-s: " << plan_strategy << endl;
         cout << " ======= ********** ========" << endl;
         
         gpu_dg = Graph(dg);
@@ -239,11 +261,19 @@ public:
 
 int main(int argc, char *argv[])
 {
-
-    GMApp app(argc, argv);
-    Timer t;
-    app.run();
-    cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-    cout << "Total count: " << app.get_results() << endl;
-    return 0;
+    try
+    {
+        GMApp app(argc, argv);
+        Timer t;
+        app.run();
+        cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+        cout << "Total count: " << app.get_results() << endl;
+        return 0;
+    }
+    catch (const std::invalid_argument &e)
+    {
+        cerr << e.what() << endl;
+        print_help(argv[0]);
+        return 1;
+    }
 }
