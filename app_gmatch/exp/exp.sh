@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=Qset1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=16
 #SBATCH --mem-per-cpu=4G
 #SBATCH --partition=amperenodes
 #SBATCH --time=12:00:00
@@ -47,7 +47,7 @@ wikipedia_link_ceb
 "
 
 
-quer="4 5 6 7 8 9 18 24 25 26 27"
+quer="2 5 9"
 timeout_threshold="10m"
 skip_existing_logs=0
 skip_completed_logs=1
@@ -92,14 +92,14 @@ for d in $ds; do
         # run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0
         # run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
         # run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
-
         # run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 1
         run_case "logs/$d-$q-with_cpu_gpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 1 -gpuchunk 100000 -cpuchunk 1
+        run_case "logs/$d-$q-nocpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -pingpong 1 -gpuchunk 100000 -cpu 0
 
     done
 done
 get_results(){
-exps="nocpu with_cpu_gpu"
+exps="nocpu_pingpong_abort with_cpu_gpu_pingpong_abort"
 # exps="g2aimd nocpu-pingpong nocpu nogpu with_cpu_gpu"
 
 for d in $ds; do 
