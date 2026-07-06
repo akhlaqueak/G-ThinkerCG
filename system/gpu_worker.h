@@ -151,11 +151,11 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        // #define ABORT_CHUNK
+        #define ABORT_CHUNK
         if (gc.isOverflow())
         {
             #ifdef ABORT_CHUNK
-                show_progress("pingpong after ");
+                show_progress("pingpong chunk aborted, moving to layered mode ");
                 gc.resetLevel();
                 gc.abort_chunk();
                 gc.v_proc[0] = 0;
