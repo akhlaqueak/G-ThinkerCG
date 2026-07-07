@@ -21,7 +21,7 @@ public:
         defaults.tasks_per_fetch_cpu_worker = 50;
         defaults.eta_per_warp = 1000;
         defaults.tau_time_us = 10;
-        defaults.ping_pong = true;
+        defaults.ping_pong = 1;
         defaults.data_graph = "./data/com-friendster.ungraph.txt.bin";
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);

@@ -288,11 +288,30 @@ public:
         cout << "H to D: " << src_tasks.size() << endl;
         for (GMTask *task : src_tasks)
         {
-            ui sz = task->context.cur_depth;
-            ull loc = H.append_host(sz + 1);
-            H.vertices[loc] = sz;
-            for (ui i = 0; i < sz; ++i)
-                H.vertices[loc + 1 + i] = task->context.embedding[matching_order[i]];
+            if (task->context.prefix_candidate_idx != nullptr)
+            {
+                ui sglen = task->context.cur_depth;
+                ui fixed_len = sglen - 1;
+                ull loc = H.append_host(1 + fixed_len + task->context.prefix_candidate_count);
+                H.vertices[loc] = sglen;
+                for (ui i = 0; i < fixed_len; ++i)
+                    H.vertices[loc + 1 + i] = task->context.embedding[matching_order[i]];
+
+                ui qv = matching_order[fixed_len];
+                for (ui i = 0; i < task->context.prefix_candidate_count; ++i)
+                {
+                    ui candidate_idx = task->context.prefix_candidate_idx[i];
+                    H.vertices[loc + 1 + fixed_len + i] = candidates[qv][candidate_idx];
+                }
+            }
+            else
+            {
+                ui sz = task->context.cur_depth;
+                ull loc = H.append_host(sz + 1);
+                H.vertices[loc] = sz;
+                for (ui i = 0; i < sz; ++i)
+                    H.vertices[loc + 1 + i] = task->context.embedding[matching_order[i]];
+            }
             delete task;
         }
         // cout<<"All copied"<<endl;
@@ -689,7 +708,6 @@ public:
                         {
                             if (NEXT_MODE == StoreStrategy::EXPAND)
                             {
-
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;

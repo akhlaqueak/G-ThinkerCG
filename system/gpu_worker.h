@@ -151,10 +151,10 @@ public:
         auto tick = chrono::steady_clock::now();
         deviceSynch();
 
-        #define ABORT_CHUNK
         if (gc.isOverflow())
         {
-            #ifdef ABORT_CHUNK
+            if (g_abort_chunk_flag)
+            {
                 show_progress("pingpong chunk aborted, moving to layered mode ");
                 gc.resetLevel();
                 gc.abort_chunk();
@@ -162,13 +162,15 @@ public:
                 gc.H.clear();
                 g_ping_pong_flag = false;
                 gc.set_layered_mode();
-            #else
+            }
+            else
+            {
                 gc.dump_to_host();   // dumps remaining unxpanded Brd tasks to H
                 gc.incrementLevel(); // switch Bwr => Brd
                 gc.dump_to_host();   
                 gc.set_layered_mode();
                 move_tasks_to_cpu();
-            #endif
+            }
             return false;
         }
         gc.incrementLevel();

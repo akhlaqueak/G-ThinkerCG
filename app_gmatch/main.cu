@@ -20,7 +20,7 @@ static void print_help(const char *program)
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
-    cout << "  -pingpong <0|1>    Enable ping-pong mode. Default: 1" << endl;
+    cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
 }
 
@@ -41,7 +41,7 @@ public:
         defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
         defaults.tau_time_us = 10;
-        defaults.ping_pong = true;
+        defaults.ping_pong = 1;
         defaults.data_graph = "";
         defaults.query_type = 0;
         defaults.plan_strategy = "hybrid";
@@ -61,7 +61,7 @@ public:
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
-        cout << "-pingpong: " << (cmd.runtime.ping_pong ? 1 : 0) << endl;
+        cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << "-s: " << plan_strategy << endl;
         cout << " ======= ********** ========" << endl;
         

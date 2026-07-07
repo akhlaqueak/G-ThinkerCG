@@ -126,7 +126,7 @@ void print_help(const char *program)
     cout << "  -gpuchunk <n>       GPU roots/tasks per fetch. Default: 10000" << endl;
     cout << "  -eta <n>            ETA per warp. Default: 2000" << endl;
     cout << "  -tau <n>            CPU timeout threshold (microseconds). Runtime default." << endl;
-    cout << "  -pingpong <0|1>     Enable ping-pong buffering. Default: 1" << endl;
+    cout << "  -pingpong <0|1|2>   0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << endl;
     cout << "Other:" << endl;
     cout << "  -h, --help          Show this help message and exit." << endl;
@@ -177,7 +177,7 @@ public:
         defaults.tasks_per_fetch_gpu_worker = 10000;
         defaults.tasks_per_fetch_cpu_worker = 10;
         defaults.eta_per_warp = 2000;
-        defaults.ping_pong = true;
+        defaults.ping_pong = 1;
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
         gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;

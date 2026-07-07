@@ -91,7 +91,7 @@ class CommandLine {
        size_t hg_steal = 1000000;
        ui eta_per_warp = 1000;
        ui tau_time_us = 10;
-       bool ping_pong = true;
+       int ping_pong = 1;
        std::string data_graph = "";
        int query_type = 0;
        std::string plan_strategy = "hybrid";
@@ -186,7 +186,7 @@ class CommandLine {
        runtime.hg_steal = GetOptionIntValue("-hg_steal", static_cast<int>(defaults.hg_steal));
        runtime.eta_per_warp = GetOptionIntValue("-eta", defaults.eta_per_warp);
        runtime.tau_time_us = GetOptionIntValue("-tau", defaults.tau_time_us);
-       runtime.ping_pong = GetOptionIntValue("-pingpong", defaults.ping_pong ? 1 : 0);
+       runtime.ping_pong = GetOptionIntValue("-pingpong", defaults.ping_pong);
        runtime.data_graph = GetOptionValue("-dg", defaults.data_graph);
        runtime.query_type = GetOptionIntValue("-q", defaults.query_type);
        runtime.plan_strategy = GetOptionValue("-s", defaults.plan_strategy);
