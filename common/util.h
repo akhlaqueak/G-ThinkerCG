@@ -89,6 +89,7 @@ class CommandLine {
        size_t tasks_per_fetch_gpu_worker = 1000000;
        size_t tasks_per_fetch_cpu_worker = 50;
        size_t hg_steal = 1000000;
+       size_t prefix_batch_size = 100;
        ui eta_per_warp = 1000;
        ui tau_time_us = 10;
        int ping_pong = 1;
@@ -184,6 +185,7 @@ class CommandLine {
        runtime.tasks_per_fetch_gpu_worker = GetOptionIntValue("-gpuchunk", static_cast<int>(defaults.tasks_per_fetch_gpu_worker));
        runtime.tasks_per_fetch_cpu_worker = GetOptionIntValue("-cpuchunk", static_cast<int>(defaults.tasks_per_fetch_cpu_worker));
        runtime.hg_steal = GetOptionIntValue("-hg_steal", static_cast<int>(defaults.hg_steal));
+       runtime.prefix_batch_size = GetOptionIntValue("-prefixbatch", static_cast<int>(defaults.prefix_batch_size));
        runtime.eta_per_warp = GetOptionIntValue("-eta", defaults.eta_per_warp);
        runtime.tau_time_us = GetOptionIntValue("-tau", defaults.tau_time_us);
        runtime.ping_pong = GetOptionIntValue("-pingpong", defaults.ping_pong);

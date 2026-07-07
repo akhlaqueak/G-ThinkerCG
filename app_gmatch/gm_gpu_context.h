@@ -2,7 +2,6 @@
 #define APP_GMATCH_GMATCH_H
 
 #define SHM_CAP 350
-#define BATCH_SIZE 100
 #define TEMPSIZE 200'000
 
 using GMBuffer = BufferBase;
@@ -36,6 +35,7 @@ class GMGPUContext : public GPUContext<GMBuffer, GMTask>
 
     StoreStrategy *strategy;
     ui *movingLvl;
+    ui *prefixBatchSize;
 
     ull *total_counts;
     ull saved_total_count_ = 0;
@@ -98,6 +98,9 @@ class GMGPUContext : public GPUContext<GMBuffer, GMTask>
 
         chkerr(cudaMalloc((void **)&movingLvl, plan.sz * sizeof(ui)));
         chkerr(cudaMemcpy(movingLvl, plan.movingLvlHost, plan.sz * sizeof(ui), cudaMemcpyHostToDevice));
+
+        chkerr(cudaMallocManaged((void **)&prefixBatchSize, sizeof(ui)));
+        prefixBatchSize[0] = gm_prefix_batch_size_g;
 
         chkerr(cudaMalloc((void **)&tempv, TEMPSIZE * N_WARPS * sizeof(ui)));
         // chkerr(cudaMalloc((void **)&templ, TEMPSIZE * N_WARPS * sizeof(bool)));
@@ -708,9 +711,9 @@ public:
                         {
                             if (NEXT_MODE == StoreStrategy::EXPAND)
                             {
-                                for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
+                                for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                                 {
-                                    ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
+                                    ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append_batch(sglen + 2, min, StoreStrategy::EXPAND);
                                     if (alloc.failed)
                                         return;
@@ -730,9 +733,9 @@ public:
                             }
                             else if (NEXT_MODE == StoreStrategy::PREFIX)
                             {
-                                for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
+                                for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                                 {
-                                    ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
+                                    ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append_batch(sglen + 1, min, StoreStrategy::PREFIX);
                                     if (alloc.failed)
                                         return;
@@ -895,9 +898,9 @@ public:
                     {
                         if (NEXT_MODE == StoreStrategy::EXPAND)
                         {
-                            for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
+                            for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                             {
-                                ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
+                                ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append_batch(sglen + 2, min, StoreStrategy::EXPAND);
                                 if (alloc.failed)
                                     return;
@@ -917,9 +920,9 @@ public:
                         }
                         else if (NEXT_MODE == StoreStrategy::PREFIX)
                         {
-                            for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
+                            for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                             {
-                                ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
+                                ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append_batch(sglen + 1, min, StoreStrategy::PREFIX);
                                 if (alloc.failed)
                                     return;

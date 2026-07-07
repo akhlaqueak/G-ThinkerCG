@@ -35,6 +35,7 @@ ui **bn;
 ui *bn_count;
 
 ui max_candidate_cnt;
+ui gm_prefix_batch_size_g = 100;
 
 
 int binary_search(ui* a, ui length, ui target) {

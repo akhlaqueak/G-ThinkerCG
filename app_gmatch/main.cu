@@ -19,6 +19,7 @@ static void print_help(const char *program)
     cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 1" << endl;
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
+    cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
@@ -40,6 +41,7 @@ public:
         defaults.tasks_per_fetch_gpu_worker = 100000;
         defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
+        defaults.prefix_batch_size = 100;
         defaults.tau_time_us = 10;
         defaults.ping_pong = 1;
         defaults.data_graph = "";
@@ -47,6 +49,7 @@ public:
         defaults.plan_strategy = "hybrid";
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
+        gm_prefix_batch_size_g = static_cast<ui>(cmd.runtime.prefix_batch_size);
         gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string dg = cmd.runtime.data_graph;
         int query_type = cmd.runtime.query_type;
@@ -60,6 +63,7 @@ public:
         cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
+        cout << "-prefixbatch: " << gm_prefix_batch_size_g << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << "-s: " << plan_strategy << endl;

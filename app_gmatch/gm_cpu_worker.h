@@ -12,8 +12,6 @@
 class GMCPUWorker : public CPUWorker<GMTask>
 {
 public:
-    static constexpr ui PREFIX_BATCH_SIZE = 100;
-
     // ui max_sz = 0;
     // ui total_counts=0;
 
@@ -122,9 +120,9 @@ public:
         if (remaining == 0)
             return;
 
-        for (ui batch_begin = idx[cur_depth]; batch_begin < idx_count[cur_depth]; batch_begin += PREFIX_BATCH_SIZE)
+        for (ui batch_begin = idx[cur_depth]; batch_begin < idx_count[cur_depth]; batch_begin += gm_prefix_batch_size_g)
         {
-            ui batch_size = std::min<ui>(PREFIX_BATCH_SIZE, idx_count[cur_depth] - batch_begin);
+            ui batch_size = std::min<ui>(gm_prefix_batch_size_g, idx_count[cur_depth] - batch_begin);
 
             GMTask *t = new GMTask();
             t->context.query_vertices_num = query_vertices_num;
