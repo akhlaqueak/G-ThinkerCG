@@ -12,6 +12,8 @@
 class GMCPUWorker : public CPUWorker<GMTask>
 {
 public:
+    static constexpr ui PREFIX_BATCH_SIZE = 100;
+
     // ui max_sz = 0;
     // ui total_counts=0;
 
@@ -120,26 +122,31 @@ public:
         if (remaining == 0)
             return;
 
-        GMTask *t = new GMTask();
-        t->context.query_vertices_num = query_vertices_num;
-        t->context.cur_depth = cur_depth + 1;
-        t->context.embedding = new ui[query_vertices_num];
-        t->context.idx_embedding = new ui[query_vertices_num];
-        t->context.prefix_candidate_idx = new ui[remaining];
-        t->context.prefix_candidate_count = remaining;
-
-        for (ui i = 0; i < cur_depth; ++i)
+        for (ui batch_begin = idx[cur_depth]; batch_begin < idx_count[cur_depth]; batch_begin += PREFIX_BATCH_SIZE)
         {
-            ui u = order[i];
-            t->context.embedding[u] = embedding[u];
-            t->context.idx_embedding[u] = idx_embedding[u];
+            ui batch_size = std::min<ui>(PREFIX_BATCH_SIZE, idx_count[cur_depth] - batch_begin);
+
+            GMTask *t = new GMTask();
+            t->context.query_vertices_num = query_vertices_num;
+            t->context.cur_depth = cur_depth + 1;
+            t->context.embedding = new ui[query_vertices_num];
+            t->context.idx_embedding = new ui[query_vertices_num];
+            t->context.prefix_candidate_idx = new ui[batch_size];
+            t->context.prefix_candidate_count = batch_size;
+
+            for (ui i = 0; i < cur_depth; ++i)
+            {
+                ui u = order[i];
+                t->context.embedding[u] = embedding[u];
+                t->context.idx_embedding[u] = idx_embedding[u];
+            }
+
+            memcpy(t->context.prefix_candidate_idx,
+                   valid_candidate_idx[cur_depth] + batch_begin,
+                   batch_size * sizeof(ui));
+
+            add_task(t);
         }
-
-        memcpy(t->context.prefix_candidate_idx,
-               valid_candidate_idx[cur_depth] + idx[cur_depth],
-               remaining * sizeof(ui));
-
-        add_task(t);
     }
 
     void generateValidCandidateIndex(ui depth, ui *embedding, ui *idx_embedding, ui *idx_count, ui **valid_candidate_index,
