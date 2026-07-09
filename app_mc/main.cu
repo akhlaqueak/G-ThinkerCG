@@ -6,6 +6,22 @@ Graph data_graph;
 // #include "mc_gpu_context.h"
 #include "mc_cpu_worker.h"
 ull spilled_tasks;
+
+static void print_help(const char *program)
+{
+    cout << "Usage: " << program << " [options]" << endl;
+    cout << "Options:" << endl;
+    cout << "  -dg <path>         Data graph binary file. Default: ./data/com-friendster.ungraph.txt.bin" << endl;
+    cout << "  -cpu <n>           CPU workers. Default: 28" << endl;
+    cout << "  -gpu <n>           GPU workers. Default: 1" << endl;
+    cout << "  -eta <n>           ETA per warp. Default: 1000" << endl;
+    cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 50" << endl;
+    cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 1000000" << endl;
+    cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
+    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
+    cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
+}
+
 class MCApp : public Master<MCCPUWorker, MCGPUContext>
 {
 public:
@@ -35,7 +51,9 @@ public:
         cout << "eta (tasks load per warp): " << eta_per_warp() << endl;
         cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        cout << "hg_steal: " << cmd.runtime.hg_steal << endl;
         cout << "tau_time: " << cmd.runtime.tau_time_us << endl;
+        cout << "pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
         
         data_graph = Graph(fp);
@@ -81,6 +99,12 @@ public:
 int main(int argc, char *argv[])
 {
     cmd = CommandLine(argc, argv);
+
+    if (cmd.GetOptionValue("-h") != NULL || cmd.GetOptionValue("--help") != NULL)
+    {
+        print_help(argv[0]);
+        return 0;
+    }
 
     MCApp app;
     Timer t;

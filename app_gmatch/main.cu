@@ -77,6 +77,9 @@ public:
 
         gpu_preprocess();
         cpu_preprocess();
+
+        if (cpu_qg.getVerticesCount() > GM_QUERY_EMBEDDING_CAP)
+            throw std::runtime_error("GM query size exceeds inline embedding capacity");
         
         // load first-level candidates in data_array
         ui root_vertex = matching_order[0];

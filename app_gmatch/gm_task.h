@@ -36,6 +36,7 @@ ui *bn_count;
 
 ui max_candidate_cnt;
 ui gm_prefix_batch_size_g = 100;
+inline constexpr ui GM_QUERY_EMBEDDING_CAP = 8;
 
 
 int binary_search(ui* a, ui length, ui target) {
@@ -69,23 +70,21 @@ struct GMContext
     ui query_vertices_num;
     ui cur_depth;
 
+    ui embedding_storage[GM_QUERY_EMBEDDING_CAP];
+    ui idx_embedding_storage[GM_QUERY_EMBEDDING_CAP];
     ui *embedding, *idx_embedding;
     ui *prefix_candidate_idx;
     ui prefix_candidate_count;
 
     GMContext()
     {
-        embedding = NULL;
-        idx_embedding = NULL;
+        embedding = embedding_storage;
+        idx_embedding = idx_embedding_storage;
         prefix_candidate_idx = NULL;
         prefix_candidate_count = 0;
     }
     ~GMContext()
     {
-        if (embedding != NULL)
-            delete[] embedding;
-        if (idx_embedding != NULL)
-            delete[] idx_embedding;
         if (prefix_candidate_idx != NULL)
             delete[] prefix_candidate_idx;
     }

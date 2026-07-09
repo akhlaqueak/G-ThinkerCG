@@ -338,8 +338,6 @@ public:
             if (plan.strategyHost[sglen] == StoreStrategy::EXPAND)
             {
                 GMTask *task = new GMTask();
-                task->context.embedding = new ui[gpu_qg.GetVertexCount()];
-                task->context.idx_embedding = new ui[gpu_qg.GetVertexCount()];
                 task->context.cur_depth = sglen;
 
                 for (ui i = 0; i < sglen; i++)
@@ -381,8 +379,6 @@ public:
                     if (idv == -1)
                         continue;
                     GMTask *task = new GMTask();
-                    task->context.embedding = new ui[gpu_qg.GetVertexCount()];
-                    task->context.idx_embedding = new ui[gpu_qg.GetVertexCount()];
                     task->context.cur_depth = sglen;
 
                     for (ui i = 0; i < sglen - 1; ++i)

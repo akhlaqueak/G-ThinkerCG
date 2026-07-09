@@ -65,9 +65,6 @@ public:
         t->context.query_vertices_num = cpu_qg.getVerticesCount();
         t->context.cur_depth = 1;
 
-        t->context.embedding = new ui[cpu_qg.getVerticesCount()];
-        t->context.idx_embedding = new ui[cpu_qg.getVerticesCount()];
-
         // set data and its index
         t->context.embedding[matching_order[0]] = data;
         t->context.idx_embedding[matching_order[0]] = binary_search(0, data); // [10,22]
@@ -101,9 +98,6 @@ public:
         t->context.query_vertices_num = query_vertices_num;
         t->context.cur_depth = cur_depth + 1;
 
-        t->context.embedding = new ui[query_vertices_num];
-        t->context.idx_embedding = new ui[query_vertices_num];
-
         for (ui i = 0; i <= cur_depth; ++i)
         {
             ui u = order[i];
@@ -127,8 +121,6 @@ public:
             GMTask *t = new GMTask();
             t->context.query_vertices_num = query_vertices_num;
             t->context.cur_depth = cur_depth + 1;
-            t->context.embedding = new ui[query_vertices_num];
-            t->context.idx_embedding = new ui[query_vertices_num];
             t->context.prefix_candidate_idx = new ui[batch_size];
             t->context.prefix_candidate_count = batch_size;
 

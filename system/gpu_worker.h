@@ -99,6 +99,7 @@ public:
                 }
             }
         }
+        cout<<"----"<<endl;
     }
 
     bool layered_mode_expansion()
