@@ -4,7 +4,6 @@
 
 #include "gm_task.h"
 #include "gm_cpu_worker.h"
-#include "gm_cpu_worker_gpu_style.h"
 #include "gm_gpu_context.h"
 
 static void print_help(const char *program)
@@ -21,29 +20,17 @@ static void print_help(const char *program)
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
-    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 100000" << endl;
+    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
-    cout << "  -cpu_gpu_style <0|1>  Use experimental GPU-style CPU worker. Default: 0" << endl;
 }
 
-static bool use_gpu_style_cpu_worker(int argc, char *argv[])
-{
-    for (int i = 1; i + 1 < argc; ++i)
-    {
-        if (std::string(argv[i]) == "-cpu_gpu_style")
-            return std::atoi(argv[i + 1]) != 0;
-    }
-    return false;
-}
-
-template <typename CPUWorkerImpl>
-class GMAppT : public Master<CPUWorkerImpl, GMGPUContext>
+class GMApp : public Master<GMCPUWorker, GMGPUContext>
 {
 public:
     bool gpu_enabled_;
 
-    GMAppT(ui argc, char *argv[])
+    GMApp(ui argc, char *argv[])
     {
         cmd.SetArgs(argc, argv);
         if (cmd.GetOptionValue("-dg") == NULL || cmd.GetOptionValue("-q") == NULL)
@@ -55,13 +42,13 @@ public:
         defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
         defaults.prefix_batch_size = 100;
-        defaults.tau_time_us = 100000;
+        defaults.tau_time_us = 10;
         defaults.ping_pong = 1;
         defaults.data_graph = "";
         defaults.query_type = 0;
         defaults.plan_strategy = "hybrid";
         cmd.ParseRuntimeConfig(defaults);
-        this->apply_runtime_config(cmd.runtime);
+        apply_runtime_config(cmd.runtime);
         gm_prefix_batch_size_g = static_cast<ui>(cmd.runtime.prefix_batch_size);
         gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string dg = cmd.runtime.data_graph;
@@ -72,7 +59,7 @@ public:
         cout << "-q: " << query_type << endl;
         cout << "-cpu: " << cmd.runtime.num_cpu_workers << endl;
         cout << "-gpu: " << cmd.runtime.num_gpu_workers << endl;
-        cout << "-eta: " << this->eta_per_warp() << endl;
+        cout << "-eta: " << eta_per_warp() << endl;
         cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
@@ -80,7 +67,6 @@ public:
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << "-s: " << plan_strategy << endl;
-        cout << "-cpu_gpu_style: " << (use_gpu_style_cpu_worker(argc, argv) ? 1 : 0) << endl;
         cout << " ======= ********** ========" << endl;
         
         gpu_dg = Graph(dg);
@@ -100,7 +86,7 @@ public:
         for (ui i = 0; i < candidates_count[root_vertex]; ++i)
         {
             ui v = candidates[root_vertex][i];
-            this->data_array.push_back(v);
+            data_array.push_back(v);
         }
     }
 
@@ -110,16 +96,13 @@ public:
 
         while (workers_list.size())
         {
-            typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *w =
-                (typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *)workers_list.dequeue();
-            CPUWorkerImpl *cw = dynamic_cast<CPUWorkerImpl *>(w);
-            typename Master<CPUWorkerImpl, GMGPUContext>::GPUWorkerT *gw =
-                dynamic_cast<typename Master<CPUWorkerImpl, GMGPUContext>::GPUWorkerT *>(w);
+            WorkerT *w = (WorkerT *)workers_list.dequeue();
+            GMCPUWorker *cw = dynamic_cast<GMCPUWorker *>(w);
+            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w); //
 
             if (cw)
                 res += cw->counter;
             else if (gw)
-                // cout<<"gpu found: "<< gw->getContext()->get_results();
                 res += gw->getContext()->get_results();
         }
         return res;
@@ -172,7 +155,6 @@ public:
     {
 
         std::cout << "CPU preprocess start..." << std::endl;
-        //  ============== Step 1 ==============
         FilterVertices::DPisoFilter(cpu_dg, cpu_qg, candidates, candidates_count,
                                     bfs_order, tree);
         FilterVertices::sortCandidates(candidates, candidates_count, cpu_qg.getVerticesCount());
@@ -184,12 +166,10 @@ public:
 
         std::cout << " MAX CANDS : " << max_candidate_cnt << std::endl;
 
-        // ============== Step 2 ==============
         GenerateQueryPlan::generateGQLQueryPlan(cpu_dg, cpu_qg, candidates_count, matching_order, pivot);
 
         for (ui i = 0; i < cpu_qg.getVerticesCount(); i++)
         {
-            //  plan.matchOrderHost[i] = matching_order[i];
             matching_order[i] = plan.matchOrderHost[i];
         }
         std::cout << " ROOT CANDS : " << candidates_count[matching_order[0]] << std::endl;
@@ -238,14 +218,13 @@ public:
 
     string write_to_file(auto &query)
     {
-        // Convert id to string using std::to_string
         string path = "query_cpu.txt";
         std::ofstream outfile(path);
 
         if (!outfile)
         {
             std::cerr << "Failed to open file for writing.\n";
-            return path; // remove 'return 1;' — it's a void function
+            return path;
         }
         ui edges = 0;
         for (ui i = 0; i < query.GetVertexCount(); i++)
@@ -259,13 +238,12 @@ public:
             }
         }
 
-        // Header
         outfile << "t " << query.GetVertexCount() << " " << edges << std::endl;
 
         for (ui i = 0; i < query.GetVertexCount(); i++)
         {
             ui degree = query.GetRowPtrs()[i + 1] - query.GetRowPtrs()[i];
-            outfile << "v " << i << " 0 " << degree << std::endl; // use outfile, not cout
+            outfile << "v " << i << " 0 " << degree << std::endl;
         }
 
         for (ui i = 0; i < query.GetVertexCount(); i++)
@@ -275,7 +253,7 @@ public:
             for (; j < en; j++)
             {
                 if (i < query.GetCols()[j])
-                    outfile << "e " << i << " " << query.GetCols()[j] << std::endl; // use outfile
+                    outfile << "e " << i << " " << query.GetCols()[j] << std::endl;
             }
         }
         return path;
@@ -286,21 +264,11 @@ int main(int argc, char *argv[])
 {
     try
     {
+        GMApp app(argc, argv);
         Timer t;
-        if (use_gpu_style_cpu_worker(argc, argv))
-        {
-            GMAppT<GMCPUWorkerGPUStyle> app(argc, argv);
-            app.run();
-            cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-            cout << "Total count: " << app.get_results() << endl;
-        }
-        else
-        {
-            GMAppT<GMCPUWorker> app(argc, argv);
-            app.run();
-            cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-            cout << "Total count: " << app.get_results() << endl;
-        }
+        app.run();
+        cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+        cout << "Total count: " << app.get_results() << endl;
         return 0;
     }
     catch (const std::invalid_argument &e)
