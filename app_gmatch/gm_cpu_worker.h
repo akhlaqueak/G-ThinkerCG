@@ -328,7 +328,7 @@ public:
         memcpy(current_buffer, previous_candidates, valid_candidates_count * sizeof(ui));
 
         ui temp_count = 0;
-        for (ui i = 0; i < bn_cnt[depth]; ++i) {
+        for (ui i = 1; i < bn_cnt[depth]; ++i) {
             
             VertexID current_bn = bn[depth][i];
             Edges& current_edge = *edge_matrix[current_bn][u];
