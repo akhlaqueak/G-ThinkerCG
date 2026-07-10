@@ -312,29 +312,13 @@ public:
         stats.valid_candidate_intersections.fetch_add(bn_cnt[depth] > 0 ? bn_cnt[depth] - 1 : 0, std::memory_order_relaxed);
 #endif
         ui u = order[depth];
+        ui previous_bn = bn[depth][0];
+        ui previous_index_id = idx_embedding[previous_bn];
         ui valid_candidates_count = 0;
-        ui seed_bn = bn[depth][0];
-        ui seed_index_id = idx_embedding[seed_bn];
-        Edges *seed_edge = edge_matrix[seed_bn][u];
-        valid_candidates_count = seed_edge->offset_[seed_index_id + 1] - seed_edge->offset_[seed_index_id];
 
-        for (ui i = 1; i < bn_cnt[depth]; ++i)
-        {
-            ui current_bn = bn[depth][i];
-            ui current_index_id = idx_embedding[current_bn];
-            Edges *current_edge = edge_matrix[current_bn][u];
-            ui current_candidates_count =
-                current_edge->offset_[current_index_id + 1] - current_edge->offset_[current_index_id];
-            if (current_candidates_count < valid_candidates_count)
-            {
-                seed_bn = current_bn;
-                seed_index_id = current_index_id;
-                seed_edge = current_edge;
-                valid_candidates_count = current_candidates_count;
-            }
-        }
-
-        ui *previous_candidates = seed_edge->edge_ + seed_edge->offset_[seed_index_id];
+        Edges *previous_edge = edge_matrix[previous_bn][u];
+        valid_candidates_count = previous_edge->offset_[previous_index_id + 1] - previous_edge->offset_[previous_index_id];
+        ui *previous_candidates = previous_edge->edge_ + previous_edge->offset_[previous_index_id];
 #ifdef GM_CPU_PROFILE
         stats.valid_candidate_seed_sum.fetch_add(valid_candidates_count, std::memory_order_relaxed);
 #endif
@@ -347,9 +331,6 @@ public:
         for (ui i = 0; i < bn_cnt[depth]; ++i) {
             
             VertexID current_bn = bn[depth][i];
-            if (current_bn == seed_bn)
-                continue;
-
             Edges& current_edge = *edge_matrix[current_bn][u];
             ui current_index_id = idx_embedding[current_bn];
 
