@@ -301,7 +301,6 @@ int main(int argc, char *argv[])
             cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
             cout << "Total count: " << app.get_results() << endl;
         }
-        GMCPUProfileStats::print_summary();
         return 0;
     }
     catch (const std::invalid_argument &e)
