@@ -7,6 +7,104 @@
 #include "BuildTable.h"
 #include "leapfrogjoin.h"
 #include "intersection/computesetintersection.h"
+#include <atomic>
+#include <iomanip>
+
+#ifdef GM_CPU_PROFILE
+struct GMCPUProfileStats
+{
+    std::atomic<unsigned long long> root_task_calls{0};
+    std::atomic<unsigned long long> regular_task_calls{0};
+    std::atomic<unsigned long long> prefix_task_calls{0};
+    std::atomic<unsigned long long> split_task_spawns{0};
+    std::atomic<unsigned long long> prefix_task_spawns{0};
+    std::atomic<unsigned long long> valid_candidate_calls{0};
+    std::atomic<unsigned long long> valid_candidate_intersections{0};
+    std::atomic<unsigned long long> valid_candidate_seed_sum{0};
+    std::atomic<unsigned long long> valid_candidate_pre_filter_sum{0};
+    std::atomic<unsigned long long> valid_candidate_post_filter_sum{0};
+
+    std::atomic<unsigned long long> root_batch_ns{0};
+    std::atomic<unsigned long long> regular_batch_ns{0};
+    std::atomic<unsigned long long> prefix_batch_ns{0};
+    std::atomic<unsigned long long> valid_candidate_ns{0};
+
+    static GMCPUProfileStats &instance()
+    {
+        static GMCPUProfileStats stats;
+        return stats;
+    }
+
+    static unsigned long long to_ns(const std::chrono::steady_clock::duration &duration)
+    {
+        return static_cast<unsigned long long>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
+    }
+
+    static double ns_to_s(unsigned long long ns)
+    {
+        return static_cast<double>(ns) / 1e9;
+    }
+
+    static void add(std::atomic<unsigned long long> &slot, unsigned long long value)
+    {
+        slot.fetch_add(value, std::memory_order_relaxed);
+    }
+
+    static void print_summary()
+    {
+        auto &s = instance();
+        cout << fixed << setprecision(6);
+        cout << "===== GM CPU Profile =====" << endl;
+        cout << "root task calls: " << s.root_task_calls.load(std::memory_order_relaxed) << endl;
+        cout << "regular task calls: " << s.regular_task_calls.load(std::memory_order_relaxed) << endl;
+        cout << "prefix task calls: " << s.prefix_task_calls.load(std::memory_order_relaxed) << endl;
+        cout << "split task spawns: " << s.split_task_spawns.load(std::memory_order_relaxed) << endl;
+        cout << "prefix task spawns: " << s.prefix_task_spawns.load(std::memory_order_relaxed) << endl;
+        cout << "valid-candidate calls: " << s.valid_candidate_calls.load(std::memory_order_relaxed) << endl;
+        cout << "valid-candidate intersection steps: " << s.valid_candidate_intersections.load(std::memory_order_relaxed) << endl;
+        cout << "root batch total (s): " << ns_to_s(s.root_batch_ns.load(std::memory_order_relaxed)) << endl;
+        cout << "regular batch total (s): " << ns_to_s(s.regular_batch_ns.load(std::memory_order_relaxed)) << endl;
+        cout << "prefix batch total (s): " << ns_to_s(s.prefix_batch_ns.load(std::memory_order_relaxed)) << endl;
+        cout << "valid-candidate total (s): " << ns_to_s(s.valid_candidate_ns.load(std::memory_order_relaxed)) << endl;
+        const auto vcalls = s.valid_candidate_calls.load(std::memory_order_relaxed);
+        if (vcalls != 0)
+        {
+            cout << "avg seed candidates: "
+                 << (static_cast<double>(s.valid_candidate_seed_sum.load(std::memory_order_relaxed)) / vcalls) << endl;
+            cout << "avg pre-filter candidates: "
+                 << (static_cast<double>(s.valid_candidate_pre_filter_sum.load(std::memory_order_relaxed)) / vcalls) << endl;
+            cout << "avg post-filter candidates: "
+                 << (static_cast<double>(s.valid_candidate_post_filter_sum.load(std::memory_order_relaxed)) / vcalls) << endl;
+            cout << "avg intersection steps/call: "
+                 << (static_cast<double>(s.valid_candidate_intersections.load(std::memory_order_relaxed)) / vcalls) << endl;
+        }
+        cout << "==========================" << endl;
+    }
+};
+#else
+struct GMCPUProfileStats
+{
+    static GMCPUProfileStats &instance()
+    {
+        static GMCPUProfileStats stats;
+        return stats;
+    }
+
+    static unsigned long long to_ns(const std::chrono::steady_clock::duration &)
+    {
+        return 0;
+    }
+
+    static void add(...)
+    {
+    }
+
+    static void print_summary()
+    {
+    }
+};
+#endif
 
 
 class GMCPUWorker : public CPUWorker<GMTask>
@@ -33,7 +131,6 @@ public:
     GMCPUWorker() : CPUWorker<GMTask>()
     {
         temp_buffer = new ui[max_candidate_cnt];
-
         visited_arr = new bool[cpu_dg.getVerticesCount()];
         memset(visited_arr, false, sizeof(bool) * cpu_dg.getVerticesCount());
 
@@ -56,6 +153,63 @@ public:
             for (ui i = 0; i < cpu_qg.getVerticesCount(); ++i)
                 delete[] valid_candidate_idx[i];
             delete[] valid_candidate_idx;
+        }
+    }
+
+    void run() override
+    {
+#ifdef GM_CPU_PROFILE
+        auto &stats = GMCPUProfileStats::instance();
+#endif
+        if (!this->Lv.empty())
+        {
+#ifdef GM_CPU_PROFILE
+            auto root_batch_start = std::chrono::steady_clock::now();
+#endif
+            for (auto &u : this->Lv)
+            {
+                GMTask *task = task_spawn(u);
+#ifdef GM_CPU_PROFILE
+                stats.root_task_calls.fetch_add(1, std::memory_order_relaxed);
+#endif
+                compute(task->context);
+                delete task;
+            }
+#ifdef GM_CPU_PROFILE
+            GMCPUProfileStats::add(stats.root_batch_ns,
+                                   GMCPUProfileStats::to_ns(std::chrono::steady_clock::now() - root_batch_start));
+#endif
+            this->Lv.clear();
+        }
+
+        if (!this->Lt.empty())
+        {
+#ifdef GM_CPU_PROFILE
+            auto regular_batch_start = std::chrono::steady_clock::now();
+            unsigned long long prefix_tasks = 0;
+            unsigned long long regular_tasks = 0;
+#endif
+            for (auto task : this->Lt)
+            {
+#ifdef GM_CPU_PROFILE
+                if (task->context.prefix_candidate_idx != nullptr)
+                    prefix_tasks += 1;
+                else
+                    regular_tasks += 1;
+#endif
+                compute(task->context);
+                delete task;
+            }
+#ifdef GM_CPU_PROFILE
+            auto batch_ns = GMCPUProfileStats::to_ns(std::chrono::steady_clock::now() - regular_batch_start);
+            stats.prefix_task_calls.fetch_add(prefix_tasks, std::memory_order_relaxed);
+            stats.regular_task_calls.fetch_add(regular_tasks, std::memory_order_relaxed);
+            if (prefix_tasks != 0 && regular_tasks == 0)
+                GMCPUProfileStats::add(stats.prefix_batch_ns, batch_ns);
+            else
+                GMCPUProfileStats::add(stats.regular_batch_ns, batch_ns);
+#endif
+            this->Lt.clear();
         }
     }
 
@@ -106,6 +260,10 @@ public:
         }
 
         add_task(t);
+#if GM_CPU_PROFILE
+        auto &stats = GMCPUProfileStats::instance();
+        stats.split_task_spawns.fetch_add(1, std::memory_order_relaxed);
+#endif
     }
 
     void spawn_prefix_task(ui cur_depth, ui *embedding, ui *idx_embedding, ui *order, ui query_vertices_num)
@@ -114,6 +272,7 @@ public:
         if (remaining == 0)
             return;
 
+        ui spawned = 0;
         for (ui batch_begin = idx[cur_depth]; batch_begin < idx_count[cur_depth]; batch_begin += gm_prefix_batch_size_g)
         {
             ui batch_size = std::min<ui>(gm_prefix_batch_size_g, idx_count[cur_depth] - batch_begin);
@@ -136,32 +295,60 @@ public:
                    batch_size * sizeof(ui));
 
             add_task(t);
+            spawned += 1;
         }
+#if GM_CPU_PROFILE
+        auto &stats = GMCPUProfileStats::instance();
+        stats.prefix_task_spawns.fetch_add(spawned, std::memory_order_relaxed);
+#endif
     }
 
     void generateValidCandidateIndex(ui depth, ui *embedding, ui *idx_embedding, ui *idx_count, ui **valid_candidate_index,
                                     Edges ***edge_matrix, ui **bn, ui *bn_cnt, ui *order, ui *temp_buffer_, ui **candidates)
     {   
-
+#ifdef GM_CPU_PROFILE
+        auto &stats = GMCPUProfileStats::instance();
+        stats.valid_candidate_calls.fetch_add(1, std::memory_order_relaxed);
+        stats.valid_candidate_intersections.fetch_add(bn_cnt[depth] > 0 ? bn_cnt[depth] - 1 : 0, std::memory_order_relaxed);
+#endif
         ui u = order[depth];
-        ui previous_bn = bn[depth][0];
-        ui previous_index_id = idx_embedding[previous_bn];
         ui valid_candidates_count = 0;
+        ui seed_bn = bn[depth][0];
+        ui seed_index_id = idx_embedding[seed_bn];
+        Edges *seed_edge = edge_matrix[seed_bn][u];
+        valid_candidates_count = seed_edge->offset_[seed_index_id + 1] - seed_edge->offset_[seed_index_id];
 
+        for (ui i = 1; i < bn_cnt[depth]; ++i)
+        {
+            ui current_bn = bn[depth][i];
+            ui current_index_id = idx_embedding[current_bn];
+            Edges *current_edge = edge_matrix[current_bn][u];
+            ui current_candidates_count =
+                current_edge->offset_[current_index_id + 1] - current_edge->offset_[current_index_id];
+            if (current_candidates_count < valid_candidates_count)
+            {
+                seed_bn = current_bn;
+                seed_index_id = current_index_id;
+                seed_edge = current_edge;
+                valid_candidates_count = current_candidates_count;
+            }
+        }
 
-        Edges& previous_edge = *edge_matrix[previous_bn][u];
-
-        valid_candidates_count = previous_edge.offset_[previous_index_id + 1] - previous_edge.offset_[previous_index_id];
-        ui* previous_candidates = previous_edge.edge_ + previous_edge.offset_[previous_index_id];
+        ui *previous_candidates = seed_edge->edge_ + seed_edge->offset_[seed_index_id];
+#ifdef GM_CPU_PROFILE
+        stats.valid_candidate_seed_sum.fetch_add(valid_candidates_count, std::memory_order_relaxed);
+#endif
 
         ui *current_buffer = valid_candidate_index[depth];
         ui *next_buffer = temp_buffer_;
         memcpy(current_buffer, previous_candidates, valid_candidates_count * sizeof(ui));
 
         ui temp_count = 0;
-        for (ui i = 1; i < bn_cnt[depth]; ++i) {
+        for (ui i = 0; i < bn_cnt[depth]; ++i) {
             
             VertexID current_bn = bn[depth][i];
+            if (current_bn == seed_bn)
+                continue;
 
             Edges& current_edge = *edge_matrix[current_bn][u];
             ui current_index_id = idx_embedding[current_bn];
@@ -186,6 +373,9 @@ public:
         }
 
         // ====================================================
+#ifdef GM_CPU_PROFILE
+        stats.valid_candidate_pre_filter_sum.fetch_add(valid_candidates_count, std::memory_order_relaxed);
+#endif
         ui condCount = plan.condNumHost[u];
         ui tmp_len = 0;
         for (ui i = 0; i < valid_candidates_count; ++i) {
@@ -227,11 +417,12 @@ public:
             if (pred)
                 valid_candidate_index[depth][tmp_len++] = valid_index;
         }
-
         // idx_count[depth] = valid_candidates_count;
         idx_count[depth] = tmp_len;
+#ifdef GM_CPU_PROFILE
+        stats.valid_candidate_post_filter_sum.fetch_add(tmp_len, std::memory_order_relaxed);
+#endif
     }
-
 
     void LFTJ(int enter_depth, Graph_CPU &cpu_qg, Edges ***edge_matrix, ui **candidates,
                 ui *candidates_count, ui *order, ui *embedding, ui *idx_embedding,
@@ -257,7 +448,14 @@ public:
             idx[cur_depth] = 0;
         
             // compute set intersection
+#ifdef GM_CPU_PROFILE
+            auto valid_candidate_start = std::chrono::steady_clock::now();
+#endif
             generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
+#ifdef GM_CPU_PROFILE
+            GMCPUProfileStats::add(GMCPUProfileStats::instance().valid_candidate_ns,
+                                   GMCPUProfileStats::to_ns(std::chrono::steady_clock::now() - valid_candidate_start));
+#endif
   
             
             // initialize visited_arr array 
@@ -351,7 +549,14 @@ public:
                 {
                     cur_depth += 1;
                     idx[cur_depth] = 0;
+#ifdef GM_CPU_PROFILE
+                    auto valid_candidate_start = std::chrono::steady_clock::now();
+#endif
                     generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
+#ifdef GM_CPU_PROFILE
+                    GMCPUProfileStats::add(GMCPUProfileStats::instance().valid_candidate_ns,
+                                           GMCPUProfileStats::to_ns(std::chrono::steady_clock::now() - valid_candidate_start));
+#endif
                 }
                 else  // if timeout, start task splitting
                 {

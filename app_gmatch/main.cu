@@ -4,6 +4,7 @@
 
 #include "gm_task.h"
 #include "gm_cpu_worker.h"
+#include "gm_cpu_worker_gpu_style.h"
 #include "gm_gpu_context.h"
 
 static void print_help(const char *program)
@@ -23,15 +24,28 @@ static void print_help(const char *program)
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
+    cout << "  -cpu_gpu_style <0|1>  Use experimental GPU-style CPU worker. Default: 0" << endl;
 }
 
-class GMApp : public Master<GMCPUWorker, GMGPUContext>
+static bool use_gpu_style_cpu_worker(int argc, char *argv[])
+{
+    for (int i = 1; i + 1 < argc; ++i)
+    {
+        if (std::string(argv[i]) == "-cpu_gpu_style")
+            return std::atoi(argv[i + 1]) != 0;
+    }
+    return false;
+}
+
+template <typename CPUWorkerImpl>
+class GMAppT : public Master<CPUWorkerImpl, GMGPUContext>
 {
 public:
     bool gpu_enabled_;
 
-    GMApp(ui argc, char *argv[])
+    GMAppT(ui argc, char *argv[])
     {
+        auto &cmd = this->cmd;
         cmd.SetArgs(argc, argv);
         if (cmd.GetOptionValue("-dg") == NULL || cmd.GetOptionValue("-q") == NULL)
             throw std::invalid_argument("missing required arguments");
@@ -67,6 +81,7 @@ public:
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << "-s: " << plan_strategy << endl;
+        cout << "-cpu_gpu_style: " << (use_gpu_style_cpu_worker(argc, argv) ? 1 : 0) << endl;
         cout << " ======= ********** ========" << endl;
         
         gpu_dg = Graph(dg);
@@ -86,7 +101,7 @@ public:
         for (ui i = 0; i < candidates_count[root_vertex]; ++i)
         {
             ui v = candidates[root_vertex][i];
-            data_array.push_back(v);
+            this->data_array.push_back(v);
         }
     }
 
@@ -94,11 +109,13 @@ public:
     {
         ull res = 0;
 
-        while (workers_list.size())
+        while (this->workers_list.size())
         {
-            WorkerT *w = (WorkerT *)workers_list.dequeue();
-            GMCPUWorker *cw = dynamic_cast<GMCPUWorker *>(w);
-            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w); //
+            typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *w =
+                (typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *)this->workers_list.dequeue();
+            CPUWorkerImpl *cw = dynamic_cast<CPUWorkerImpl *>(w);
+            typename Master<CPUWorkerImpl, GMGPUContext>::GPUWorkerT *gw =
+                dynamic_cast<typename Master<CPUWorkerImpl, GMGPUContext>::GPUWorkerT *>(w);
 
             if (cw)
                 res += cw->counter;
@@ -270,11 +287,22 @@ int main(int argc, char *argv[])
 {
     try
     {
-        GMApp app(argc, argv);
         Timer t;
-        app.run();
-        cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-        cout << "Total count: " << app.get_results() << endl;
+        if (use_gpu_style_cpu_worker(argc, argv))
+        {
+            GMAppT<GMCPUWorkerGPUStyle> app(argc, argv);
+            app.run();
+            cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+            cout << "Total count: " << app.get_results() << endl;
+        }
+        else
+        {
+            GMAppT<GMCPUWorker> app(argc, argv);
+            app.run();
+            cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+            cout << "Total count: " << app.get_results() << endl;
+        }
+        GMCPUProfileStats::print_summary();
         return 0;
     }
     catch (const std::invalid_argument &e)

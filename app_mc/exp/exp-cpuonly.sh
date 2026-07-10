@@ -45,17 +45,17 @@ run_case() {
     fi
 }
 
-while IFS=$'\t' read -r ds q; do
+while IFS=$'\t' read -r ds; do
 
     [ -z "$ds" ] && continue
 
-    run_case "$ds-$q-nogpu.log" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -gpu 0 
+    run_case "$ds-$q-pingpong_abort.log" \
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0
 done < ds.txt
 
 
-while IFS=$'\t' read -r ds q; do
-        fname=$ds-$q-nogpu.log
+while IFS=$'\t' read -r ds ; do
+        fname=logs/$ds-$q-pingpong_abort.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else

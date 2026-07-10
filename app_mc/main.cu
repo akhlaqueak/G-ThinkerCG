@@ -15,10 +15,10 @@ static void print_help(const char *program)
     cout << "  -cpu <n>           CPU workers. Default: 28" << endl;
     cout << "  -gpu <n>           GPU workers. Default: 1" << endl;
     cout << "  -eta <n>           ETA per warp. Default: 1000" << endl;
-    cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 50" << endl;
-    cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 1000000" << endl;
+    cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 200" << endl;
+    cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
-    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
+    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 1000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
 }
 
@@ -33,10 +33,10 @@ public:
         CommandLine::RuntimeConfig defaults;
         defaults.num_cpu_workers = 28;
         defaults.num_gpu_workers = 1;
-        defaults.tasks_per_fetch_gpu_worker = 1000000;
-        defaults.tasks_per_fetch_cpu_worker = 50;
+        defaults.tasks_per_fetch_gpu_worker = 100000;
+        defaults.tasks_per_fetch_cpu_worker = 200;
         defaults.eta_per_warp = 1000;
-        defaults.tau_time_us = 10;
+        defaults.tau_time_us = 1000;
         defaults.ping_pong = 1;
         defaults.data_graph = "./data/com-friendster.ungraph.txt.bin";
         cmd.ParseRuntimeConfig(defaults);
@@ -45,15 +45,15 @@ public:
         std::string fp = cmd.runtime.data_graph;
         std::cout.imbue(std::locale());
         cout << " ======= Parameters ========" << endl;
-        cout << "Graph: " << fp << endl;
-        cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
-        cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
-        cout << "eta (tasks load per warp): " << eta_per_warp() << endl;
-        cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
-        cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
-        cout << "hg_steal: " << cmd.runtime.hg_steal << endl;
-        cout << "tau_time: " << cmd.runtime.tau_time_us << endl;
-        cout << "pingpong: " << cmd.runtime.ping_pong << endl;
+        cout << "-dg: " << fp << endl;
+        cout << "-cpu: " << cmd.runtime.num_cpu_workers << endl;
+        cout << "-gpu: " << cmd.runtime.num_gpu_workers << endl;
+        cout << "-eta: " << eta_per_warp() << endl;
+        cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
+        cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
+        cout << "-tau: " << cmd.runtime.tau_time_us << endl;
+        cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
         
         data_graph = Graph(fp);
