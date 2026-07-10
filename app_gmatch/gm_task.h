@@ -36,6 +36,7 @@ ui *bn_count;
 
 ui max_candidate_cnt;
 ui gm_prefix_batch_size_g = 100;
+bool gm_cpu_shared_intersection_g = false;
 inline constexpr ui GM_QUERY_EMBEDDING_CAP = 8;
 
 

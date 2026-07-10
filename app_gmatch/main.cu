@@ -20,6 +20,7 @@ static void print_help(const char *program)
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
+    cout << "  -cpu_shared_intersection <0|1>  Enable shared prefix intersection reuse on CPU. Default: 0" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
@@ -50,6 +51,7 @@ public:
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
         gm_prefix_batch_size_g = static_cast<ui>(cmd.runtime.prefix_batch_size);
+        gm_cpu_shared_intersection_g = cmd.GetOptionIntValue("-cpu_shared_intersection", 0) != 0;
         gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string dg = cmd.runtime.data_graph;
         int query_type = cmd.runtime.query_type;
@@ -64,6 +66,7 @@ public:
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
         cout << "-prefixbatch: " << gm_prefix_batch_size_g << endl;
+        cout << "-cpu_shared_intersection: " << (gm_cpu_shared_intersection_g ? 1 : 0) << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << "-s: " << plan_strategy << endl;
