@@ -232,6 +232,70 @@ public:
         idx_count[depth] = tmp_len;
     }
 
+    void generateValidCandidateIndexGPUStyle(ui depth, ui *embedding, ui *idx_embedding, ui *idx_count,
+                                             ui **valid_candidate_index, ui *order, ui **candidates, ui *candidates_count)
+    {
+        ui u = order[depth];
+        ui bnCount = plan.backNeighborCountHost[depth];
+        if (bnCount == 0)
+        {
+            idx_count[depth] = 0;
+            return;
+        }
+
+        ui parent_u = plan.backNeighborsHost[depth * plan.sz];
+        ui parent_u_M = embedding[parent_u];
+        ui parent_deg = 0;
+        const ui *parent_neighbors = cpu_dg.getVertexNeighbors(parent_u_M, parent_deg);
+
+        for (ui i = 1; i < bnCount; ++i)
+        {
+            ui u_prime = plan.backNeighborsHost[depth * plan.sz + i];
+            ui u_prime_M = embedding[u_prime];
+            ui deg = 0;
+            const ui *nbrs = cpu_dg.getVertexNeighbors(u_prime_M, deg);
+            if (deg < parent_deg)
+            {
+                parent_u = u_prime;
+                parent_deg = deg;
+                parent_neighbors = nbrs;
+            }
+        }
+
+        ui condCount = plan.condNumHost[u];
+        ui out_count = 0;
+        for (ui i = 0; i < parent_deg; ++i)
+        {
+            ui vertex = parent_neighbors[i];
+            if (visited_arr[vertex])
+                continue;
+            if (!candidateSatisfiesConditions(u, vertex, plan.condOrderHost, condCount, embedding))
+                continue;
+
+            bool pred = true;
+            for (ui j = 0; j < bnCount; ++j)
+            {
+                ui u_prime = plan.backNeighborsHost[depth * plan.sz + j];
+                if (u_prime == parent_u)
+                    continue;
+                ui u_prime_M = embedding[u_prime];
+                if (!dataGraphHasEdge(u_prime_M, vertex))
+                {
+                    pred = false;
+                    break;
+                }
+            }
+            if (!pred)
+                continue;
+
+            int idx = binary_search(candidates[u], candidates_count[u], vertex);
+            if (idx != -1)
+                valid_candidate_index[depth][out_count++] = static_cast<ui>(idx);
+        }
+
+        idx_count[depth] = out_count;
+    }
+
     bool candidateSatisfiesConditions(ui query_vertex, ui vertex, ui *cond_order, ui cond_count, ui *embedding)
     {
         for (ui k = 0; k < cond_count; ++k)
@@ -379,16 +443,16 @@ public:
         else
         {  
             idx[cur_depth] = 0;
-        
-            // compute set intersection
-            generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
-  
-            
-            // initialize visited_arr array 
+
             for (ui i = 0; i < enter_depth; ++i)
             {
                 visited_arr[embedding[order[i]]] = true;
             }
+
+            if (gm_cpu_gpu_style_expand_g)
+                generateValidCandidateIndexGPUStyle(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, order, candidates, candidates_count);
+            else
+                generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
         }
 
         search_from_depth(enter_depth, cur_depth, cpu_qg, edge_matrix, candidates, candidates_count, order,
@@ -516,7 +580,10 @@ public:
                 {
                     cur_depth += 1;
                     idx[cur_depth] = 0;
-                    generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
+                    if (gm_cpu_gpu_style_expand_g)
+                        generateValidCandidateIndexGPUStyle(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, order, candidates, candidates_count);
+                    else
+                        generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
                 }
                 else  // if timeout, start task splitting
                 {
