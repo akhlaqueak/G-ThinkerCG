@@ -79,7 +79,8 @@ __device__ int d_get_mindeg(int number_of_members, GPU_Data &dd);
 __device__ void d_print_vertices(Vertex *vertices, int size);
 __global__ void transfer_cliques(GPU_Data dd);
 
-class QCBuffer : public BufferBase
+template <class IndexType>
+class QCBuffer : public BufferBase<IndexType>
 {
 
 public:
@@ -90,12 +91,12 @@ public:
 
     static ull sizeOf()
     {
-        return BufferBase::sizeOf() + sizeof(Label) + 3 * sizeof(int);
+        return BufferBase<IndexType>::sizeOf() + sizeof(Label) + 3 * sizeof(int);
     }
     void allocateMemory(ull sz)
     {
         cout << "Device buffers size: " << sz << endl;
-        BufferBase::allocateMemory(sz);
+        BufferBase<IndexType>::allocateMemory(sz);
         chkerr(cudaMalloc((void **)&label, sz * sizeof(Label)));
         chkerr(cudaMalloc((void **)&indeg, sz * sizeof(int)));
         chkerr(cudaMalloc((void **)&exdeg, sz * sizeof(int)));
@@ -104,7 +105,7 @@ public:
 
     void copy(auto &src)
     {
-        BufferBase::copy(src);
+        BufferBase<IndexType>::copy(src);
         label = src.label;
         indeg = src.indeg;
         exdeg = src.exdeg;
@@ -112,7 +113,7 @@ public:
     }
     __device__ void copy(auto &src, ull i, ull j)
     {
-        BufferBase::copy(src, i, j);
+        BufferBase<IndexType>::copy(src, i, j);
         label[i] = src.label[j];
         indeg[i] = src.indeg[j];
         exdeg[i] = src.exdeg[j];
@@ -120,7 +121,7 @@ public:
     }
     void copy_host_range(auto &src, ull dst, ull src_st, ull len)
     {
-        BufferBase::copy_host_range(src, dst, src_st, len);
+        BufferBase<IndexType>::copy_host_range(src, dst, src_st, len);
         if (len == 0)
             return;
         chkerr(cudaMemcpy(label + dst, src.label + src_st, sizeof(Label) * len, cudaMemcpyDeviceToHost));
@@ -130,7 +131,7 @@ public:
     }
     void copy_host_to_device_range(auto &src, ull dst, ull src_st, ull len)
     {
-        BufferBase::copy_host_to_device_range(src, dst, src_st, len);
+        BufferBase<IndexType>::copy_host_to_device_range(src, dst, src_st, len);
         if (len == 0)
             return;
         chkerr(cudaMemcpy(label + dst, src.label + src_st, sizeof(Label) * len, cudaMemcpyHostToDevice));
@@ -144,7 +145,7 @@ public:
      */
     void allocateMemory()
     {
-        BufferBase::allocateMemory();
+        BufferBase<IndexType>::allocateMemory();
         chkerr(cudaMallocManaged((void **)&label, sizeof(Label) * HOST_BUFF_SZ));
         chkerr(cudaMallocManaged((void **)&indeg, sizeof(int) * HOST_BUFF_SZ));
         chkerr(cudaMallocManaged((void **)&exdeg, sizeof(int) * HOST_BUFF_SZ));
@@ -170,7 +171,8 @@ class QCApp : public AppBase<QCBuffer>
     ull saved_cliques_size_ = 0;
 
 public:
-    __device__ Vertex make_vertex(const QCBuffer &buffer, ull pos)
+    template <class IndexType>
+    __device__ Vertex make_vertex(const QCBuffer<IndexType> &buffer, ull pos)
     {
         Vertex v;
         v.vertexid = buffer.vertices[pos];

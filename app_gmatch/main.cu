@@ -21,7 +21,7 @@ static void print_help(const char *program)
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
-    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
+    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 100000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
     cout << "  -cpu_gpu_style <0|1>  Use experimental GPU-style CPU worker. Default: 0" << endl;
@@ -45,7 +45,6 @@ public:
 
     GMAppT(ui argc, char *argv[])
     {
-        auto &cmd = this->cmd;
         cmd.SetArgs(argc, argv);
         if (cmd.GetOptionValue("-dg") == NULL || cmd.GetOptionValue("-q") == NULL)
             throw std::invalid_argument("missing required arguments");
@@ -56,13 +55,13 @@ public:
         defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
         defaults.prefix_batch_size = 100;
-        defaults.tau_time_us = 10;
+        defaults.tau_time_us = 100000;
         defaults.ping_pong = 1;
         defaults.data_graph = "";
         defaults.query_type = 0;
         defaults.plan_strategy = "hybrid";
         cmd.ParseRuntimeConfig(defaults);
-        apply_runtime_config(cmd.runtime);
+        this->apply_runtime_config(cmd.runtime);
         gm_prefix_batch_size_g = static_cast<ui>(cmd.runtime.prefix_batch_size);
         gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string dg = cmd.runtime.data_graph;
@@ -73,7 +72,7 @@ public:
         cout << "-q: " << query_type << endl;
         cout << "-cpu: " << cmd.runtime.num_cpu_workers << endl;
         cout << "-gpu: " << cmd.runtime.num_gpu_workers << endl;
-        cout << "-eta: " << eta_per_warp() << endl;
+        cout << "-eta: " << this->eta_per_warp() << endl;
         cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
@@ -109,10 +108,10 @@ public:
     {
         ull res = 0;
 
-        while (this->workers_list.size())
+        while (workers_list.size())
         {
             typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *w =
-                (typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *)this->workers_list.dequeue();
+                (typename Master<CPUWorkerImpl, GMGPUContext>::WorkerT *)workers_list.dequeue();
             CPUWorkerImpl *cw = dynamic_cast<CPUWorkerImpl *>(w);
             typename Master<CPUWorkerImpl, GMGPUContext>::GPUWorkerT *gw =
                 dynamic_cast<typename Master<CPUWorkerImpl, GMGPUContext>::GPUWorkerT *>(w);
