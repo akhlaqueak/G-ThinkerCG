@@ -342,10 +342,7 @@ public:
     {
         if (!sharedPreCacheMatches(target_depth, embedding, order))
         {
-            bool ignore_visited_vertex = target_depth > 0;
-            ui ignored_vertex = ignore_visited_vertex ? embedding[order[target_depth - 1]] : std::numeric_limits<ui>::max();
-            build_shared_prefix_preintersection(target_depth, embedding, shared_pre_vertices_cache[target_depth],
-                                                ignore_visited_vertex, ignored_vertex);
+            build_shared_prefix_preintersection(target_depth, embedding, shared_pre_vertices_cache[target_depth]);
             saveSharedPreCacheOwner(target_depth, embedding, order);
         }
         return shared_pre_vertices_cache[target_depth];
@@ -428,8 +425,7 @@ public:
         return binary_search(const_cast<ui *>(nbrs), nbr_cnt, dst) != -1;
     }
 
-    void build_shared_prefix_preintersection(ui target_depth, ui *embedding, std::vector<ui> &pre_vertices,
-                                             bool ignore_visited_vertex, ui ignored_vertex)
+    void build_shared_prefix_preintersection(ui target_depth, ui *embedding, std::vector<ui> &pre_vertices)
     {
         pre_vertices.clear();
         ui target_u = matching_order[target_depth];
@@ -461,8 +457,6 @@ public:
         for (ui i = 0; i < parent_deg; ++i)
         {
             ui vertex = parent_neighbors[i];
-            if (visited_arr[vertex] && (!ignore_visited_vertex || vertex != ignored_vertex))
-                continue;
             if (!candidateSatisfiesConditions(target_u, vertex, plan.preCondOrderHost, condCount, embedding))
                 continue;
 
