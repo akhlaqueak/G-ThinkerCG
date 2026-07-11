@@ -146,7 +146,7 @@ public:
 
     virtual void compute(MCContext &context)
     {
-        BK(context.R, context.P, context.X, now());
+        BK(context.R, context.P, context.X, start_task_timer());
     }
 };
 

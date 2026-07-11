@@ -90,7 +90,7 @@ public:
     virtual void compute(GMContext &context)
     {
         ftime(&thread_local_time);
-        st = now();
+        st = start_task_timer();
 
         if (context.prefix_candidate_idx != nullptr)
             process_prefix_task(context);

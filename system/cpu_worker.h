@@ -17,15 +17,36 @@ class CPUWorker : public Worker<TaskT>
 
 protected:
     using TimePoint = std::chrono::steady_clock::time_point;
+    bool timeout_latched_ = false;
 
     static TimePoint now()
     {
         return TIME_NOW;
     }
 
-    static bool time_over(const TimePoint &start)
+    void reset_timeout_latch()
     {
-        return std::chrono::duration_cast<std::chrono::microseconds>(TIME_NOW - start).count() >= tau_time_g;
+        timeout_latched_ = false;
+    }
+
+    TimePoint start_task_timer()
+    {
+        reset_timeout_latch();
+        return now();
+    }
+
+    bool time_over(const TimePoint &start)
+    {
+        if (timeout_latched_)
+            return true;
+
+        if (std::chrono::duration_cast<std::chrono::microseconds>(TIME_NOW - start).count() >= tau_time_g)
+        {
+            timeout_latched_ = true;
+            return true;
+        }
+
+        return false;
     }
 
 public:

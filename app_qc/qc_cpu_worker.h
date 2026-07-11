@@ -1121,7 +1121,7 @@ public:
             return;
         const uint64_t before_count = local_hc.cliques_count;
         active_big_root_lineage = context.from_big_root;
-        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices, now());
+        h_expand_level(*hg, local_hd, local_hc, context.vertices, context.num_vertices, start_task_timer());
         active_big_root_lineage = false;
         if (context.from_big_root)
         {

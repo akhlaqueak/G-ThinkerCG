@@ -44,7 +44,7 @@ public:
 
     virtual void compute(GMContext &context)
     {
-        st = now();
+        st = start_task_timer();
 
         if (context.prefix_candidate_idx != nullptr)
             process_prefix_task(context);
