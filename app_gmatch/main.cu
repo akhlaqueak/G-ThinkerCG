@@ -22,7 +22,7 @@ static void print_help(const char *program)
     cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
     cout << "  -cpu_shared_intersection <0|1>  Enable shared prefix intersection reuse on CPU. Default: 0" << endl;
     cout << "  -cpu_gpu_style_expand <0|1>  Use GPU-style candidate generation on CPU expand path. Default: 0" << endl;
-    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 10" << endl;
+    cout << "  -tau <n>           CPU decomposition threshold (us). Default: 100000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
 }
@@ -44,7 +44,7 @@ public:
         defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
         defaults.prefix_batch_size = 100;
-        defaults.tau_time_us = 10;
+        defaults.tau_time_us = 100000;
         defaults.ping_pong = 1;
         defaults.data_graph = "";
         defaults.query_type = 0;
