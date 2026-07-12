@@ -20,8 +20,6 @@ static void print_help(const char *program)
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
-    cout << "  -cpu_shared_intersection <0|1>  Enable shared prefix intersection reuse on CPU. Default: 0" << endl;
-    cout << "  -cpu_gpu_style_expand <0|1>  Use GPU-style candidate generation on CPU expand path. Default: 0" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 100000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
     cout << "  -s <name>          Plan strategy. Default: hybrid" << endl;
@@ -52,8 +50,6 @@ public:
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);
         gm_prefix_batch_size_g = static_cast<ui>(cmd.runtime.prefix_batch_size);
-        gm_cpu_shared_intersection_g = cmd.GetOptionIntValue("-cpu_shared_intersection", 0) != 0;
-        gm_cpu_gpu_style_expand_g = cmd.GetOptionIntValue("-cpu_gpu_style_expand", 0) != 0;
         gpu_enabled_ = cmd.runtime.num_gpu_workers > 0;
         std::string dg = cmd.runtime.data_graph;
         int query_type = cmd.runtime.query_type;
@@ -68,8 +64,6 @@ public:
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
         cout << "-prefixbatch: " << gm_prefix_batch_size_g << endl;
-        cout << "-cpu_shared_intersection: " << (gm_cpu_shared_intersection_g ? 1 : 0) << endl;
-        cout << "-cpu_gpu_style_expand: " << (gm_cpu_gpu_style_expand_g ? 1 : 0) << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << "-s: " << plan_strategy << endl;
@@ -86,7 +80,7 @@ public:
 
         if (cpu_qg.getVerticesCount() > GM_QUERY_EMBEDDING_CAP)
             throw std::runtime_error("GM query size exceeds inline embedding capacity");
-        
+
         // load first-level candidates in data_array
         ui root_vertex = matching_order[0];
         for (ui i = 0; i < candidates_count[root_vertex]; ++i)
@@ -109,6 +103,7 @@ public:
             if (cw)
                 res += cw->counter;
             else if (gw)
+                // cout<<"gpu found: "<< gw->getContext()->get_results();
                 res += gw->getContext()->get_results();
         }
         return res;
@@ -161,6 +156,7 @@ public:
     {
 
         std::cout << "CPU preprocess start..." << std::endl;
+        //  ============== Step 1 ==============
         FilterVertices::DPisoFilter(cpu_dg, cpu_qg, candidates, candidates_count,
                                     bfs_order, tree);
         FilterVertices::sortCandidates(candidates, candidates_count, cpu_qg.getVerticesCount());
@@ -172,10 +168,12 @@ public:
 
         std::cout << " MAX CANDS : " << max_candidate_cnt << std::endl;
 
+        // ============== Step 2 ==============
         GenerateQueryPlan::generateGQLQueryPlan(cpu_dg, cpu_qg, candidates_count, matching_order, pivot);
 
         for (ui i = 0; i < cpu_qg.getVerticesCount(); i++)
         {
+            //  plan.matchOrderHost[i] = matching_order[i];
             matching_order[i] = plan.matchOrderHost[i];
         }
         std::cout << " ROOT CANDS : " << candidates_count[matching_order[0]] << std::endl;
@@ -224,13 +222,14 @@ public:
 
     string write_to_file(auto &query)
     {
+        // Convert id to string using std::to_string
         string path = "query_cpu.txt";
         std::ofstream outfile(path);
 
         if (!outfile)
         {
             std::cerr << "Failed to open file for writing.\n";
-            return path;
+            return path; // remove 'return 1;' — it's a void function
         }
         ui edges = 0;
         for (ui i = 0; i < query.GetVertexCount(); i++)
@@ -244,12 +243,13 @@ public:
             }
         }
 
+        // Header
         outfile << "t " << query.GetVertexCount() << " " << edges << std::endl;
 
         for (ui i = 0; i < query.GetVertexCount(); i++)
         {
             ui degree = query.GetRowPtrs()[i + 1] - query.GetRowPtrs()[i];
-            outfile << "v " << i << " 0 " << degree << std::endl;
+            outfile << "v " << i << " 0 " << degree << std::endl; // use outfile, not cout
         }
 
         for (ui i = 0; i < query.GetVertexCount(); i++)
@@ -259,7 +259,7 @@ public:
             for (; j < en; j++)
             {
                 if (i < query.GetCols()[j])
-                    outfile << "e " << i << " " << query.GetCols()[j] << std::endl;
+                    outfile << "e " << i << " " << query.GetCols()[j] << std::endl; // use outfile
             }
         }
         return path;

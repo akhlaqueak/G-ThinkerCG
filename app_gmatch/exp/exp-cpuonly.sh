@@ -9,56 +9,109 @@
 #SBATCH --output=%x.out
 #SBATCH --error=%x.err
 
+# ds="wikipedia_link_sr
+# wikipedia_link_sh
+# wikipedia_link_fr
+# web-wikipedia_link_en13-all
+# wikipedia_link_de
+# edit-frwiki
+# orkut-links
+# wikipedia_link_ru
+# link-dynamic-frwiki
+ds="
+soc-livejournal
+socfb-B-anon
+soc-pokec
+delicious-ui
+orkut-links
+as-skitter
+sx-stackoverflow
+link-dynamic-itwiki
+zhishi-baidu-internallink
+wiki-Talk
+link-dynamic-frwiki
+zhishi-all
+wiki-topcats
+soc-sinaweibo
+"
 
+
+quer="2 5 6 7 8 9"
+mkdir -p logs
+: > logs/failed.log
+TIME_THRESH=1h
+skip_existing_logs=0
+skip_completed_logs=1
 run_case() {
-    local logfile="logs/$1"
+    local logfile="$1"
     shift
+    local cmd_str
+    printf -v cmd_str '%q ' "$@"
+    cmd_str=${cmd_str% }
 
-    if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
-        echo "Skipping $logfile (already completed)"
+    if [ "$skip_existing_logs" -eq 1 ] && [ -f "$logfile" ]; then
+        echo "Skipping existing $logfile"
         return
     fi
 
+    if [ "$skip_completed_logs" -eq 1 ] && [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
+        echo "Skipping $logfile"
+        return
+    fi
+
+    echo "Running: timeout $TIME_THRESH $cmd_str"
     {
-        echo "CMD: $*"
-        echo "START: $(date)"
+        echo "Command: timeout $TIME_THRESH $cmd_str"
         echo
     } > "$logfile"
 
-    if timeout 30m "$@" >> "$logfile" 2>&1; then
-        {
-            echo
-            echo "STATUS: OK"
-            echo "END: $(date)"
-        } >> "$logfile"
-    else
-        rc=$?
-        {
-            echo
-            if [ "$rc" -eq 124 ]; then
-                echo "STATUS: TIMEOUT after 30m"
-            else
-                echo "STATUS: FAILED (exit code $rc)"
-            fi
-            echo "END: $(date)"
-        } >> "$logfile"
+    timeout "$TIME_THRESH" "$@" >> "$logfile" 2>&1
+    local rc=$?
+
+    if [ "$rc" -ne 0 ]; then
+        if [ "$rc" -eq 124 ]; then
+            echo "Run timed out after $TIME_THRESH (exit code: $rc): $cmd_str" >> logs/failed.log
+            echo "Run timed out after $TIME_THRESH (exit code: $rc): $cmd_str" >> "$logfile"
+        elif [ "$rc" -eq 134 ]; then
+            echo "Run aborted (SIGABRT, exit code: $rc): $cmd_str" >> logs/failed.log
+            echo "Run aborted (SIGABRT, exit code: $rc): $cmd_str" >> "$logfile"
+        else
+            echo "Run failed (exit code: $rc): $cmd_str" >> logs/failed.log
+            echo "Run failed (exit code: $rc): $cmd_str" >> "$logfile"
+        fi
     fi
 }
 
-while IFS=$'\t' read -r ds q; do
+cp run run-exp
+for d in $ds; do 
+    for q in $quer; do
+    #    run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
+    #    run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0  -tau 100000
+    #    run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
+    #    run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 10
+    #    run_case "logs/$d-$q-nocpu-expand.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -s expand
+    
+        run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -gpu 0
+    done
+done
 
-    [ -z "$ds" ] && continue
+get_results(){
+exps="g2aimd nocpu nogpu with_cpu_gpu"
 
-    run_case "$ds-$q-nogpu.log" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -gpu 0 
-done < ds.txt
+for d in $ds; do 
+    for q in $quer; do
+        echo -en "$d $q "
+        for exp in $exps; do
+            fname="logs/$d-$q-$exp.log"
 
-
-while IFS=$'\t' read -r ds q; do
-        fname=$ds-$q-nogpu.log
-        if grep -q "Total time" "$fname" 2>/dev/null; then
-            grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
-        else
-            echo "X"
-        fi
-done < ds.txt
+            if grep -q "Total time" "$fname" 2>/dev/null; then
+                grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+            else
+                echo -en "X "
+            fi
+        done
+        echo 
+    done
+done
+}
+get_results

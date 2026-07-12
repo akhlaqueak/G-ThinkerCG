@@ -9,6 +9,7 @@ SRC := main.cu intersection/computesetintersection.cpp
 INC := -I.. -I../common/MPMCQueue/include -I../common/bliss -I../system/ -I../common
 CFLAGS := -std=c++20 -O3 -Xcompiler -fopenmp  -lgomp -lpthread -DOPENMP
 PTXASFLAGS := -Xptxas -v -lineinfo
+EXTRA_NVCC_FLAGS ?=
 
 BLISS_DIR = ../common
 BLISS_LIB = -L${BLISS_DIR}/bliss -lbliss
@@ -16,25 +17,25 @@ BLISS_LIB = -L${BLISS_DIR}/bliss -lbliss
 .PHONY: all debug p100 debug_p100 ptxas ptxas_p100 clean
 
 all:
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET)
+	$(NVCC) -arch=sm_80 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET)
 
 prof:
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET) -pg
+	$(NVCC) -arch=sm_80 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(TARGET) -pg
 
 ptxas:
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(PTXAS_TARGET)
+	$(NVCC) -arch=sm_80 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(PTXAS_TARGET)
 
 debug:
-	$(NVCC) -arch=sm_80 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -g -G -Xcompiler -gdwarf-4 -o $(DEBUG_TARGET)
+	$(NVCC) -arch=sm_80 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -g -G -Xcompiler -gdwarf-4 -o $(DEBUG_TARGET)
 
 p100:
-	$(NVCC) -arch=sm_60 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(P100_TARGET)
+	$(NVCC) -arch=sm_60 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(P100_TARGET)
 
 ptxas_p100:
-	$(NVCC) -arch=sm_60 --maxrregcount=64 $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(PTXAS_P100_TARGET)
+	$(NVCC) -arch=sm_60 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(PTXASFLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -o $(PTXAS_P100_TARGET)
 
 debug_p100:
-	$(NVCC) -arch=sm_60 --maxrregcount=64 $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -g -G -Xcompiler -gdwarf-4 -o $(DEBUG_P100_TARGET)
+	$(NVCC) -arch=sm_60 --maxrregcount=64 $(EXTRA_NVCC_FLAGS) $(CFLAGS) $(INC) $(BLISS_LIB) $(SRC) -g -G -Xcompiler -gdwarf-4 -o $(DEBUG_P100_TARGET)
 
 clean:
 	rm -f $(TARGET) $(PTXAS_TARGET) $(DEBUG_TARGET) $(P100_TARGET) $(PTXAS_P100_TARGET) $(DEBUG_P100_TARGET)
