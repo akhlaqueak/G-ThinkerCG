@@ -163,6 +163,8 @@ public:
                 gc.H.clear();
                 g_ping_pong_flag = false;
                 gc.set_layered_mode();
+                
+                show_progress("abort done");
             }
             else
             {

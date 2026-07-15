@@ -152,6 +152,10 @@ class QCGPUContext : public GPUContext<QCBuffer, QCTask>
     GPU_Data dd;
 
 public:
+    uint64_t saved_cliques_count_ = 0;
+    uint64_t saved_cliques_vertex_count_ = 0;
+    uint64_t saved_max_clique_size_ = 0;
+
     __device__ Vertex make_vertex(const QCBuffer &buffer, ull pos)
     {
         Vertex v;
@@ -165,6 +169,20 @@ public:
 
     ull get_results()
     {
+    }
+
+    void init_chunk() override
+    {
+        chkerr(cudaMemcpy(&saved_cliques_count_, dd.cliques_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&saved_cliques_vertex_count_, dd.cliques_vertex_count, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        chkerr(cudaMemcpy(&saved_max_clique_size_, dd.max_clique_size, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    }
+
+    void abort_chunk() override
+    {
+        chkerr(cudaMemcpy(dd.cliques_count, &saved_cliques_count_, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.cliques_vertex_count, &saved_cliques_vertex_count_, sizeof(uint64_t), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.max_clique_size, &saved_max_clique_size_, sizeof(uint64_t), cudaMemcpyHostToDevice));
     }
 
     virtual void initialize()

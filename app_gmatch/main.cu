@@ -105,6 +105,8 @@ public:
             else if (gw)
                 // cout<<"gpu found: "<< gw->getContext()->get_results();
                 res += gw->getContext()->get_results();
+
+            delete w;
         }
         return res;
     }
@@ -273,8 +275,9 @@ int main(int argc, char *argv[])
         GMApp app(argc, argv);
         Timer t;
         app.run();
+        ull total_count = app.get_results();
         cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-        cout << "Total count: " << app.get_results() << endl;
+        cout << "Total count: " << total_count << endl;
         return 0;
     }
     catch (const std::invalid_argument &e)

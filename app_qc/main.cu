@@ -235,6 +235,7 @@ public:
         cout << "eta: " << eta_per_warp() << endl;
         cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        cout << "pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
 
         // TIME

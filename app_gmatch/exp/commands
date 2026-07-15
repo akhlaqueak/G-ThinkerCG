@@ -20,7 +20,7 @@ while IFS=$'\t' read -r ds q; do
 done < ds.txt
 
 while IFS=$'\t' read -r ds q; do
-        fname=$ds-$q-g2aimd.log
+        fname=$ds-$q-pp1.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else
@@ -33,9 +33,11 @@ run_case() {
     local logfile="$1"
     shift
 
-    if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
-        echo "Skipping $logfile (already completed)"
-        return
+    if [ -f "$logfile" ]; then
+        if grep -q "Total time" "$logfile" || grep -q "STATUS: TIMEOUT" "$logfile"; then
+            echo "Skipping $logfile (already completed or timed out)"
+            return
+        fi
     fi
 
     {
@@ -68,8 +70,28 @@ while IFS=$'\t' read -r ds q; do
 
     [ -z "$ds" ] && continue
 
-    run_case "$ds-$q-g2aimd.log" \
-        ./g2aimd -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0 -hg_steal 10000000 -cpuchunk $p
+    # run_case "$ds-$q-g2aimd.log" \
+    #     ./g2aimd -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0 -hg_steal 10000000 -cpuchunk $p
+    # run_case "$ds-$q-chunk-10.log" \
+    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0 -cpuchunk 10
+    # run_case "$ds-$q-nogpu.log" \
+    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -gpu 0 -cpuchunk 10
+    # run_case "$ds-$q-pp1.log" \
+    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -pingpong 1
     # run_case "$ds-$q-pp2.log" \
     #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -pingpong 2
-done < ds.txt
+    # run_case "$ds-$q-pp0.log" \
+    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -pingpong 0
+    run_case "$ds-$q-with_cpu_gpu.log" \
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0
+done < ds1.txt
+
+
+while IFS=$'\t' read -r ds q; do
+        fname=$ds-$q-pp0.log
+        if grep -q "Total time" "$fname" 2>/dev/null; then
+            grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
+        else
+            echo "X"
+        fi
+done < ds1.txt

@@ -23,34 +23,12 @@ public:
     ui *idx = nullptr;
     ui *idx_count = nullptr;
     ui **valid_candidate_idx = nullptr;
-    ui **shared_pre_vertices_cache = nullptr;
-    ui *shared_pre_vertices_count = nullptr;
-    ui **shared_pre_cache_owner = nullptr;
-    bool *shared_pre_cache_valid = nullptr;
 
     struct timeb thread_local_time;
 
     std::chrono::time_point<std::chrono::steady_clock> st;
 
-    GMCPUWorker() : CPUWorker<GMTask>()
-    {
-        ui qsz = cpu_qg.getVerticesCount();
-        if (qsz == 0)
-            return;
-
-        shared_pre_vertices_cache = new ui *[qsz];
-        shared_pre_vertices_count = new ui[qsz];
-        shared_pre_cache_owner = new ui *[qsz];
-        shared_pre_cache_valid = new bool[qsz];
-
-        for (ui i = 0; i < qsz; ++i)
-        {
-            shared_pre_vertices_cache[i] = new ui[max_candidate_cnt];
-            shared_pre_vertices_count[i] = 0;
-            shared_pre_cache_owner[i] = new ui[qsz];
-            shared_pre_cache_valid[i] = false;
-        }
-    }
+    GMCPUWorker() : CPUWorker<GMTask>() {}
 
     ~GMCPUWorker() override
     {
@@ -64,20 +42,6 @@ public:
                 delete[] valid_candidate_idx[i];
             delete[] valid_candidate_idx;
         }
-        if (shared_pre_vertices_cache != nullptr)
-        {
-            for (ui i = 0; i < cpu_qg.getVerticesCount(); ++i)
-                delete[] shared_pre_vertices_cache[i];
-            delete[] shared_pre_vertices_cache;
-        }
-        delete[] shared_pre_vertices_count;
-        if (shared_pre_cache_owner != nullptr)
-        {
-            for (ui i = 0; i < cpu_qg.getVerticesCount(); ++i)
-                delete[] shared_pre_cache_owner[i];
-            delete[] shared_pre_cache_owner;
-        }
-        delete[] shared_pre_cache_valid;
     }
 
     virtual GMTask *task_spawn(VertexID &data)
@@ -266,186 +230,6 @@ public:
         idx_count[depth] = tmp_len;
     }
 
-    bool candidateSatisfiesConditions(ui target_u, ui vertex, const uintV *cond_order_host,
-                                      ui condCount, ui *embedding)
-    {
-        for (ui k = 0; k < condCount; ++k)
-        {
-            ui cond = cond_order_host[target_u * plan.sz * 2 + 2 * k];
-            ui cond_vertex = cond_order_host[target_u * plan.sz * 2 + 2 * k + 1];
-            ui cond_vertex_M = embedding[cond_vertex];
-            if (cond == CondOperator::LESS_THAN)
-            {
-                if (cond_vertex_M <= vertex)
-                    return false;
-            }
-            else if (cond == CondOperator::LARGER_THAN)
-            {
-                if (cond_vertex_M >= vertex)
-                    return false;
-            }
-            else if (cond == CondOperator::NON_EQUAL)
-            {
-                if (cond_vertex_M == vertex)
-                    return false;
-            }
-        }
-        return true;
-    }
-
-    bool sharedPreCacheMatches(ui target_depth, ui *embedding, ui *order)
-    {
-        if (!shared_pre_cache_valid[target_depth])
-            return false;
-
-        for (ui i = 0; i + 1 < target_depth; ++i)
-        {
-            ui u = order[i];
-            if (shared_pre_cache_owner[target_depth][u] != embedding[u])
-                return false;
-        }
-        return true;
-    }
-
-    void saveSharedPreCacheOwner(ui target_depth, ui *embedding, ui *order)
-    {
-        for (ui i = 0; i + 1 < target_depth; ++i)
-        {
-            ui u = order[i];
-            shared_pre_cache_owner[target_depth][u] = embedding[u];
-        }
-        shared_pre_cache_valid[target_depth] = true;
-    }
-
-    void build_shared_prefix_preintersection(ui target_depth, ui *embedding, ui *order)
-    {
-        shared_pre_vertices_count[target_depth] = 0;
-
-        ui target_u = order[target_depth];
-        ui bnCount = plan.preBackNeighborCountHost[target_depth];
-        if (bnCount == 0)
-            return;
-
-        ui first_bn = plan.preBackNeighborsHost[target_depth * plan.sz];
-        ui first_idx = idx_embedding[first_bn];
-        Edges &first_edge = *edge_matrix[first_bn][target_u];
-        ui valid_candidates_count = first_edge.offset_[first_idx + 1] - first_edge.offset_[first_idx];
-        ui *previous_candidates = first_edge.edge_ + first_edge.offset_[first_idx];
-
-        memcpy(shared_pre_vertices_cache[target_depth], previous_candidates,
-               valid_candidates_count * sizeof(ui));
-
-        ui temp_count = 0;
-        for (ui i = 1; i < bnCount; ++i)
-        {
-            ui current_bn = plan.preBackNeighborsHost[target_depth * plan.sz + i];
-            ui current_index_id = idx_embedding[current_bn];
-            Edges &current_edge = *edge_matrix[current_bn][target_u];
-            ui current_candidates_count = current_edge.offset_[current_index_id + 1] - current_edge.offset_[current_index_id];
-            ui *current_candidates = current_edge.edge_ + current_edge.offset_[current_index_id];
-
-            if (current_candidates_count < valid_candidates_count)
-                ComputeSetIntersection::ComputeCandidates(current_candidates, current_candidates_count,
-                                                          shared_pre_vertices_cache[target_depth], valid_candidates_count,
-                                                          temp_buffer, temp_count);
-            else
-                ComputeSetIntersection::ComputeCandidates(shared_pre_vertices_cache[target_depth], valid_candidates_count,
-                                                          current_candidates, current_candidates_count,
-                                                          temp_buffer, temp_count);
-
-            for (ui j = 0; j < temp_count; ++j)
-                shared_pre_vertices_cache[target_depth][j] = temp_buffer[j];
-
-            valid_candidates_count = temp_count;
-            if (valid_candidates_count == 0)
-                break;
-        }
-
-        ui condCount = plan.preCondNumHost[target_u];
-        ui tmp_len = 0;
-        for (ui i = 0; i < valid_candidates_count; ++i)
-        {
-            ui candidate_idx = shared_pre_vertices_cache[target_depth][i];
-            ui vertex = candidates[target_u][candidate_idx];
-            if (candidateSatisfiesConditions(target_u, vertex, plan.preCondOrderHost, condCount, embedding))
-                shared_pre_vertices_cache[target_depth][tmp_len++] = candidate_idx;
-        }
-
-        shared_pre_vertices_count[target_depth] = tmp_len;
-    }
-
-    void ensureSharedPrefixPreintersection(ui target_depth, ui *embedding, ui *order)
-    {
-        if (!sharedPreCacheMatches(target_depth, embedding, order))
-        {
-            build_shared_prefix_preintersection(target_depth, embedding, order);
-            saveSharedPreCacheOwner(target_depth, embedding, order);
-        }
-    }
-
-    void generateSharedCandidateIndex(ui target_depth, ui *embedding, ui *idx_count,
-                                      ui **valid_candidate_index, ui **candidates)
-    {
-        ensureSharedPrefixPreintersection(target_depth, embedding, matching_order);
-
-        ui target_u = matching_order[target_depth];
-        ui valid_candidates_count = shared_pre_vertices_count[target_depth];
-
-        memcpy(valid_candidate_index[target_depth], shared_pre_vertices_cache[target_depth],
-               valid_candidates_count * sizeof(ui));
-
-        ui bnCount = plan.afterBackNeighborCountHost[target_depth];
-        ui temp_count = 0;
-        for (ui i = 0; i < bnCount; ++i)
-        {
-            ui current_bn = plan.afterBackNeighborsHost[target_depth * plan.sz + i];
-            ui current_index_id = idx_embedding[current_bn];
-            Edges &current_edge = *edge_matrix[current_bn][target_u];
-            ui current_candidates_count = current_edge.offset_[current_index_id + 1] - current_edge.offset_[current_index_id];
-            ui *current_candidates = current_edge.edge_ + current_edge.offset_[current_index_id];
-
-            if (current_candidates_count < valid_candidates_count)
-                ComputeSetIntersection::ComputeCandidates(current_candidates, current_candidates_count,
-                                                          valid_candidate_index[target_depth], valid_candidates_count,
-                                                          temp_buffer, temp_count);
-            else
-                ComputeSetIntersection::ComputeCandidates(valid_candidate_index[target_depth], valid_candidates_count,
-                                                          current_candidates, current_candidates_count,
-                                                          temp_buffer, temp_count);
-
-            for (ui j = 0; j < temp_count; ++j)
-                valid_candidate_index[target_depth][j] = temp_buffer[j];
-
-            valid_candidates_count = temp_count;
-            if (valid_candidates_count == 0)
-                break;
-        }
-
-        ui condCount = plan.afterCondNumHost[target_u];
-        ui out_count = 0;
-        for (ui i = 0; i < valid_candidates_count; ++i)
-        {
-            ui candidate_idx = valid_candidate_index[target_depth][i];
-            ui vertex = candidates[target_u][candidate_idx];
-            if (candidateSatisfiesConditions(target_u, vertex, plan.afterCondOrderHost, condCount, embedding))
-                valid_candidate_index[target_depth][out_count++] = candidate_idx;
-        }
-
-        idx_count[target_depth] = out_count;
-    }
-
-    void prepareDepthCandidateIndex(ui depth, ui *embedding, ui *idx_embedding, ui *idx_count,
-                                    ui **valid_candidate_index, Edges ***edge_matrix, ui **bn,
-                                    ui *bn_cnt, ui *order, ui *temp_buffer_, ui **candidates)
-    {
-        if (depth < cpu_qg.getVerticesCount() && plan.shareIntersectionHost[depth])
-            generateSharedCandidateIndex(depth, embedding, idx_count, valid_candidate_index, candidates);
-        else
-            generateValidCandidateIndex(depth, embedding, idx_embedding, idx_count,
-                                        valid_candidate_index, edge_matrix, bn, bn_cnt,
-                                        order, temp_buffer_, candidates);
-    }
-
 
     void LFTJ(int enter_depth, Graph_CPU &cpu_qg, Edges ***edge_matrix, ui **candidates,
                 ui *candidates_count, ui *order, ui *embedding, ui *idx_embedding,
@@ -471,7 +255,7 @@ public:
             idx[cur_depth] = 0;
         
             // compute set intersection
-            prepareDepthCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
+            generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
   
             
             // initialize visited_arr array 
@@ -566,7 +350,7 @@ public:
                 {
                     cur_depth += 1;
                     idx[cur_depth] = 0;
-                    prepareDepthCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
+                    generateValidCandidateIndex(cur_depth, embedding, idx_embedding, idx_count, valid_candidate_idx, edge_matrix, bn, bn_count, order, temp_buffer, candidates);
                 }
                 else  // if timeout, start task splitting
                 {
