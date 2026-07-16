@@ -2,14 +2,20 @@
 #define G2_AIMD_APP_QC_SUPPORT_H
 
 #include <assert.h>
+#include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <locale>
 #include <set>
+#include <stdexcept>
 #include <string>
+#include <sys/stat.h>
 #include <sys/timeb.h>
 #include <vector>
 
@@ -238,7 +244,440 @@ inline double minimum_degree_ratio;
 inline int minimum_clique_size;
 inline int *minimum_degrees = nullptr;
 inline int scheduling_toggle;
-inline bool store_cliques;
+inline bool store_cliques = false;
+
+class QCApp;
+extern CPU_Data hd;
+extern GPU_Data dd;
+extern CPU_Cliques hc;
+extern CPU_Graph *hg;
+
+inline int h_sort_vert_Q(const void *a, const void *b);
+
+namespace qc_runtime_state
+{
+static bool runtime_prepared = false;
+static bool remove_nonmax = false;
+static bool help_requested = false;
+static std::string graph_file;
+static std::string output_file = "output.txt";
+static std::string temp_filename = "t_cliques.txt";
+static std::ofstream temp_results;
+static Timer search_timer;
+static uint64_t total_pre_max_quasi_cliques = 0;
+static uint64_t max_clique_size = 0;
+}
+
+inline std::vector<std::string> qc_process_args()
+{
+    std::vector<std::string> args;
+    std::ifstream input("/proc/self/cmdline", std::ios::binary);
+    if (!input.is_open())
+        return args;
+
+    std::string arg;
+    while (std::getline(input, arg, '\0'))
+        args.push_back(arg);
+    return args;
+}
+
+inline std::string qc_get_option_value(const std::vector<std::string> &args, const std::string &name, const std::string &default_value)
+{
+    for (size_t i = 1; i < args.size(); ++i)
+    {
+        if (args[i] == name)
+        {
+            if (i + 1 >= args.size())
+                return default_value;
+            return args[i + 1];
+        }
+    }
+    return default_value;
+}
+
+inline int qc_get_option_int(const std::vector<std::string> &args, const std::string &name, int default_value)
+{
+    std::string value = qc_get_option_value(args, name, "");
+    if (value.empty())
+        return default_value;
+    return std::stoi(value);
+}
+
+inline double qc_get_option_double(const std::vector<std::string> &args, const std::string &name, double default_value)
+{
+    std::string value = qc_get_option_value(args, name, "");
+    if (value.empty())
+        return default_value;
+    return std::stod(value);
+}
+
+inline bool qc_has_flag(const std::vector<std::string> &args, const std::string &name)
+{
+    for (size_t i = 1; i < args.size(); ++i)
+    {
+        if (args[i] == name)
+            return true;
+    }
+    return false;
+}
+
+inline bool qc_has_help_flag(const std::vector<std::string> &args)
+{
+    return qc_has_flag(args, "--help");
+}
+
+inline bool qc_apply_remove_nonmax_from_args(const std::vector<std::string> &args)
+{
+    for (size_t i = 1; i < args.size(); ++i)
+    {
+        if (args[i] == "-rmnonmax" || args[i] == "--rmnonmax")
+        {
+            if (i + 1 >= args.size())
+                return true;
+
+            const std::string &value = args[i + 1];
+            if (!value.empty() && value[0] == '-')
+                return true;
+
+            return !(value == "0" || value == "false" || value == "False" || value == "off");
+        }
+    }
+    return false;
+}
+
+inline std::string qc_quote_command_arg(const std::string &arg)
+{
+    if (arg.empty())
+        return "''";
+
+    bool needs_quote = false;
+    for (char c : arg)
+    {
+        if (std::isspace(static_cast<unsigned char>(c)) || c == '\'' || c == '"' || c == '\\' || c == '$' || c == '`')
+        {
+            needs_quote = true;
+            break;
+        }
+    }
+
+    if (!needs_quote)
+        return arg;
+
+    std::string quoted = "'";
+    for (char c : arg)
+    {
+        if (c == '\'')
+            quoted += "'\\''";
+        else
+            quoted += c;
+    }
+    quoted += "'";
+    return quoted;
+}
+
+inline std::string qc_supplied_command(const std::vector<std::string> &args)
+{
+    std::string command;
+    for (size_t i = 0; i < args.size(); ++i)
+    {
+        if (i > 0)
+            command += " ";
+        command += qc_quote_command_arg(args[i]);
+    }
+    return command;
+}
+
+inline std::string qc_executable_modified_time(const std::string &program)
+{
+    if (program.empty())
+        return "unavailable";
+
+    struct stat st;
+    if (stat(program.c_str(), &st) != 0)
+        return "unavailable";
+
+    char buffer[64];
+    std::tm tm_value;
+    if (localtime_r(&st.st_mtime, &tm_value) == nullptr)
+        return "unavailable";
+
+    if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %Z", &tm_value) == 0)
+        return "unavailable";
+
+    return buffer;
+}
+
+inline std::string qc_expand_graph_path_from_data_graph(const std::string &data_graph_path)
+{
+    if (data_graph_path.empty())
+        return "";
+
+    size_t slash = data_graph_path.find_last_of("/\\");
+    size_t dot = data_graph_path.find_last_of('.');
+    if (dot == std::string::npos || (slash != std::string::npos && dot < slash))
+        return data_graph_path + ".sbin";
+
+    return data_graph_path.substr(0, dot) + ".sbin";
+}
+
+inline void print_help(const char *program)
+{
+    std::cout << "Usage: " << program << " -dg <graph.bin> [-f <graph.sbin>] [options]" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Required:" << std::endl;
+    std::cout << "  -dg <path>          Input 1-hop binary graph used by the G2-AIMD worker." << std::endl;
+    std::cout << std::endl;
+    std::cout << "QC graph input:" << std::endl;
+    std::cout << "  -f <path>           Expanded binary graph (.sbin). If omitted, derive from -dg." << std::endl;
+    std::cout << std::endl;
+    std::cout << "QC parameters:" << std::endl;
+    std::cout << "  -g <gamma>          Minimum degree ratio in [0.5, 1]. Default: 0.5" << std::endl;
+    std::cout << "  -k <size>           Minimum quasi-clique size (> 1). Default: 10" << std::endl;
+    std::cout << "  -o <file>           Output file for maximal quasi-cliques. Default: output.txt" << std::endl;
+    std::cout << "  -rmnonmax [0|1]     Remove non-maximal results. Default: off" << std::endl;
+    std::cout << "  -sched <0|1>        Scheduling mode: 0=dynamic, 1=static. Default: 0" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Other:" << std::endl;
+    std::cout << "  --help              Show this help message and exit." << std::endl;
+}
+
+inline void initialize_tasks(CPU_Graph &graph, CPU_Data &host_data)
+{
+    int pvertexid;
+    uint64_t pneighbors_start;
+    uint64_t pneighbors_end;
+    int phelper1;
+
+    int maximum_degree;
+    int maximum_degree_index;
+
+    int total_vertices = graph.number_of_vertices;
+    int number_of_candidates = total_vertices;
+    Vertex *vertices = new Vertex[total_vertices];
+
+    (*host_data.remaining_count) = 0;
+    (*host_data.removed_count) = 0;
+
+    for (int i = 0; i < total_vertices; i++)
+    {
+        vertices[i].vertexid = i;
+        vertices[i].indeg = 0;
+        vertices[i].exdeg = graph.onehop_offsets[i + 1] - graph.onehop_offsets[i];
+        vertices[i].lvl2adj = graph.twohop_offsets[i + 1] - graph.twohop_offsets[i];
+        if (vertices[i].exdeg >= minimum_degrees[minimum_clique_size] && vertices[i].lvl2adj >= minimum_clique_size - 1)
+        {
+            vertices[i].label = 0;
+            host_data.remaining_candidates[(*host_data.remaining_count)++] = i;
+        }
+        else
+        {
+            vertices[i].label = -1;
+            host_data.removed_candidates[(*host_data.removed_count)++] = i;
+        }
+    }
+
+    while ((*host_data.remaining_count) < number_of_candidates / 2)
+    {
+        number_of_candidates = (*host_data.remaining_count);
+
+        for (int i = 0; i < number_of_candidates; i++)
+            vertices[host_data.remaining_candidates[i]].exdeg = 0;
+
+        for (int i = 0; i < number_of_candidates; i++)
+        {
+            pvertexid = host_data.remaining_candidates[i];
+            pneighbors_start = graph.onehop_offsets[pvertexid];
+            pneighbors_end = graph.onehop_offsets[pvertexid + 1];
+            for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
+            {
+                phelper1 = graph.onehop_neighbors[j];
+                if (vertices[phelper1].label == 0)
+                    vertices[phelper1].exdeg++;
+            }
+        }
+
+        (*host_data.remaining_count) = 0;
+        (*host_data.removed_count) = 0;
+
+        for (int i = 0; i < number_of_candidates; i++)
+        {
+            phelper1 = host_data.remaining_candidates[i];
+            if (vertices[phelper1].exdeg >= minimum_degrees[minimum_clique_size])
+            {
+                host_data.remaining_candidates[(*host_data.remaining_count)++] = phelper1;
+            }
+            else
+            {
+                vertices[phelper1].label = -1;
+                host_data.removed_candidates[(*host_data.removed_count)++] = phelper1;
+            }
+        }
+    }
+    number_of_candidates = (*host_data.remaining_count);
+
+    int removed_start = 0;
+    while ((*host_data.removed_count) > removed_start)
+    {
+        pvertexid = host_data.removed_candidates[removed_start];
+        pneighbors_start = graph.onehop_offsets[pvertexid];
+        pneighbors_end = graph.onehop_offsets[pvertexid + 1];
+
+        for (uint64_t j = pneighbors_start; j < pneighbors_end; j++)
+        {
+            phelper1 = graph.onehop_neighbors[j];
+
+            if (vertices[phelper1].label == 0)
+            {
+                vertices[phelper1].exdeg--;
+
+                if (vertices[phelper1].exdeg < minimum_degrees[minimum_clique_size])
+                {
+                    vertices[phelper1].label = -1;
+                    number_of_candidates--;
+                    host_data.removed_candidates[(*host_data.removed_count)++] = phelper1;
+                }
+            }
+        }
+        removed_start++;
+    }
+
+    maximum_degree = 0;
+    maximum_degree_index = 0;
+    for (int i = 0; i < total_vertices; i++)
+    {
+        if (vertices[i].label == 0 && vertices[i].exdeg > maximum_degree)
+        {
+            maximum_degree = vertices[i].exdeg;
+            maximum_degree_index = i;
+        }
+    }
+    vertices[maximum_degree_index].label = 3;
+
+    pneighbors_start = graph.onehop_offsets[maximum_degree_index];
+    pneighbors_end = graph.onehop_offsets[maximum_degree_index + 1];
+    for (uint64_t i = pneighbors_start; i < pneighbors_end; i++)
+    {
+        pvertexid = graph.onehop_neighbors[i];
+        if (vertices[pvertexid].label == 0)
+            vertices[pvertexid].label = 2;
+    }
+
+    qsort(vertices, total_vertices, sizeof(Vertex), h_sort_vert_Q);
+    total_vertices = number_of_candidates;
+    for (int j = 0; j < total_vertices; j++)
+        vertices[j].lvl2adj = 0;
+
+    host_data.initial_vertices = vertices;
+    host_data.initial_vertices_count = static_cast<size_t>(total_vertices);
+    memset(host_data.initial_order_map, -1, sizeof(int) * graph.number_of_vertices);
+    for (int i = 0; i < total_vertices; i++)
+        host_data.initial_order_map[host_data.initial_vertices[i].vertexid] = i;
+}
+
+inline void allocate_runtime_memory(CPU_Data &host_data, GPU_Data &device_data, CPU_Cliques &host_cliques, CPU_Graph &graph)
+{
+    chkerr(cudaMalloc((void **)&device_data.number_of_vertices, sizeof(int)));
+    chkerr(cudaMalloc((void **)&device_data.number_of_edges, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void **)&device_data.onehop_neighbors, sizeof(int) * graph.number_of_edges));
+    chkerr(cudaMalloc((void **)&device_data.onehop_offsets, sizeof(uint64_t) * (graph.number_of_vertices + 1)));
+    chkerr(cudaMalloc((void **)&device_data.twohop_neighbors, sizeof(int) * graph.number_of_lvl2adj));
+    chkerr(cudaMalloc((void **)&device_data.twohop_offsets, sizeof(uint64_t) * (graph.number_of_vertices + 1)));
+
+    chkerr(cudaMemcpy(device_data.number_of_vertices, &(graph.number_of_vertices), sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.number_of_edges, &(graph.number_of_edges), sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.onehop_neighbors, graph.onehop_neighbors, sizeof(int) * graph.number_of_edges, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.onehop_offsets, graph.onehop_offsets, sizeof(uint64_t) * (graph.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.twohop_neighbors, graph.twohop_neighbors, sizeof(int) * graph.number_of_lvl2adj, cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.twohop_offsets, graph.twohop_offsets, sizeof(uint64_t) * (graph.number_of_vertices + 1), cudaMemcpyHostToDevice));
+
+    host_data.buffer_count = new uint64_t;
+    host_data.buffer_offset = new uint64_t[BUFFER_OFFSET_SIZE];
+    host_data.buffer_vertices = new Vertex[BUFFER_SIZE];
+    host_data.buffer_offset[0] = 0;
+    (*(host_data.buffer_count)) = 0;
+
+    host_data.current_level = new uint64_t;
+    host_data.maximal_expansion = new bool;
+    host_data.dumping_cliques = new bool;
+    (*host_data.current_level) = 0;
+    (*host_data.maximal_expansion) = false;
+    (*host_data.dumping_cliques) = false;
+
+    host_data.vertex_order_map = new int[graph.number_of_vertices];
+    host_data.remaining_candidates = new int[graph.number_of_vertices];
+    host_data.removed_candidates = new int[graph.number_of_vertices];
+    host_data.remaining_count = new int;
+    host_data.removed_count = new int;
+    host_data.candidate_indegs = new int[graph.number_of_vertices];
+    host_data.initial_order_map = new int[graph.number_of_vertices];
+    host_data.initial_vertices = nullptr;
+    host_data.initial_vertices_count = 0;
+
+    memset(host_data.vertex_order_map, -1, sizeof(int) * graph.number_of_vertices);
+    memset(host_data.initial_order_map, -1, sizeof(int) * graph.number_of_vertices);
+
+    host_cliques.cliques_count = 0;
+    host_cliques.max_clique_size = 0;
+    host_cliques.cliques_vertex.clear();
+    if (store_cliques)
+        host_cliques.cliques_offset.assign(1, 0);
+    else
+        host_cliques.cliques_offset.clear();
+
+    chkerr(cudaMalloc((void **)&device_data.current_level, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void **)&device_data.wtasks_count, sizeof(uint64_t) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.wtasks_offset, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.wtasks_vertices, (sizeof(Vertex) * WTASKS_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMemset(device_data.wtasks_offset, 0, (sizeof(uint64_t) * WTASKS_OFFSET_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMemset(device_data.wtasks_count, 0, sizeof(uint64_t) * NUMBER_OF_WARPS));
+
+    chkerr(cudaMalloc((void **)&device_data.global_vertices, (sizeof(Vertex) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+
+    chkerr(cudaMalloc((void **)&device_data.removed_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.lane_removed_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.remaining_candidates, (sizeof(Vertex) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.lane_remaining_candidates, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.candidate_indegs, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.lane_candidate_indegs, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+    chkerr(cudaMalloc((void **)&device_data.adjacencies, (sizeof(int) * WVERTICES_SIZE) * NUMBER_OF_WARPS));
+
+    chkerr(cudaMalloc((void **)&device_data.minimum_degree_ratio, sizeof(double)));
+    chkerr(cudaMalloc((void **)&device_data.minimum_degrees, sizeof(int) * (graph.number_of_vertices + 1)));
+    chkerr(cudaMalloc((void **)&device_data.minimum_clique_size, sizeof(int)));
+    chkerr(cudaMalloc((void **)&device_data.scheduling_toggle, sizeof(int)));
+    chkerr(cudaMalloc((void **)&device_data.store_cliques, sizeof(bool)));
+
+    chkerr(cudaMemcpy(device_data.minimum_degree_ratio, &minimum_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.minimum_degrees, minimum_degrees, sizeof(int) * (graph.number_of_vertices + 1), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.scheduling_toggle, &scheduling_toggle, sizeof(int), cudaMemcpyHostToDevice));
+    chkerr(cudaMemcpy(device_data.store_cliques, &store_cliques, sizeof(bool), cudaMemcpyHostToDevice));
+
+    chkerr(cudaMalloc((void **)&device_data.total_tasks, sizeof(int)));
+    chkerr(cudaMemset(device_data.total_tasks, 0, sizeof(int)));
+
+    chkerr(cudaMalloc((void **)&device_data.cliques_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void **)&device_data.cliques_vertex_count, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void **)&device_data.max_clique_size, sizeof(uint64_t)));
+    device_data.cliques_vertex = nullptr;
+    device_data.cliques_offset = nullptr;
+    device_data.cliques_size = nullptr;
+    if (store_cliques)
+    {
+        chkerr(cudaMalloc((void **)&device_data.cliques_vertex, sizeof(int) * CLIQUES_SIZE));
+        chkerr(cudaMalloc((void **)&device_data.cliques_offset, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
+        chkerr(cudaMalloc((void **)&device_data.cliques_size, sizeof(uint64_t) * CLIQUES_OFFSET_SIZE));
+        chkerr(cudaMemset(device_data.cliques_offset, 0, sizeof(uint64_t)));
+        chkerr(cudaMemset(device_data.cliques_size, 0, sizeof(uint64_t)));
+    }
+    chkerr(cudaMemset(device_data.cliques_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(device_data.cliques_vertex_count, 0, sizeof(uint64_t)));
+    chkerr(cudaMemset(device_data.max_clique_size, 0, sizeof(uint64_t)));
+
+    chkerr(cudaMalloc((void **)&device_data.buffer_offset_start, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void **)&device_data.buffer_start, sizeof(uint64_t)));
+    chkerr(cudaMalloc((void **)&device_data.current_task, sizeof(int)));
+}
 inline std::vector<int> output_vertex_id_map;
 
 inline int output_vertex_id(int vertexid)

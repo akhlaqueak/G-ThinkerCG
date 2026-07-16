@@ -25,7 +25,7 @@ run_case() {
         echo
     } > "$logfile"
 
-    if timeout 30m "$@" >> "$logfile" 2>&1; then
+    if timeout 10m "$@" >> "$logfile" 2>&1; then
         {
             echo
             echo "STATUS: OK"
@@ -36,7 +36,7 @@ run_case() {
         {
             echo
             if [ "$rc" -eq 124 ]; then
-                echo "STATUS: TIMEOUT after 30m"
+                echo "STATUS: TIMEOUT after 10m"
             else
                 echo "STATUS: FAILED (exit code $rc)"
             fi
@@ -48,9 +48,10 @@ run_case() {
 while IFS=$'\t' read -r ds; do
 
     [ -z "$ds" ] && continue
-
-    run_case "$ds-$q-pingpong_abort.log" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0
+    for eta in 1000 2000 5000; do 
+    run_case "$ds-eta-$eta.log" \
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta
+    done
 done < ds.txt
 
 

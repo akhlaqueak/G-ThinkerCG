@@ -14,12 +14,12 @@ static void print_help(const char *program)
     cout << "  -dg <path>         Data graph binary file. Default: ./data/com-friendster.ungraph.txt.bin" << endl;
     cout << "  -cpu <n>           CPU workers. Default: 28" << endl;
     cout << "  -gpu <n>           GPU workers. Default: 1" << endl;
-    cout << "  -eta <n>           ETA per warp. Default: 1000" << endl;
+    cout << "  -eta <n>           ETA per warp. Default: 2000" << endl;
     cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 200" << endl;
-    cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 100000" << endl;
+    cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 1000000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 1000" << endl;
-    cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
+    cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 2" << endl;
 }
 
 class MCApp : public Master<MCCPUWorker, MCGPUContext>
@@ -33,11 +33,11 @@ public:
         CommandLine::RuntimeConfig defaults;
         defaults.num_cpu_workers = 28;
         defaults.num_gpu_workers = 1;
-        defaults.tasks_per_fetch_gpu_worker = 100000;
+        defaults.tasks_per_fetch_gpu_worker = 1000000;
         defaults.tasks_per_fetch_cpu_worker = 200;
-        defaults.eta_per_warp = 1000;
+        defaults.eta_per_warp = 2000;
         defaults.tau_time_us = 1000;
-        defaults.ping_pong = 1;
+        defaults.ping_pong = 2;
         defaults.data_graph = "./data/com-friendster.ungraph.txt.bin";
         cmd.ParseRuntimeConfig(defaults);
         apply_runtime_config(cmd.runtime);

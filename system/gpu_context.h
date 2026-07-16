@@ -239,52 +239,13 @@ public:
         }
     }
 
-    void sort_host_offsets_from(ull start)
-    {
-        if (H.otail[0] <= start)
-        {
-            H_offsets_sorted_until = H.otail[0];
-            return;
-        }
-
-        start -= start % 2;
-        const ull end = H.otail[0] - ((H.otail[0] - start) % 2);
-        if (end <= start)
-        {
-            H_offsets_sorted_until = H.otail[0];
-            return;
-        }
-
-        std::vector<SubgraphOffsets> ranges;
-        ranges.reserve((end - start) / 2);
-        for (ull i = start; i < end; i += 2)
-            ranges.emplace_back(H.offsets[i], H.offsets[i + 1]);
-
-        std::sort(ranges.begin(), ranges.end(), [](const auto &a, const auto &b) {
-            if (a.st != b.st)
-                return a.st < b.st;
-            return a.en < b.en;
-        });
-
-        ull write = start;
-        for (const auto &range : ranges)
-        {
-            H.offsets[write++] = range.st;
-            H.offsets[write++] = range.en;
-        }
-        H_offsets_sorted_until = end;
-    }
-
     void dump_to_host()
     {
         if (Brd.empty())
             return;
 
         if (H.empty())
-        {
             H.clear();
-            H_offsets_sorted_until = 0;
-        }
 
         const ull src_ohead = Brd.ohead[0];
         const ull src_otail_raw = std::min<ull>(Brd.otail[0], Brd.capacity[0]);
@@ -375,9 +336,6 @@ public:
                 H.copy_host_range(Brd, local_dst, sg_st, sglen);
             }
         }
-        if (H_offsets_sorted_until > H.otail[0])
-            H_offsets_sorted_until = H.otail[0];
-        sort_host_offsets_from(H_offsets_sorted_until);
         Brd.ohead[0] = src_otail;
         delete[] offsets;
     }
@@ -387,7 +345,6 @@ public:
         if (H.empty())
         {
             H.clear();
-            H_offsets_sorted_until = 0;
             return;
         }
 
@@ -397,9 +354,6 @@ public:
 
         if (available_tasks == 0)
             return;
-
-        if (H_offsets_sorted_until < src_otail)
-            sort_host_offsets_from(H_offsets_sorted_until);
 
         const ull dst_otail = Bwr.otail[0];
         const ull dst_vstart = Bwr.vtail[0];
@@ -468,7 +422,6 @@ public:
         if (H.empty())
         {
             H.clear();
-            H_offsets_sorted_until = 0;
         }
         else
         {
@@ -476,7 +429,6 @@ public:
             for (ull i = H.ohead[0]; i < H.otail[0]; i += 2)
                 remaining_vtail = std::max(remaining_vtail, H.offsets[i + 1]);
             H.vtail[0] = remaining_vtail;
-            H_offsets_sorted_until = std::min(H_offsets_sorted_until, H.otail[0]);
         }
         delete[] translated_offsets;
         delete[] offsets;

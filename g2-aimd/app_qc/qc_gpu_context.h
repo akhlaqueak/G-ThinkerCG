@@ -11,6 +11,12 @@ extern GPU_Data dd;
 extern CPU_Cliques hc;
 extern CPU_Graph *hg;
 
+class QCApp;
+void qc_prepare_runtime(QCApp &app);
+void qc_iteration_failed(QCApp &app);
+void qc_iteration_success(QCApp &app);
+void qc_complete_runtime(QCApp &app);
+
 struct Warp_Data
 {
     uint64_t start[WARPS_PER_BLOCK];
@@ -169,6 +175,7 @@ class QCApp : public AppBase<QCBuffer>
     ull saved_cliques_vertex_count_ = 0;
     ull saved_max_clique_size_ = 0;
     ull saved_cliques_size_ = 0;
+    bool chunk_failed_ = false;
 
 public:
     template <class IndexType>
@@ -185,7 +192,9 @@ public:
 
     void allocateMemory()
     {
+        qc_prepare_runtime(*this);
         dd = ::dd;
+        init_chunk();
     }
 
     void init_chunk()
@@ -208,15 +217,28 @@ public:
 
     void iterationFailed()
     {
-        abort_chunk();
+        qc_iteration_failed(*this);
     }
 
     void iterationSuccess()
     {
+        qc_iteration_success(*this);
+        init_chunk();
     }
 
     void completion()
     {
+        qc_complete_runtime(*this);
+    }
+
+    void mark_chunk_failed(bool value)
+    {
+        chunk_failed_ = value;
+    }
+
+    bool chunk_failed() const
+    {
+        return chunk_failed_;
     }
 
     ull get_results()
@@ -389,6 +411,13 @@ public:
             if (!valid_task)
                 continue;
 
+            if (LANE_IDX == 0 && ld.vertices[0].label != 1)
+            {
+                printf("generateSubgraphs invalid root task: root_index=%llu total=%d first_label=%d first_vertex=%d\n",
+                       root_index, wd.total_vertices[WIB_IDX], ld.vertices[0].label, ld.vertices[0].vertexid);
+                asm("trap;");
+            }
+
             d_write_to_tasks(dd, wd, ld);
         }
     }
@@ -447,6 +476,16 @@ public:
             }
             __syncwarp();
 
+            if (wd.tot_vert[WIB_IDX] <= 0)
+            {
+                if (LANE_IDX == 0)
+                {
+                    printf("expand invalid task size: start=%llu end=%llu total=%d\n",
+                           wd.start[WIB_IDX], wd.end[WIB_IDX], wd.tot_vert[WIB_IDX]);
+                }
+                asm("trap;");
+            }
+
             // each warp gets partial number of members
             num_mem = 0;
             for (uint64_t j = wd.start[WIB_IDX] + LANE_IDX; j < wd.end[WIB_IDX]; j += WARP_SIZE)
@@ -491,6 +530,27 @@ public:
             }
             __syncwarp();
 
+            if (wd.num_mem[WIB_IDX] <= 0 || wd.num_mem[WIB_IDX] > wd.tot_vert[WIB_IDX])
+            {
+                if (LANE_IDX == 0)
+                {
+                    printf("expand invalid member count: start=%llu end=%llu total=%d members=%d\n",
+                           wd.start[WIB_IDX], wd.end[WIB_IDX], wd.tot_vert[WIB_IDX], wd.num_mem[WIB_IDX]);
+                }
+                asm("trap;");
+            }
+
+            if (wd.number_of_covered[WIB_IDX] < 0 || wd.number_of_covered[WIB_IDX] > wd.num_cand[WIB_IDX])
+            {
+                if (LANE_IDX == 0)
+                {
+                    printf("expand invalid covered count: start=%llu end=%llu total=%d members=%d covered=%d candidates=%d\n",
+                           wd.start[WIB_IDX], wd.end[WIB_IDX], wd.tot_vert[WIB_IDX],
+                           wd.num_mem[WIB_IDX], wd.number_of_covered[WIB_IDX], wd.num_cand[WIB_IDX]);
+                }
+                asm("trap;");
+            }
+
             // LOOKAHEAD PRUNING
             method_return = d_lookahead_pruning(dd, wd, ld);
             if (method_return)
@@ -528,6 +588,17 @@ public:
                 }
                 else
                 {
+                    if (wd.total_vertices[WIB_IDX] > WVERTICES_SIZE)
+                    {
+                        if (LANE_IDX == 0)
+                        {
+                            printf("expand task overflow: start=%llu end=%llu total=%d members=%d candidates=%d covered=%d WVERTICES_SIZE=%d\n",
+                                   wd.start[WIB_IDX], wd.end[WIB_IDX], wd.total_vertices[WIB_IDX],
+                                   wd.number_of_members[WIB_IDX], wd.number_of_candidates[WIB_IDX],
+                                   wd.number_of_covered[WIB_IDX], WVERTICES_SIZE);
+                        }
+                        asm("trap;");
+                    }
                     ld.vertices = dd.global_vertices + (WVERTICES_SIZE * WARP_IDX);
                 }
 
@@ -594,6 +665,15 @@ public:
                 // WRITE TASKS TO BUFFERS
                 // sort vertices in Quick efficient enumeration order before writing
                 d_sort(ld.vertices, wd.total_vertices[WIB_IDX], d_sort_vert_Q);
+
+                if (LANE_IDX == 0 && ld.vertices[0].label != 1)
+                {
+                    printf("expand writing invalid task: start=%llu end=%llu total=%d members=%d candidates=%d covered=%d first_label=%d first_vertex=%d\n",
+                           wd.start[WIB_IDX], wd.end[WIB_IDX], wd.total_vertices[WIB_IDX],
+                           wd.number_of_members[WIB_IDX], wd.number_of_candidates[WIB_IDX],
+                           wd.number_of_covered[WIB_IDX], ld.vertices[0].label, ld.vertices[0].vertexid);
+                    asm("trap;");
+                }
 
                 if (wd.number_of_candidates[WIB_IDX] > 0)
                 {
@@ -1962,6 +2042,217 @@ public:
         }
     }
 };
+
+inline void cleanup_work_context(QCApp &app)
+{
+    if (app.ctx == nullptr)
+        return;
+    if (app.ctx->d_row_ptrs)
+        chkerr(cudaFree(app.ctx->d_row_ptrs));
+    if (app.ctx->d_cols)
+        chkerr(cudaFree(app.ctx->d_cols));
+    if (app.ctx->sources)
+        chkerr(cudaFree(app.ctx->sources));
+    if (app.ctx->sources_num)
+        chkerr(cudaFree(app.ctx->sources_num));
+    if (app.ctx->level)
+        chkerr(cudaFree(app.ctx->level));
+    chkerr(cudaFree(app.ctx));
+    app.ctx = nullptr;
+}
+
+inline void qc_prepare_runtime(QCApp &app)
+{
+    if (qc_runtime_state::runtime_prepared)
+        return;
+    qc_runtime_state::runtime_prepared = true;
+
+    const std::vector<std::string> args = qc_process_args();
+    const std::string program = args.empty() ? "run" : args[0];
+    const std::string data_graph_file = qc_get_option_value(args, "-dg", "");
+    qc_runtime_state::graph_file = qc_get_option_value(args, "-f", "");
+    if (qc_runtime_state::graph_file.empty())
+        qc_runtime_state::graph_file = qc_expand_graph_path_from_data_graph(data_graph_file);
+    qc_runtime_state::output_file = qc_get_option_value(args, "-o", "output.txt");
+    minimum_degree_ratio = qc_get_option_double(args, "-g", 0.5);
+    minimum_clique_size = qc_get_option_int(args, "-k", 10);
+    scheduling_toggle = qc_get_option_int(args, "-sched", 0);
+    qc_runtime_state::remove_nonmax = qc_apply_remove_nonmax_from_args(args);
+    qc_runtime_state::help_requested = qc_has_help_flag(args);
+    store_cliques = qc_runtime_state::remove_nonmax;
+
+    if (qc_runtime_state::help_requested)
+    {
+        print_help(program.c_str());
+        std::exit(0);
+    }
+
+    if (data_graph_file.empty())
+    {
+        print_help(program.c_str());
+        throw std::runtime_error("Missing required option -dg <graph.bin>");
+    }
+    if (qc_runtime_state::graph_file.empty())
+    {
+        print_help(program.c_str());
+        throw std::runtime_error("Missing required QC expanded graph path");
+    }
+
+    if (minimum_degree_ratio < .5 || minimum_degree_ratio > 1)
+    {
+        std::cout << "minimum degree ratio must be between .5 and 1 inclusive" << std::endl;
+        minimum_degree_ratio = 0.5;
+    }
+    if (minimum_clique_size <= 1)
+    {
+        std::cout << "minimum size must be greater than 1" << std::endl;
+        minimum_clique_size = 10;
+    }
+    if (!(scheduling_toggle == 0 || scheduling_toggle == 1))
+    {
+        std::cout << "scheduling toggle must be 0 or 1" << std::endl;
+        scheduling_toggle = 0;
+    }
+
+    std::cout.imbue(std::locale());
+    std::cout << "Command: " << qc_supplied_command(args) << std::endl;
+    std::cout << "Executable compiled time: " << qc_executable_modified_time(program) << std::endl;
+    std::cout << " ======= Parameters ========" << std::endl;
+    std::cout << "Data graph (-dg): " << data_graph_file << std::endl;
+    std::cout << "Expanded graph (-f): " << qc_runtime_state::graph_file << std::endl;
+    std::cout << "Gamma: " << minimum_degree_ratio << std::endl;
+    std::cout << "Min size: " << minimum_clique_size << std::endl;
+    std::cout << "Output: " << qc_runtime_state::output_file << std::endl;
+    std::cout << "Remove non-maximal: " << (qc_runtime_state::remove_nonmax ? "true" : "false") << std::endl;
+    std::cout << "Scheduling: " << (scheduling_toggle == 0 ? "dynamic" : "static") << std::endl;
+    std::cout << " ======= ********** ========" << std::endl;
+
+    std::ifstream graph_stream(qc_runtime_state::graph_file, std::ios::in | std::ios::binary);
+    if (!graph_stream.is_open())
+        throw std::runtime_error("invalid graph file");
+
+    load_output_vertex_id_map(qc_runtime_state::graph_file);
+
+    std::cout << ">:PRE-PROCESSING" << std::endl;
+    auto preprocessing_start = std::chrono::high_resolution_clock::now();
+    hg = new CPU_Graph(graph_stream);
+    CPU_Graph &graph = *hg;
+    std::cout << "|V| = " << graph.number_of_vertices << std::endl;
+    std::cout << "|E| = " << graph.number_of_edges << std::endl;
+    std::cout << "|2-hop| = " << graph.number_of_lvl2adj << std::endl;
+    graph_stream.close();
+
+    calculate_minimum_degrees(graph);
+    allocate_runtime_memory(hd, dd, hc, graph);
+    initialize_tasks(graph, hd);
+    chkerr(cudaMalloc((void **)&dd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count));
+    chkerr(cudaMemcpy(dd.initial_vertices, hd.initial_vertices, sizeof(Vertex) * hd.initial_vertices_count, cudaMemcpyHostToDevice));
+    chkerr(cudaMalloc((void **)&dd.initial_vertices_count, sizeof(uint64_t)));
+    uint64_t initial_vertices_count_u64 = hd.initial_vertices_count;
+    chkerr(cudaMemcpy(dd.initial_vertices_count, &initial_vertices_count_u64, sizeof(uint64_t), cudaMemcpyHostToDevice));
+    chkerr(cudaMalloc((void **)&dd.initial_order_map, sizeof(int) * graph.number_of_vertices));
+    chkerr(cudaMemcpy(dd.initial_order_map, hd.initial_order_map, sizeof(int) * graph.number_of_vertices, cudaMemcpyHostToDevice));
+
+    auto preprocessing_end = std::chrono::high_resolution_clock::now();
+    auto preprocessing_ms = std::chrono::duration_cast<std::chrono::milliseconds>(preprocessing_end - preprocessing_start);
+    std::cout << "No. of candidates: " << hd.initial_vertices_count << std::endl;
+    std::cout << "--->:LOADING TIME: " << preprocessing_ms.count() << " ms" << std::endl;
+
+    chkerr(cudaFree(app.ctx->sources));
+    chkerr(cudaMalloc((void **)&app.ctx->sources, hd.initial_vertices_count * sizeof(uintV)));
+    std::vector<uintV> roots(hd.initial_vertices_count);
+    for (size_t i = 0; i < hd.initial_vertices_count; ++i)
+        roots[i] = static_cast<uintV>(i);
+    chkerr(cudaMemcpy(app.ctx->sources, roots.data(), hd.initial_vertices_count * sizeof(uintV), cudaMemcpyHostToDevice));
+    app.ctx->sources_num[0] = hd.initial_vertices_count;
+    app.ctx->level[0] = 0;
+
+    if (qc_runtime_state::remove_nonmax)
+        qc_runtime_state::temp_results.open(qc_runtime_state::temp_filename);
+
+    qc_runtime_state::search_timer.StartTimer();
+}
+
+inline void qc_iteration_failed(QCApp &app)
+{
+    app.mark_chunk_failed(true);
+    app.abort_chunk();
+}
+
+inline void qc_iteration_success(QCApp &app)
+{
+    if (app.chunk_failed())
+    {
+        app.mark_chunk_failed(false);
+        return;
+    }
+
+    uint64_t chunk_max_clique_size = 0;
+    chkerr(cudaMemcpy(&chunk_max_clique_size, dd.max_clique_size, sizeof(uint64_t), cudaMemcpyDeviceToHost));
+    if (chunk_max_clique_size > qc_runtime_state::max_clique_size)
+        qc_runtime_state::max_clique_size = chunk_max_clique_size;
+
+    std::ofstream sink;
+    std::ofstream &out = qc_runtime_state::remove_nonmax ? qc_runtime_state::temp_results : sink;
+    qc_runtime_state::total_pre_max_quasi_cliques += dump_cliques(hc, dd, out, true);
+    chkerr(cudaMemset(dd.max_clique_size, 0, sizeof(uint64_t)));
+}
+
+inline void qc_complete_runtime(QCApp &app)
+{
+    qc_runtime_state::search_timer.EndTimer();
+
+    if (qc_runtime_state::temp_results.is_open())
+    {
+        qc_runtime_state::temp_results.flush();
+        qc_runtime_state::temp_results.close();
+    }
+
+    std::cout << "Search only time (s): " << qc_runtime_state::search_timer.GetElapsedMicroSeconds() / 1e6 << std::endl;
+    std::cout << ">:NUMBER OF QUASI-CLIQUES BEFORE MAX CHECK: " << qc_runtime_state::total_pre_max_quasi_cliques << std::endl;
+
+    auto start1 = std::chrono::high_resolution_clock::now();
+    uint64_t output_quasi_cliques = 0;
+    if (qc_runtime_state::remove_nonmax)
+    {
+        std::ifstream clique_input(qc_runtime_state::temp_filename);
+        if (clique_input.peek() != std::ifstream::traits_type::eof())
+        {
+            output_quasi_cliques = static_cast<uint64_t>(RemoveNonMax(qc_runtime_state::temp_filename.c_str(), qc_runtime_state::output_file.c_str()));
+        }
+        else
+        {
+            std::ofstream empty_output(qc_runtime_state::output_file);
+            std::cout << ">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: 0" << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << ">:NUMBER OF FINAL MAXIMAL QUASI-CLIQUES: NA" << std::endl;
+    }
+    auto stop1 = std::chrono::high_resolution_clock::now();
+    auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(stop1 - start1);
+    if (qc_runtime_state::remove_nonmax)
+        std::cout << "--->:REMOVE NON-MAX TIME: " << duration1.count() << " ms" << std::endl;
+    else
+        std::cout << "--->:COUNT ONLY POSTPROCESS TIME: " << duration1.count() << " ms" << std::endl;
+
+    std::cout << "Total count before maximality check: " << qc_runtime_state::total_pre_max_quasi_cliques << std::endl;
+    std::cout << "Largest clique size: " << qc_runtime_state::max_clique_size << std::endl;
+    if (qc_runtime_state::remove_nonmax)
+        std::cout << "Total maximal quasi-cliques: " << output_quasi_cliques << std::endl;
+    else
+        std::cout << "Total maximal quasi-cliques: NA" << std::endl;
+
+    if (hg != nullptr)
+    {
+        delete hg;
+        hg = nullptr;
+    }
+    cleanup_work_context(app);
+    free_memory(hd, dd, hc, true);
+    chkerr(cudaDeviceReset());
+}
 
 __device__ int d_sort_vert_Q(Vertex &v1, Vertex &v2)
 {

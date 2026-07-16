@@ -175,7 +175,7 @@ public:
             chunk[0] = max(chunk[0] / DECFACTOR, MINCHUNK); // chunk size is reduced by factor
             step = max((int)(chunk[0] * ADDPC), MINSTEP); // additive increment
             addStep = step;
-            std::cout<<"--- chunk: "<<chunk[0];
+            std::cout<<"--- chunk: "<<chunk[0]<<std::endl;
             successCount = 0;
         }
         // Increasing Chunk
@@ -191,10 +191,10 @@ public:
             else
                 chunk[0] = min(chunk[0]+addStep, MAXCHUNK);
             step*=2;
-            std::cout<<"+++ chunk: "<<chunk[0];
+            std::cout<<"+++ chunk: "<<chunk[0]<<std::endl;
         }
         else
-            std::cout<<"... chunk: "<<chunk[0];
+            std::cout<<"... chunk: "<<chunk[0]<<std::endl;
         // reset tail pointers... 
         recover = true;
         // hostBuff.clear();

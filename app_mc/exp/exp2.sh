@@ -19,7 +19,7 @@
 # orkut-links
 # wikipedia_link_ru
 # link-dynamic-frwiki
-sleep infinity
+
 ds="
 edit-shwiki
 edit-cebwiki
