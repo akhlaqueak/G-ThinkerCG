@@ -38,6 +38,8 @@ typedef unsigned long long int ull;
 typedef unsigned int uintV;
 typedef unsigned long long int uintE;
 
+static constexpr ull INVALID_BUFFER_POS = ~0ULL;
+
 #include "common/meta.h"
 #include "device/cuda_context.h"
 #include "util.h"

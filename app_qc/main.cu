@@ -533,6 +533,23 @@ public:
         return res;
     }
 
+    double get_load_from_host_time_s()
+    {
+        double total = 0.0;
+        using GPUWorkerT = GPUWorker<QCGPUContext>;
+        auto workers = workers_list.queue_;
+        while (!workers.empty())
+        {
+            WorkerT *w = (WorkerT *)workers.front();
+            workers.pop();
+
+            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
+            if (gw)
+                total += gw->getContext()->get_load_from_host_time_s();
+        }
+        return total;
+    }
+
     uint64_t get_max_clique_size()
     {
         uint64_t res = hc.max_clique_size;
@@ -761,6 +778,7 @@ int main(int argc, char *argv[])
 
         cout << "Search only time (s): " << search_only_time_s << endl;
         cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+        cout << "load_from_host time (s): " << app->get_load_from_host_time_s() << endl;
         cout << "Total count before maximality check: " << pre_max_quasi_cliques << endl;
         cout << "Largest clique size: " << max_clique_size << endl;
         cout << "Hybrid CPU big-root instrumentation: "

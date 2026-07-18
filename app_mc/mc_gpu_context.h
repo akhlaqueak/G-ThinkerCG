@@ -434,19 +434,23 @@ public:
             if (sglen == 0)
                 continue; // there was no neighbor for this vertex...
             // adding 1 as vertices in new graph are number of neighbors + v itself
-            auto vt = Bwr.append(sglen + 1); // allocates a subgraph by atomic operations, and puts v as well
+            auto alloc = append(sglen + 1); // allocates a subgraph by atomic operations, and puts v as well
+            if (alloc.failed)
+                continue;
+            auto &dst = alloc.dst();
+            auto vt = alloc.vt;
             if (LANEID == 0)
             {
-                Bwr.vertices[vt] = v;
-                Bwr.labels[vt] = R;
+                dst.vertices[vt] = v;
+                dst.labels[vt] = R;
                 // printf("%u:%u ", v, sglen);
             }
             vt++; // as one element is written i.e. v
             for (ull j = st + LANEID, k = vt + LANEID; j < en; j += 32, k += 32)
             {
                 auto u = cols[j];
-                Bwr.vertices[k] = u;
-                Bwr.labels[k] = (u < v) ? X : P;
+                dst.vertices[k] = u;
+                dst.labels[k] = (u < v) ? X : P;
             }
         }
     }

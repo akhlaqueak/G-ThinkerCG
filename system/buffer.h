@@ -95,7 +95,7 @@ public:
 
     __device__ ull append(ull sglen)
     {
-        ull vt = ~0ULL;
+        ull vt = INVALID_BUFFER_POS;
         if (LANEID == 0)
         {
             ull ot = atomicAdd(otail, 2);
@@ -134,6 +134,49 @@ public:
     __device__ ull append(SubgraphOffsets &so)
     {
         return append(so.en - so.st);
+    }
+    __device__ ull append_batch(ull sglen, ui num)
+    {
+        ull vt = INVALID_BUFFER_POS;
+        if (LANEID == 0)
+        {
+            ull ot = atomicAdd(otail, 2ULL * num);
+            ull write_vt = atomicAdd(vtail, sglen * num);
+            atomicAdd(n_tasks_proc, num);
+
+            const ull next_ot = ot + 2ULL * num;
+            const ull next_vt = write_vt + sglen * num;
+            const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
+            const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
+            const bool out_of_bounds =
+                (capacity[0] == HOST_BUFF_SZ) ?
+                    (next_ot > HOST_OFFSET_SZ || next_vt > HOST_BUFF_SZ) :
+                    (next_ot > capacity[0] || (next_vt - vertex_base) > vertex_span);
+
+            if (out_of_bounds || (next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span))
+                overflow[0] = true;
+
+            if (!out_of_bounds)
+            {
+                for (ui i = 0; i < num; ++i)
+                {
+                    offsets[ot + 2ULL * i] = write_vt + sglen * i;
+                    offsets[ot + 2ULL * i + 1] = write_vt + sglen * (i + 1);
+                }
+                vt = write_vt;
+            }
+            else if ((capacity[0] == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
+                     (capacity[0] != HOST_BUFF_SZ && next_ot <= capacity[0]))
+            {
+                for (ui i = 0; i < num; ++i)
+                {
+                    offsets[ot + 2ULL * i] = write_vt + sglen * i;
+                    offsets[ot + 2ULL * i + 1] = write_vt + sglen * i;
+                }
+            }
+        }
+        vt = __shfl_sync(FULL, vt, 0);
+        return vt;
     }
     __device__ SubgraphOffsets next()
     {

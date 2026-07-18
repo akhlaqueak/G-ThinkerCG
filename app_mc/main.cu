@@ -27,6 +27,7 @@ class MCApp : public Master<MCCPUWorker, MCGPUContext>
 public:
     bool gpu_enabled_;
     ull max_clique_size_ = 0;
+    double load_from_host_time_s_ = 0.0;
 
     MCApp()
     {
@@ -82,6 +83,7 @@ public:
                 res += gw->getContext()->get_results();
                 max_clique_size_ = std::max(max_clique_size_, gw->getContext()->get_max_clique_size());
                 spilled_tasks = gw->spilled_tasks;
+                load_from_host_time_s_ += gw->getContext()->get_load_from_host_time_s();
                 gw->getContext()->cleanup();
             }
 
@@ -93,6 +95,11 @@ public:
     ull get_max_clique_size() const
     {
         return max_clique_size_;
+    }
+
+    double get_load_from_host_time_s() const
+    {
+        return load_from_host_time_s_;
     }
 };
 
@@ -111,6 +118,7 @@ int main(int argc, char *argv[])
     app.run();
     ull total_count = app.get_results();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+    cout << "load_from_host time (s): " << app.get_load_from_host_time_s() << endl;
     cout << "Total count: " << total_count << endl;
     cout << "Largest clique size: " << app.get_max_clique_size() << endl;
     cout << "Total spilled tasks: " << spilled_tasks << endl;

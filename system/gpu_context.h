@@ -10,6 +10,18 @@ class GPUContext
     };
 
 public:
+    struct AppendResult
+    {
+        ull vt;
+        BufferT *buffer;
+        bool failed;
+
+        __device__ BufferT &dst() const
+        {
+            return *buffer;
+        }
+    };
+
     // using ContextT = typename TaskT::ContextType;
     // using TaskType = TaskT;
     typedef typename TaskT::ContextType ContextT;
@@ -18,6 +30,7 @@ public:
     ull *v_proc = nullptr;
     std::stack<BPointers> SL;
     bool ping_pong_mode = true;
+    bool abort_chunk_on_device_full = true;
 
     // memory is allocated only to B and H buffers, Brd, Bwr are just pointers hovering over B
     // host spill buffer
@@ -31,6 +44,7 @@ public:
     ull *sources_num = nullptr;  // size of Lv
     VertexID *sources = nullptr; // Lv copy on GPU
     ui eta_limit = 1000 * N_WARPS;
+    double load_from_host_time_s_ = 0.0;
 
     // graph in CSR on GPU
     ull *row_ptrs = nullptr;
@@ -78,6 +92,11 @@ public:
     void set_eta_limit(ui limit)
     {
         eta_limit = limit;
+    }
+
+    double get_load_from_host_time_s() const
+    {
+        return load_from_host_time_s_;
     }
 
     void allocateMemory(ull reserved_mem = 0)
@@ -185,6 +204,38 @@ public:
         return Bwr.isOverflow();
     }
 
+    __device__ AppendResult append(ull sglen)
+    {
+        ull vt = Bwr.append(sglen);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &Bwr, false};
+
+        if (abort_chunk_on_device_full && ping_pong_mode)
+            return {INVALID_BUFFER_POS, &Bwr, true};
+
+        vt = H.append(sglen);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &H, false};
+
+        return {INVALID_BUFFER_POS, &H, true};
+    }
+
+    __device__ AppendResult append_batch(ull sglen, ui num)
+    {
+        ull vt = Bwr.append_batch(sglen, num);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &Bwr, false};
+
+        if (abort_chunk_on_device_full && ping_pong_mode)
+            return {INVALID_BUFFER_POS, &Bwr, true};
+
+        vt = H.append_batch(sglen, num);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &H, false};
+
+        return {INVALID_BUFFER_POS, &H, true};
+    }
+
     __device__ void dumpToHost(SubgraphOffsets &so)
     {
         if (H.overflow[0])
@@ -202,6 +253,7 @@ public:
     void set_ping_pong_mode()
     {
         ping_pong_mode = true;  
+        abort_chunk_on_device_full = g_abort_chunk_flag;
 
         Brd.capacity[0] = B.capacity[0] / 2;
         Bwr.capacity[0] = B.capacity[0];
@@ -215,6 +267,7 @@ public:
     void set_layered_mode()
     {
         ping_pong_mode = false;
+        abort_chunk_on_device_full = false;
 
         Brd.capacity[0] = B.capacity[0];
         Bwr.capacity[0] = B.capacity[0];
@@ -348,12 +401,21 @@ public:
             return;
         }
 
+        const auto load_start = chrono::steady_clock::now();
+        const auto finish_load_timing = [this, &load_start]()
+        {
+            load_from_host_time_s_ += chrono::duration<double>(chrono::steady_clock::now() - load_start).count();
+        };
+
         const ull src_ohead = H.ohead[0];
         const ull src_otail = H.otail[0];
         const ull available_tasks = (src_otail - src_ohead) / 2;
 
         if (available_tasks == 0)
+        {
+            finish_load_timing();
             return;
+        }
 
         const ull dst_otail = Bwr.otail[0];
         const ull dst_vstart = Bwr.vtail[0];
@@ -396,6 +458,7 @@ public:
         if (tasks_to_load == 0)
         {
             delete[] offsets;
+            finish_load_timing();
             return;
         }
         cout<<"loading from host "<< tasks_to_load <<endl;
@@ -432,6 +495,7 @@ public:
         }
         delete[] translated_offsets;
         delete[] offsets;
+        finish_load_timing();
     }
 };
 

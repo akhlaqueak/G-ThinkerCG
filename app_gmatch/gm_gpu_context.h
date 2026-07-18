@@ -116,13 +116,6 @@ class GMGPUContext : public GPUContext<GMBuffer, GMTask>
     }
 
 public:
-    struct BatchAppendResult
-    {
-        ull vt;
-        bool to_host;
-        bool failed;
-    };
-
     // temporary array to store local candidate ?????
     ui *tempv;
     // bool *templ;
@@ -145,143 +138,6 @@ public:
 
     virtual void load_graph(ull *&row_ptrs, VertexID *&cols)
     {
-    }
-
-    __device__ BatchAppendResult append_batch(ull sglen, ui num, StoreStrategy mode)
-    {
-        BatchAppendResult res{0, false, false};
-        ull lane_vt = 0;
-        unsigned int lane_to_host = 0;
-        unsigned int lane_failed = 0;
-
-        ull ot = 0, vt = 0;
-        ull host_ot = 0, host_vt = 0;
-
-        if (mode == StoreStrategy::EXPAND)
-        {
-            if (LANEID == 0)
-            {
-                ot = atomicAdd(Bwr.otail, 2ULL * num);
-                vt = atomicAdd(Bwr.vtail, sglen * num);
-                atomicAdd(Bwr.n_tasks_proc, num);
-
-                const ull next_ot = ot + 2ULL * num;
-                const ull next_vt = vt + sglen * num;
-                const ull vertex_base = Bwr.second_buffer ? Bwr.capacity[0] / 2 : 0;
-                const ull vertex_span = Bwr.second_buffer ? Bwr.capacity[0] / 2 : Bwr.capacity[0];
-
-                if (next_ot <= Bwr.capacity[0] && (next_vt - vertex_base) <= vertex_span)
-                {
-                    lane_vt = vt;
-                }
-                else
-                {
-                    Bwr.overflow[0] = true;
-                    lane_to_host = 1;
-                    host_ot = atomicAdd(H.otail, 2ULL * num);
-                    host_vt = atomicAdd(H.vtail, sglen * num);
-                    atomicAdd(H.n_tasks_proc, num);
-
-                    if (host_ot + 2ULL * num > HOST_OFFSET_SZ || host_vt + sglen * num > H.capacity[0])
-                    {
-                        H.overflow[0] = true;
-                        lane_failed = 1;
-                    }
-                    else
-                    {
-                        lane_vt = host_vt;
-                    }
-                }
-            }
-
-            ot = __shfl_sync(FULL, ot, 0);
-            vt = __shfl_sync(FULL, vt, 0);
-            host_ot = __shfl_sync(FULL, host_ot, 0);
-            host_vt = __shfl_sync(FULL, host_vt, 0);
-            lane_vt = __shfl_sync(FULL, lane_vt, 0);
-            lane_to_host = __shfl_sync(FULL, lane_to_host, 0);
-            lane_failed = __shfl_sync(FULL, lane_failed, 0);
-
-            if (lane_to_host)
-            {
-                for (ui i = LANEID; i < num; i += 32)
-                {
-                    Bwr.offsets[ot + i * 2] = vt + sglen * i;
-                    Bwr.offsets[ot + i * 2 + 1] = vt + sglen * i;
-                }
-
-                if (!lane_failed)
-                {
-                    for (ui i = LANEID; i < num; i += 32)
-                    {
-                        H.offsets[host_ot + i * 2] = host_vt + sglen * i;
-                        H.offsets[host_ot + i * 2 + 1] = host_vt + sglen * (i + 1);
-                    }
-                }
-            }
-            else
-            {
-                for (ui i = LANEID; i < num; i += 32)
-                {
-                    Bwr.offsets[ot + i * 2] = vt + sglen * i;
-                    Bwr.offsets[ot + i * 2 + 1] = vt + sglen * (i + 1);
-                }
-            }
-        }
-        else
-        {
-            if (LANEID == 0)
-            {
-                const ull total_len = sglen + num;
-                ot = atomicAdd(Bwr.otail, 2ULL);
-                vt = atomicAdd(Bwr.vtail, total_len);
-                atomicAdd(Bwr.n_tasks_proc, num);
-
-                const ull next_ot = ot + 2;
-                const ull next_vt = vt + total_len;
-                const ull vertex_base = Bwr.second_buffer ? Bwr.capacity[0] / 2 : 0;
-                const ull vertex_span = Bwr.second_buffer ? Bwr.capacity[0] / 2 : Bwr.capacity[0];
-
-                if (next_ot <= Bwr.capacity[0] && (next_vt - vertex_base) <= vertex_span)
-                {
-                    Bwr.offsets[ot] = vt;
-                    Bwr.offsets[ot + 1] = vt + total_len;
-                    lane_vt = vt;
-                }
-                else
-                {
-                    Bwr.overflow[0] = true;
-                    lane_to_host = 1;
-                    Bwr.offsets[ot] = vt;
-                    Bwr.offsets[ot + 1] = vt;
-
-                    host_ot = atomicAdd(H.otail, 2ULL);
-                    host_vt = atomicAdd(H.vtail, total_len);
-                    atomicAdd(H.n_tasks_proc, num);
-
-                    if (host_ot + 2 > HOST_OFFSET_SZ || host_vt + total_len > H.capacity[0])
-                    {
-                        H.overflow[0] = true;
-                        lane_failed = 1;
-                    }
-                    else
-                    {
-                        H.offsets[host_ot] = host_vt;
-                        H.offsets[host_ot + 1] = host_vt + total_len;
-                        lane_vt = host_vt;
-                    }
-                }
-            }
-
-            lane_vt = __shfl_sync(FULL, lane_vt, 0);
-            lane_to_host = __shfl_sync(FULL, lane_to_host, 0);
-            lane_failed = __shfl_sync(FULL, lane_failed, 0);
-        }
-
-        res.vt = lane_vt;
-        res.to_host = lane_to_host;
-        res.failed = lane_failed;
-        return res;
     }
 
     __device__ virtual void process(GMBuffer &Brd, ull *row_ptrs, VertexID *cols) {}
@@ -452,11 +308,15 @@ public:
 
             ull v = sources[vp];
 
-            ull vt = Bwr.append(2); // header + one matched vertex
+            auto alloc = append(2); // header + one matched vertex
+            if (alloc.failed)
+                return;
+            auto &dst = alloc.dst();
+            ull vt = alloc.vt;
             if (LANEID == 0)
             {
-                Bwr.vertices[vt] = 1;
-                Bwr.vertices[vt + 1] = v; // sources[v];
+                dst.vertices[vt] = 1;
+                dst.vertices[vt + 1] = v; // sources[v];
             }
         }
     }
@@ -714,10 +574,10 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
-                                    auto alloc = append_batch(sglen + 2, min, StoreStrategy::EXPAND);
+                                    auto alloc = append_batch(sglen + 2, min);
                                     if (alloc.failed)
                                         return;
-                                    auto &dst = alloc.to_host ? H : Bwr;
+                                    auto &dst = alloc.dst();
                                     auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
@@ -736,10 +596,10 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
-                                    auto alloc = append_batch(sglen + 1, min, StoreStrategy::PREFIX);
+                                    auto alloc = append(sglen + 1 + min);
                                     if (alloc.failed)
                                         return;
-                                    auto &dst = alloc.to_host ? H : Bwr;
+                                    auto &dst = alloc.dst();
                                     auto vt = alloc.vt;
                                     if (LANEID == 0)
                                         dst.vertices[vt] = sglen + 1;
@@ -901,10 +761,10 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
-                                auto alloc = append_batch(sglen + 2, min, StoreStrategy::EXPAND);
+                                auto alloc = append_batch(sglen + 2, min);
                                 if (alloc.failed)
                                     return;
-                                auto &dst = alloc.to_host ? H : Bwr;
+                                auto &dst = alloc.dst();
                                 auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
@@ -923,10 +783,10 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += prefixBatchSize[0])
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
-                                auto alloc = append_batch(sglen + 1, min, StoreStrategy::PREFIX);
+                                auto alloc = append(sglen + 1 + min);
                                 if (alloc.failed)
                                     return;
-                                auto &dst = alloc.to_host ? H : Bwr;
+                                auto &dst = alloc.dst();
                                 auto vt = alloc.vt;
                                 if (LANEID == 0)
                                     dst.vertices[vt] = sglen + 1;

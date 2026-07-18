@@ -1685,17 +1685,12 @@ public:
     __device__ void d_write_to_tasks(GPU_Data &dd, Warp_Data &wd, Local_Data &ld)
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
-        uint64_t start_write = Bwr.append(wd.total_vertices[WIB_IDX]);
-        QCBuffer *write_buffer = &Bwr;
-        if (start_write == ~0ULL)
-        {
-            start_write = H.append(wd.total_vertices[WIB_IDX]);
-            write_buffer = &H;
-            if (start_write == ~0ULL)
-            {
-                return;
-            }
-        }
+        auto alloc = append(wd.total_vertices[WIB_IDX]);
+        if (alloc.failed)
+            return;
+
+        uint64_t start_write = alloc.vt;
+        QCBuffer *write_buffer = alloc.buffer;
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
             write_buffer->vertices[start_write + k] = ld.vertices[k].vertexid;
