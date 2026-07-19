@@ -28,6 +28,8 @@ public:
     bool gpu_enabled_;
     ull max_clique_size_ = 0;
     double load_from_host_time_s_ = 0.0;
+    double dump_to_host_time_s_ = 0.0;
+    double pingpong_mode2_dump_time_s_ = 0.0;
 
     MCApp()
     {
@@ -84,6 +86,8 @@ public:
                 max_clique_size_ = std::max(max_clique_size_, gw->getContext()->get_max_clique_size());
                 spilled_tasks = gw->spilled_tasks;
                 load_from_host_time_s_ += gw->getContext()->get_load_from_host_time_s();
+                dump_to_host_time_s_ += gw->getContext()->get_dump_to_host_time_s();
+                pingpong_mode2_dump_time_s_ += gw->get_pingpong_mode2_dump_time_s();
                 gw->getContext()->cleanup();
             }
 
@@ -100,6 +104,16 @@ public:
     double get_load_from_host_time_s() const
     {
         return load_from_host_time_s_;
+    }
+
+    double get_dump_to_host_time_s() const
+    {
+        return dump_to_host_time_s_;
+    }
+
+    double get_pingpong_mode2_dump_time_s() const
+    {
+        return pingpong_mode2_dump_time_s_;
     }
 };
 
@@ -119,6 +133,8 @@ int main(int argc, char *argv[])
     ull total_count = app.get_results();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
     cout << "load_from_host time (s): " << app.get_load_from_host_time_s() << endl;
+    cout << "dump_to_host time (s): " << app.get_dump_to_host_time_s() << endl;
+    cout << "pingpong=2 dump_to_host time (s): " << app.get_pingpong_mode2_dump_time_s() << endl;
     cout << "Total count: " << total_count << endl;
     cout << "Largest clique size: " << app.get_max_clique_size() << endl;
     cout << "Total spilled tasks: " << spilled_tasks << endl;

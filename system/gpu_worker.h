@@ -31,6 +31,7 @@ class GPUWorker : public Worker<typename GPUContext::TaskType>
 public:
     GPUContext gc;
     Timer progress;
+    double pingpong_mode2_dump_time_s_ = 0.0;
     GPUWorker(ui eta_limit) : Worker<TaskT>(tasks_per_fetch_gpu_worker_g)
     {
         gc.set_eta_limit(eta_limit);
@@ -168,9 +169,11 @@ public:
             }
             else
             {
+                const auto dump_start = chrono::steady_clock::now();
                 gc.dump_to_host();   // dumps remaining unxpanded Brd tasks to H
                 gc.incrementLevel(); // switch Bwr => Brd
                 gc.dump_to_host();   
+                pingpong_mode2_dump_time_s_ += chrono::duration<double>(chrono::steady_clock::now() - dump_start).count();
                 gc.set_layered_mode();
                 move_tasks_to_cpu();
             }
@@ -211,6 +214,11 @@ public:
     GPUContext *getContext()
     {
         return &gc;
+    }
+
+    double get_pingpong_mode2_dump_time_s() const
+    {
+        return pingpong_mode2_dump_time_s_;
     }
 };
 // this is also last line

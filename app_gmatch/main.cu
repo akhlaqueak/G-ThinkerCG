@@ -30,6 +30,8 @@ class GMApp : public Master<GMCPUWorker, GMGPUContext>
 public:
     bool gpu_enabled_;
     double load_from_host_time_s_ = 0.0;
+    double dump_to_host_time_s_ = 0.0;
+    double pingpong_mode2_dump_time_s_ = 0.0;
 
     GMApp(ui argc, char *argv[])
     {
@@ -108,6 +110,8 @@ public:
                 // cout<<"gpu found: "<< gw->getContext()->get_results();
                 res += gw->getContext()->get_results();
                 load_from_host_time_s_ += gw->getContext()->get_load_from_host_time_s();
+                dump_to_host_time_s_ += gw->getContext()->get_dump_to_host_time_s();
+                pingpong_mode2_dump_time_s_ += gw->get_pingpong_mode2_dump_time_s();
             }
 
             delete w;
@@ -118,6 +122,16 @@ public:
     double get_load_from_host_time_s() const
     {
         return load_from_host_time_s_;
+    }
+
+    double get_dump_to_host_time_s() const
+    {
+        return dump_to_host_time_s_;
+    }
+
+    double get_pingpong_mode2_dump_time_s() const
+    {
+        return pingpong_mode2_dump_time_s_;
     }
 
     void generateBN(Graph_CPU &cpu_qg, ui *order, ui **&bn, ui *&bn_count)
@@ -287,6 +301,8 @@ int main(int argc, char *argv[])
         ull total_count = app.get_results();
         cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
         cout << "load_from_host time (s): " << app.get_load_from_host_time_s() << endl;
+        cout << "dump_to_host time (s): " << app.get_dump_to_host_time_s() << endl;
+        cout << "pingpong=2 dump_to_host time (s): " << app.get_pingpong_mode2_dump_time_s() << endl;
         cout << "Total count: " << total_count << endl;
         return 0;
     }

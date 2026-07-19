@@ -14,7 +14,6 @@ public:
     {
         ull vt;
         BufferT *buffer;
-        bool failed;
 
         __device__ BufferT &dst() const
         {
@@ -45,6 +44,7 @@ public:
     VertexID *sources = nullptr; // Lv copy on GPU
     ui eta_limit = 1000 * N_WARPS;
     double load_from_host_time_s_ = 0.0;
+    double dump_to_host_time_s_ = 0.0;
 
     // graph in CSR on GPU
     ull *row_ptrs = nullptr;
@@ -97,6 +97,11 @@ public:
     double get_load_from_host_time_s() const
     {
         return load_from_host_time_s_;
+    }
+
+    double get_dump_to_host_time_s() const
+    {
+        return dump_to_host_time_s_;
     }
 
     void allocateMemory(ull reserved_mem = 0)
@@ -208,32 +213,32 @@ public:
     {
         ull vt = Bwr.append(sglen);
         if (vt != INVALID_BUFFER_POS)
-            return {vt, &Bwr, false};
+            return {vt, &Bwr};
 
         if (abort_chunk_on_device_full && ping_pong_mode)
-            return {INVALID_BUFFER_POS, &Bwr, true};
+            return {INVALID_BUFFER_POS, nullptr};
 
         vt = H.append(sglen);
         if (vt != INVALID_BUFFER_POS)
-            return {vt, &H, false};
+            return {vt, &H};
 
-        return {INVALID_BUFFER_POS, &H, true};
+        return {INVALID_BUFFER_POS, nullptr};
     }
 
     __device__ AppendResult append_batch(ull sglen, ui num)
     {
         ull vt = Bwr.append_batch(sglen, num);
         if (vt != INVALID_BUFFER_POS)
-            return {vt, &Bwr, false};
+            return {vt, &Bwr};
 
         if (abort_chunk_on_device_full && ping_pong_mode)
-            return {INVALID_BUFFER_POS, &Bwr, true};
+            return {INVALID_BUFFER_POS, nullptr};
 
         vt = H.append_batch(sglen, num);
         if (vt != INVALID_BUFFER_POS)
-            return {vt, &H, false};
+            return {vt, &H};
 
-        return {INVALID_BUFFER_POS, &H, true};
+        return {INVALID_BUFFER_POS, nullptr};
     }
 
     __device__ void dumpToHost(SubgraphOffsets &so)
@@ -297,17 +302,29 @@ public:
         if (Brd.empty())
             return;
 
+        const auto dump_start = chrono::steady_clock::now();
+        const auto finish_dump_timing = [this, &dump_start]()
+        {
+            dump_to_host_time_s_ += chrono::duration<double>(chrono::steady_clock::now() - dump_start).count();
+        };
+
         if (H.empty())
             H.clear();
 
         const ull src_ohead = Brd.ohead[0];
         const ull src_otail_raw = std::min<ull>(Brd.otail[0], Brd.capacity[0]);
         if (src_otail_raw <= src_ohead)
+        {
+            finish_dump_timing();
             return;
+        }
         const ull src_otail = src_ohead + ((src_otail_raw - src_ohead) / 2) * 2;
         const ull offset_count = src_otail - src_ohead;
         if (offset_count == 0)
+        {
+            finish_dump_timing();
             return;
+        }
 
         ull *offsets = new ull[offset_count];
         chkerr(cudaMemcpy(offsets, Brd.offsets + src_ohead, sizeof(ull) * offset_count, cudaMemcpyDeviceToHost));
@@ -326,6 +343,7 @@ public:
         {
             Brd.ohead[0] = src_otail;
             delete[] offsets;
+            finish_dump_timing();
             return;
         }
 
@@ -391,6 +409,7 @@ public:
         }
         Brd.ohead[0] = src_otail;
         delete[] offsets;
+        finish_dump_timing();
     }
 
     void load_from_host()

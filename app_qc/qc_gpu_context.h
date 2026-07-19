@@ -1686,7 +1686,7 @@ public:
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
         auto alloc = append(wd.total_vertices[WIB_IDX]);
-        if (alloc.failed)
+        if (alloc.buffer == nullptr)
             return;
 
         uint64_t start_write = alloc.vt;

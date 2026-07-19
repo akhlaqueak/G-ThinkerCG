@@ -309,7 +309,7 @@ public:
             ull v = sources[vp];
 
             auto alloc = append(2); // header + one matched vertex
-            if (alloc.failed)
+            if (alloc.buffer == nullptr)
                 return;
             auto &dst = alloc.dst();
             ull vt = alloc.vt;
@@ -575,7 +575,7 @@ public:
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append_batch(sglen + 2, min);
-                                    if (alloc.failed)
+                                    if (alloc.buffer == nullptr)
                                         return;
                                     auto &dst = alloc.dst();
                                     auto vt = alloc.vt;
@@ -597,7 +597,7 @@ public:
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append(sglen + 1 + min);
-                                    if (alloc.failed)
+                                    if (alloc.buffer == nullptr)
                                         return;
                                     auto &dst = alloc.dst();
                                     auto vt = alloc.vt;
@@ -762,7 +762,7 @@ public:
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append_batch(sglen + 2, min);
-                                if (alloc.failed)
+                                if (alloc.buffer == nullptr)
                                     return;
                                 auto &dst = alloc.dst();
                                 auto vt = alloc.vt;
@@ -784,7 +784,7 @@ public:
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append(sglen + 1 + min);
-                                if (alloc.failed)
+                                if (alloc.buffer == nullptr)
                                     return;
                                 auto &dst = alloc.dst();
                                 auto vt = alloc.vt;

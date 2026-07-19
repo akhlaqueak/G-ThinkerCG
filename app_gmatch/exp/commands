@@ -29,11 +29,14 @@ while IFS=$'\t' read -r ds q; do
 done < ds.txt
 
 
+# Set to 1 to skip completed runs, 0 to always rerun.
+SKIP_COMPLETED=0
+
 run_case() {
     local logfile="$1"
     shift
 
-    if [ -f "$logfile" ]; then
+    if [ "$SKIP_COMPLETED" -eq 1 ] && [ -f "$logfile" ]; then
         if grep -q "Total time" "$logfile" || grep -q "STATUS: TIMEOUT" "$logfile"; then
             echo "Skipping $logfile (already completed or timed out)"
             return
@@ -53,7 +56,7 @@ run_case() {
             echo "END: $(date)"
         } >> "$logfile"
     else
-        rc=$?
+        local rc=$?
         {
             echo
             if [ "$rc" -eq 124 ]; then
@@ -76,32 +79,32 @@ while IFS=$'\t' read -r ds q; do
     #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0 -cpuchunk 10
     # run_case "$ds-$q-nogpu.log" \
     #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -gpu 0 -cpuchunk 10
-    # run_case "$ds-$q-pp1.log" \
-    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -pingpong 1
+    run_case "$ds-$q-pp1.log" \
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -hg_steal 100000000 -pingpong 1 -eta 1000
     # run_case "$ds-$q-pp2.log" \
     #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -pingpong 2
     # run_case "$ds-$q-pp0.log" \
     #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -cpu 0 -pingpong 0
-    run_case "$ds-$q-with_cpu_gpu.log" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0
-done < ds1.txt
+    # run_case "$ds-$q-with_cpu_gpu.log" \
+    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong 0
+done < ds.txt
 
 
 while IFS=$'\t' read -r ds q; do
-        fname=$ds-$q-pp0.log
+        fname="$ds-$q-pp1.log"
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else
             echo "X"
         fi
-done < ds1.txt
+done < ds.txt
 
 while IFS=$'\t' read -r ds q; do
-for run in {1..5}; do
+# for run in {1..5}; do
     for pp in 0 1 2; do
         [ -z "$ds" ] && continue
 
-        fname="logs/$ds-$q-pp-$pp-run-$run.log"
+        fname="logs/$ds-$q-pp-$pp-new.log"
         # run_case $fname \
         #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong $pp -eta 1000 -cpu 0 -hg_steal 100000000 
 
@@ -112,5 +115,6 @@ for run in {1..5}; do
             fi
     done
     echo 
-done
+# done
 done < ds.txt
+
