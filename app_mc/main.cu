@@ -27,9 +27,13 @@ class MCApp : public Master<MCCPUWorker, MCGPUContext>
 public:
     bool gpu_enabled_;
     ull max_clique_size_ = 0;
+#ifdef GPU_BUFFER_BOOKKEEPING
     double load_from_host_time_s_ = 0.0;
     double dump_to_host_time_s_ = 0.0;
     double pingpong_mode2_dump_time_s_ = 0.0;
+    ull load_from_host_bytes_ = 0;
+    ull dump_to_host_bytes_ = 0;
+#endif
 
     MCApp()
     {
@@ -85,9 +89,13 @@ public:
                 res += gw->getContext()->get_results();
                 max_clique_size_ = std::max(max_clique_size_, gw->getContext()->get_max_clique_size());
                 spilled_tasks = gw->spilled_tasks;
+#ifdef GPU_BUFFER_BOOKKEEPING
                 load_from_host_time_s_ += gw->getContext()->get_load_from_host_time_s();
                 dump_to_host_time_s_ += gw->getContext()->get_dump_to_host_time_s();
                 pingpong_mode2_dump_time_s_ += gw->get_pingpong_mode2_dump_time_s();
+                load_from_host_bytes_ += gw->getContext()->get_load_from_host_bytes();
+                dump_to_host_bytes_ += gw->getContext()->get_dump_to_host_bytes();
+#endif
                 gw->getContext()->cleanup();
             }
 
@@ -101,6 +109,7 @@ public:
         return max_clique_size_;
     }
 
+#ifdef GPU_BUFFER_BOOKKEEPING
     double get_load_from_host_time_s() const
     {
         return load_from_host_time_s_;
@@ -115,6 +124,17 @@ public:
     {
         return pingpong_mode2_dump_time_s_;
     }
+
+    ull get_load_from_host_bytes() const
+    {
+        return load_from_host_bytes_;
+    }
+
+    ull get_dump_to_host_bytes() const
+    {
+        return dump_to_host_bytes_;
+    }
+#endif
 };
 
 int main(int argc, char *argv[])
@@ -132,9 +152,15 @@ int main(int argc, char *argv[])
     app.run();
     ull total_count = app.get_results();
     cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
+#ifdef GPU_BUFFER_BOOKKEEPING
     cout << "load_from_host time (s): " << app.get_load_from_host_time_s() << endl;
+    cout << "load_from_host data (GB): " << static_cast<double>(app.get_load_from_host_bytes()) / (1024.0 * 1024.0 * 1024.0)
+         << " (" << app.get_load_from_host_bytes() << " bytes)" << endl;
     cout << "dump_to_host time (s): " << app.get_dump_to_host_time_s() << endl;
+    cout << "dump_to_host data moved to host (GB): " << static_cast<double>(app.get_dump_to_host_bytes()) / (1024.0 * 1024.0 * 1024.0)
+         << " (" << app.get_dump_to_host_bytes() << " bytes)" << endl;
     cout << "pingpong=2 dump_to_host time (s): " << app.get_pingpong_mode2_dump_time_s() << endl;
+#endif
     cout << "Total count: " << total_count << endl;
     cout << "Largest clique size: " << app.get_max_clique_size() << endl;
     cout << "Total spilled tasks: " << spilled_tasks << endl;

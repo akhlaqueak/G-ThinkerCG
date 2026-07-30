@@ -1686,18 +1686,20 @@ public:
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
         auto alloc = append(wd.total_vertices[WIB_IDX]);
+        #ifdef GPU_BUFFER_BOOKKEEPING
         if (alloc.buffer == nullptr)
             return;
+        #endif
 
         uint64_t start_write = alloc.vt;
-        QCBuffer *write_buffer = alloc.buffer;
+        auto &write_buffer = *alloc.buffer;
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
-            write_buffer->vertices[start_write + k] = ld.vertices[k].vertexid;
-            write_buffer->label[start_write + k] = ld.vertices[k].label;
-            write_buffer->indeg[start_write + k] = ld.vertices[k].indeg;
-            write_buffer->exdeg[start_write + k] = ld.vertices[k].exdeg;
-            write_buffer->lvl2adj[start_write + k] = 0;
+            write_buffer.vertices[start_write + k] = ld.vertices[k].vertexid;
+            write_buffer.label[start_write + k] = ld.vertices[k].label;
+            write_buffer.indeg[start_write + k] = ld.vertices[k].indeg;
+            write_buffer.exdeg[start_write + k] = ld.vertices[k].exdeg;
+            write_buffer.lvl2adj[start_write + k] = 0;
         }
     }
 

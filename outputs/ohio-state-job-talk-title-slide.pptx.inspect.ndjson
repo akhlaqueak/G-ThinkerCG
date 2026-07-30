@@ -1,0 +1,11 @@
+{"kind":"deck","id":"pr/10nlhp","name":"Deck"}
+{"kind":"layout","layoutId":"c52e81d6-f43c-4cd5-95e7-2521ae492632","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"aa26fa06-3f21-4492-b454-3f02350fc7b7","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/1wtsb7","slide":1,"title":"RESEARCH SCIENTIST INTERVIEW  ·  R150760","textShapes":6}
+{"kind":"textbox","id":"sh/gned4zqx","slide":1,"name":"Interview context","text":"RESEARCH SCIENTIST INTERVIEW  ·  R150760","textPreview":"RESEARCH SCIENTIST INTERVIEW  ·  R150760","textChars":40,"textLines":1,"bbox":[72,56,760,34]}
+{"kind":"textbox","id":"sh/fm5wbu9c","slide":1,"name":"Host institution","text":"AI(X) HUB  ·  THE OHIO STATE UNIVERSITY","textPreview":"AI(X) HUB  ·  THE OHIO STATE UNIVERSITY","textChars":39,"textLines":1,"bbox":[810,58,398,32]}
+{"kind":"textbox","id":"sh/elwv2p8r","slide":1,"name":"Presentation title","text":"Research Contributions\nThrough Collaborative Innovation","textPreview":"Research Contributions | Through Collaborative Innovation","textChars":55,"textLines":2,"bbox":[72,170,1030,210]}
+{"kind":"textbox","id":"sh/tkne94r6","slide":1,"name":"Presentation scope","text":"Novel solutions · interdisciplinary teamwork · proposal development","textPreview":"Novel solutions · interdisciplinary teamwork · proposal development","textChars":67,"textLines":1,"bbox":[72,417,1040,48]}
+{"kind":"textbox","id":"sh/sjed0zq1","slide":1,"name":"Presenter name","text":"Akhlaque Ahmad","textPreview":"Akhlaque Ahmad","textChars":14,"textLines":1,"bbox":[72,555,560,42]}
+{"kind":"textbox","id":"sh/7i5w7u9g","slide":1,"name":"Presenter affiliation","text":"Indiana University","textPreview":"Indiana University","textChars":18,"textLines":1,"bbox":[72,604,560,34]}
+{"kind":"notes","id":"nt/1wtsb7","slide":1,"text":""}

@@ -1,0 +1,18 @@
+Primary source for all technical claims and figures:
+
+Jifan Shi, Jianyang Gao, James Xia, Tamás Béla Fehér, and Cheng Long.
+"GPU-Native Approximate Nearest Neighbor Search with IVF-RaBitQ: Fast Index Build and Search."
+arXiv:2602.23999v1, 27 February 2026.
+Local file: /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf
+
+Extracted paper assets used in the deck:
+- Figure 1 (paper p. 7): bitwise inner-product computation.
+- Figure 2 (paper p. 9): inverted-list and interleaved short-code layout.
+- Table 1 (paper p. 9): evaluation datasets.
+- Figure 3 (paper p. 10): recall-QPS curves.
+- Figure 4 (paper p. 11): index build time.
+- Figure 5 (paper p. 11): storage requirement.
+- Figure 6 (paper p. 11): quantization-bit trade-off.
+- Figure 7 (paper p. 12): GPU versus CPU recall-QPS comparison.
+
+No external web assets were used.

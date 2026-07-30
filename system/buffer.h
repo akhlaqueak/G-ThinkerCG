@@ -138,44 +138,56 @@ public:
     __device__ ull append_batch(ull sglen, ui num)
     {
         ull vt = INVALID_BUFFER_POS;
+        ull ot = 0;
+        ull write_vt = 0;
+        unsigned int out_of_bounds = 0;
+        unsigned int can_write_invalid_offsets = 0;
         if (LANEID == 0)
         {
-            ull ot = atomicAdd(otail, 2ULL * num);
-            ull write_vt = atomicAdd(vtail, sglen * num);
+            ot = atomicAdd(otail, 2ULL * num);
+            write_vt = atomicAdd(vtail, sglen * num);
             atomicAdd(n_tasks_proc, num);
 
             const ull next_ot = ot + 2ULL * num;
             const ull next_vt = write_vt + sglen * num;
             const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
             const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
-            const bool out_of_bounds =
+            out_of_bounds =
                 (capacity[0] == HOST_BUFF_SZ) ?
                     (next_ot > HOST_OFFSET_SZ || next_vt > HOST_BUFF_SZ) :
                     (next_ot > capacity[0] || (next_vt - vertex_base) > vertex_span);
+            can_write_invalid_offsets =
+                (capacity[0] == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
+                (capacity[0] != HOST_BUFF_SZ && next_ot <= capacity[0]);
 
             if (out_of_bounds || (next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span))
                 overflow[0] = true;
 
             if (!out_of_bounds)
-            {
-                for (ui i = 0; i < num; ++i)
-                {
-                    offsets[ot + 2ULL * i] = write_vt + sglen * i;
-                    offsets[ot + 2ULL * i + 1] = write_vt + sglen * (i + 1);
-                }
                 vt = write_vt;
-            }
-            else if ((capacity[0] == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
-                     (capacity[0] != HOST_BUFF_SZ && next_ot <= capacity[0]))
+        }
+        ot = __shfl_sync(FULL, ot, 0);
+        write_vt = __shfl_sync(FULL, write_vt, 0);
+        out_of_bounds = __shfl_sync(FULL, out_of_bounds, 0);
+        can_write_invalid_offsets = __shfl_sync(FULL, can_write_invalid_offsets, 0);
+        vt = __shfl_sync(FULL, vt, 0);
+
+        if (vt != INVALID_BUFFER_POS)
+        {
+            for (ui i = LANEID; i < num; i += 32)
             {
-                for (ui i = 0; i < num; ++i)
-                {
-                    offsets[ot + 2ULL * i] = write_vt + sglen * i;
-                    offsets[ot + 2ULL * i + 1] = write_vt + sglen * i;
-                }
+                offsets[ot + 2ULL * i] = write_vt + sglen * i;
+                offsets[ot + 2ULL * i + 1] = write_vt + sglen * (i + 1);
             }
         }
-        vt = __shfl_sync(FULL, vt, 0);
+        else if (out_of_bounds && can_write_invalid_offsets)
+        {
+            for (ui i = LANEID; i < num; i += 32)
+            {
+                offsets[ot + 2ULL * i] = write_vt + sglen * i;
+                offsets[ot + 2ULL * i + 1] = write_vt + sglen * i;
+            }
+        }
         return vt;
     }
     __device__ SubgraphOffsets next()

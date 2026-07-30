@@ -309,9 +309,11 @@ public:
             ull v = sources[vp];
 
             auto alloc = append(2); // header + one matched vertex
+            #ifdef GPU_BUFFER_BOOKKEEPING
             if (alloc.buffer == nullptr)
                 return;
-            auto &dst = alloc.dst();
+            #endif
+            auto &dst = *alloc.buffer;
             ull vt = alloc.vt;
             if (LANEID == 0)
             {
@@ -575,9 +577,11 @@ public:
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append_batch(sglen + 2, min);
+                                    #ifdef GPU_BUFFER_BOOKKEEPING
                                     if (alloc.buffer == nullptr)
                                         return;
-                                    auto &dst = alloc.dst();
+                                    #endif
+                                    auto &dst = *alloc.buffer;
                                     auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
@@ -597,9 +601,11 @@ public:
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append(sglen + 1 + min);
+                                    #ifdef GPU_BUFFER_BOOKKEEPING
                                     if (alloc.buffer == nullptr)
                                         return;
-                                    auto &dst = alloc.dst();
+                                    #endif
+                                    auto &dst = *alloc.buffer;
                                     auto vt = alloc.vt;
                                     if (LANEID == 0)
                                         dst.vertices[vt] = sglen + 1;
@@ -762,9 +768,11 @@ public:
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append_batch(sglen + 2, min);
+                                #ifdef GPU_BUFFER_BOOKKEEPING
                                 if (alloc.buffer == nullptr)
                                     return;
-                                auto &dst = alloc.dst();
+                                #endif
+                                auto &dst = *alloc.buffer;
                                 auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
@@ -784,9 +792,11 @@ public:
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append(sglen + 1 + min);
+                                #ifdef GPU_BUFFER_BOOKKEEPING
                                 if (alloc.buffer == nullptr)
                                     return;
-                                auto &dst = alloc.dst();
+                                #endif
+                                auto &dst = *alloc.buffer;
                                 auto vt = alloc.vt;
                                 if (LANEID == 0)
                                     dst.vertices[vt] = sglen + 1;

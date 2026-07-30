@@ -1,0 +1,344 @@
+{"kind":"deck","id":"pr/h9bl9o","name":"Deck"}
+{"kind":"layout","layoutId":"a8fcea05-4780-450f-a8ef-5942f04a10fb","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"e002f802-dfa6-4cd6-8f6a-38cc82ab2709","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/iz0x78","slide":1,"title":"AKHLAQUE AHMAD","textShapes":5}
+{"kind":"textbox","id":"sh/exk7it0n","slide":1,"text":"AKHLAQUE AHMAD","textPreview":"AKHLAQUE AHMAD","textChars":14,"textLines":1,"bbox":[42,36,350,35]}
+{"kind":"textbox","id":"sh/10bqdojy","slide":1,"text":"PAPER PRESENTATION · 2026","textPreview":"PAPER PRESENTATION · 2026","textChars":25,"textLines":1,"bbox":[830,36,408,35]}
+{"kind":"textbox","id":"sh/0z2pk3id","slide":1,"text":"GPU-Native Approximate\nNearest Neighbor Search\nwith IVF-RaBitQ","textPreview":"GPU-Native Approximate | Nearest Neighbor Search | with IVF-RaBitQ","textChars":62,"textLines":3,"bbox":[42,205,1040,330]}
+{"kind":"shape","id":"sh/ru9o7e1w","slide":1,"bbox":[42,570,1196,0]}
+{"kind":"textbox","id":"sh/qt07e90b","slide":1,"text":"Jifan Shi · Jianyang Gao · James Xia · Tamás Béla Fehér · Cheng Long","textPreview":"Jifan Shi · Jianyang Gao · James Xia · Tamás Béla Fehér · Cheng Long","textChars":68,"textLines":1,"bbox":[42,594,1040,40]}
+{"kind":"textbox","id":"sh/dwrq9oj2","slide":1,"text":"arXiv:2602.23999","textPreview":"arXiv:2602.23999","textChars":16,"textLines":1,"bbox":[1035,650,203,24]}
+{"kind":"notes","id":"nt/iz0x78","slide":1,"text":"Introduce the paper and its objective: an end-to-end GPU-native IVF-RaBitQ system.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 1."}
+{"kind":"slide","id":"sl/ypcomp","slide":2,"title":"MOTIVATION","textShapes":12}
+{"kind":"textbox","id":"sh/knat8nup","slide":2,"text":"MOTIVATION","textPreview":"MOTIVATION","textChars":10,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/zm1cfid4","slide":2,"name":"slide-2-title","text":"GPU ANNS must optimize four objectives at once","textPreview":"GPU ANNS must optimize four objectives at once","textChars":46,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/ylsb6dcj","slide":2,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/9c3ulsv6","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"textbox","id":"sh/8badcnul","slide":2,"text":"Modern semantic search, RAG, and recommendation operate over massive, high-dimensional embeddings. A useful GPU index must do more than answer queries quickly.","textPreview":"Modern semantic search, RAG, and recommendation operate over massive, high-dimensional embeddings. A useful GPU index must do more than a...","textChars":159,"textLines":1,"bbox":[42,154,760,94]}
+{"kind":"shape","id":"sh/7q1cj2d0","slide":2,"bbox":[42,286,560,140]}
+{"kind":"textbox","id":"sh/mpsbaxcf","slide":2,"text":"High recall","textPreview":"High recall","textChars":11,"textLines":1,"bbox":[64,304,250,34]}
+{"kind":"textbox","id":"sh/pgzu98v2","slide":2,"text":"Preserve true neighbors at demanding accuracy targets.","textPreview":"Preserve true neighbors at demanding accuracy targets.","textChars":54,"textLines":1,"bbox":[64,348,500,60]}
+{"kind":"shape","id":"sh/ofqt03uh","slide":2,"bbox":[642,286,560,140]}
+{"kind":"textbox","id":"sh/mpsbylwz","slide":2,"text":"High QPS","textPreview":"High QPS","textChars":8,"textLines":1,"bbox":[664,304,250,34]}
+{"kind":"textbox","id":"sh/nq1s7qxk","slide":2,"text":"Exploit batching, memory bandwidth, and massive parallelism.","textPreview":"Exploit batching, memory bandwidth, and massive parallelism.","textChars":60,"textLines":1,"bbox":[664,348,500,60]}
+{"kind":"shape","id":"sh/orat0vep","slide":2,"bbox":[42,460,560,140]}
+{"kind":"textbox","id":"sh/9sja9gfa","slide":2,"text":"Fast build","textPreview":"Fast build","textChars":10,"textLines":1,"bbox":[64,478,250,34]}
+{"kind":"textbox","id":"sh/atsb2lwv","slide":2,"text":"Avoid expensive graph construction or trained codebooks.","textPreview":"Avoid expensive graph construction or trained codebooks.","textChars":56,"textLines":1,"bbox":[64,522,500,60]}
+{"kind":"shape","id":"sh/belsbqxg","slide":2,"bbox":[642,460,560,140]}
+{"kind":"textbox","id":"sh/wfut4ve1","slide":2,"text":"Compact index","textPreview":"Compact index","textChars":13,"textLines":1,"bbox":[664,478,250,34]}
+{"kind":"textbox","id":"sh/xg3ad0fm","slide":2,"text":"Keep vectors GPU-resident without raw-vector reranking.","textPreview":"Keep vectors GPU-resident without raw-vector reranking.","textChars":55,"textLines":1,"bbox":[664,522,500,60]}
+{"kind":"notes","id":"nt/ypcomp","slide":2,"text":"Frame the design problem as a four-way systems trade-off.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 1."}
+{"kind":"slide","id":"sl/swxgh6","slide":3,"title":"PROBLEM","textShapes":10}
+{"kind":"textbox","id":"sh/9w3ulgf2","slide":3,"text":"PROBLEM","textPreview":"PROBLEM","textChars":7,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/mtcbq1gr","slide":3,"name":"slide-3-title","text":"Existing GPU indexes occupy different trade-off points","textPreview":"Existing GPU indexes occupy different trade-off points","textChars":54,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/7ulcj6xw","slide":3,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/wzedwvyt","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/hknup0fe","slide":3,"bbox":[42,158,570,435]}
+{"kind":"shape","id":"sh/uxwvulgn","slide":3,"bbox":[628,158,610,435]}
+{"kind":"textbox","id":"sh/vy5cnqx8","slide":3,"text":"Graph-based indexes","textPreview":"Graph-based indexes","textChars":19,"textLines":1,"bbox":[70,190,500,42]}
+{"kind":"textbox","id":"sh/c3atkry9","slide":3,"text":"CAGRA and related methods","textPreview":"CAGRA and related methods","textChars":25,"textLines":1,"bbox":[70,244,500,28]}
+{"kind":"textbox","id":"sh/d4judwfu","slide":3,"text":"• Strong recall-throughput frontier\n• Irregular traversal and memory access\n• Heavy graph construction\n• Raw or lightly compressed storage","textPreview":"• Strong recall-throughput frontier | • Irregular traversal and memory access | • Heavy graph construction | • Raw or lightly compressed ...","textChars":138,"textLines":4,"bbox":[70,304,490,230]}
+{"kind":"textbox","id":"sh/9s3ml4zm","slide":3,"text":"Cluster-based indexes","textPreview":"Cluster-based indexes","textChars":21,"textLines":1,"bbox":[658,190,540,42]}
+{"kind":"textbox","id":"sh/oru5sjy1","slide":3,"text":"IVF-Flat and IVF-PQ","textPreview":"IVF-Flat and IVF-PQ","textChars":19,"textLines":1,"bbox":[658,244,500,28]}
+{"kind":"textbox","id":"sh/nq14jehg","slide":3,"text":"• Regular, GPU-friendly probing\n• Fast and simple construction\n• IVF-Flat is bandwidth-heavy\n• IVF-PQ often reranks raw vectors for high recall","textPreview":"• Regular, GPU-friendly probing | • Fast and simple construction | • IVF-Flat is bandwidth-heavy | • IVF-PQ often reranks raw vectors for...","textChars":143,"textLines":4,"bbox":[658,304,520,230]}
+{"kind":"textbox","id":"sh/mpsnq9gv","slide":3,"text":"The paper asks whether a cluster-based index can reach graph-like recall and throughput without graph-like build and storage costs.","textPreview":"The paper asks whether a cluster-based index can reach graph-like recall and throughput without graph-like build and storage costs.","textChars":131,"textLines":1,"bbox":[86,618,1108,48]}
+{"kind":"notes","id":"nt/swxgh6","slide":3,"text":"Contrast graph-based and IVF-based baselines, then state the paper's central question.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 1, 2."}
+{"kind":"slide","id":"sl/qj6tny","slide":4,"title":"CONTRIBUTIONS","textShapes":11}
+{"kind":"textbox","id":"sh/2583ap0z","slide":4,"text":"CONTRIBUTIONS","textPreview":"CONTRIBUTIONS","textChars":13,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/p8jm5kza","slide":4,"name":"slide-4-title","text":"The contribution is an end-to-end GPU co-design","textPreview":"The contribution is an end-to-end GPU co-design","textChars":47,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/47alcfip","slide":4,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/fih4zah8","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"textbox","id":"sh/uh83650n","slide":4,"text":"01 · Quantization","textPreview":"01 · Quantization","textChars":17,"textLines":1,"bbox":[42,166,560,38]}
+{"kind":"shape","id":"sh/h4zm1kze","slide":4,"bbox":[42,214,560,0]}
+{"kind":"textbox","id":"sh/gjql8fit","slide":4,"text":"Cluster-at-a-time, block-per-vector encoding plus a two-phase parallel grid search.","textPreview":"Cluster-at-a-time, block-per-vector encoding plus a two-phase parallel grid search.","textChars":83,"textLines":1,"bbox":[42,232,540,112]}
+{"kind":"textbox","id":"sh/7ex4vqhc","slide":4,"text":"02 · Distance kernels","textPreview":"02 · Distance kernels","textChars":21,"textLines":1,"bbox":[646,166,560,38]}
+{"kind":"shape","id":"sh/6do3250r","slide":4,"bbox":[646,214,560,0]}
+{"kind":"textbox","id":"sh/ozmpsnah","slide":4,"text":"LUT and bitwise inner-product schemes for the dominant 1-bit filtering stage.","textPreview":"LUT and bitwise inner-product schemes for the dominant 1-bit filtering stage.","textChars":77,"textLines":1,"bbox":[646,232,540,112]}
+{"kind":"textbox","id":"sh/p0f6lsr2","slide":4,"text":"03 · Fused search","textPreview":"03 · Fused search","textChars":17,"textLines":1,"bbox":[42,396,560,38]}
+{"kind":"shape","id":"sh/2d47qxsb","slide":4,"bbox":[42,444,560,0]}
+{"kind":"textbox","id":"sh/nydoji9w","slide":4,"text":"Filtering, refinement, and top-K selection execute inside one cluster-local kernel.","textPreview":"Filtering, refinement, and top-K selection execute inside one cluster-local kernel.","textChars":83,"textLines":1,"bbox":[42,462,540,112]}
+{"kind":"textbox","id":"sh/0bmponal","slide":4,"text":"04 · Data layout","textPreview":"04 · Data layout","textChars":16,"textLines":1,"bbox":[646,396,560,38]}
+{"kind":"shape","id":"sh/1cv6hsr6","slide":4,"bbox":[646,444,560,0]}
+{"kind":"textbox","id":"sh/e94nmdsf","slide":4,"text":"CSR-like inverted lists and interleaved short codes align storage with warp access.","textPreview":"CSR-like inverted lists and interleaved short codes align storage with warp access.","textChars":83,"textLines":1,"bbox":[646,462,540,112]}
+{"kind":"notes","id":"nt/qj6tny","slide":4,"text":"Preview the four contributions that structure the remainder of the presentation.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 2."}
+{"kind":"slide","id":"sl/hk84m3","slide":5,"title":"METHOD PRIMER","textShapes":14}
+{"kind":"textbox","id":"sh/xobi1sfi","slide":5,"text":"METHOD PRIMER","textPreview":"METHOD PRIMER","textChars":13,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/alkjqxg7","slide":5,"name":"slide-5-title","text":"IVF narrows the search; RaBitQ compresses each candidate","textPreview":"IVF narrows the search; RaBitQ compresses each candidate","textChars":56,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/bmt0z2xs","slide":5,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/oj21ony1","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/9kbixsfm","slide":5,"bbox":[270,315,70,20]}
+{"kind":"shape","id":"sh/mhkjmdgv","slide":5,"bbox":[580,315,70,20]}
+{"kind":"shape","id":"sh/nit0vixg","slide":5,"bbox":[890,315,70,20]}
+{"kind":"shape","id":"sh/8fm107y5","slide":5,"bbox":[42,252,230,150]}
+{"kind":"textbox","id":"sh/tgf29cfq","slide":5,"text":"Raw vectors","textPreview":"Raw vectors","textChars":11,"textLines":1,"bbox":[60,268,194,34]}
+{"kind":"textbox","id":"sh/58bqh8ju","slide":5,"text":"N vectors in D dimensions","textPreview":"N vectors in D dimensions","textChars":25,"textLines":1,"bbox":[60,310,194,76]}
+{"kind":"shape","id":"sh/472po3i9","slide":5,"bbox":[338,252,244,150]}
+{"kind":"textbox","id":"sh/j698fy1o","slide":5,"text":"IVF clustering","textPreview":"IVF clustering","textChars":14,"textLines":1,"bbox":[356,268,208,34]}
+{"kind":"textbox","id":"sh/i507mt03","slide":5,"text":"Assign each vector to its nearest centroid","textPreview":"Assign each vector to its nearest centroid","textChars":42,"textLines":1,"bbox":[356,310,208,76]}
+{"kind":"shape","id":"sh/h4rqd8ji","slide":5,"bbox":[648,252,244,150]}
+{"kind":"textbox","id":"sh/w3ipk3id","slide":5,"text":"RaBitQ codes","textPreview":"RaBitQ codes","textChars":12,"textLines":1,"bbox":[666,268,208,34]}
+{"kind":"textbox","id":"sh/v298by1s","slide":5,"text":"Normalize residuals, rotate, and encode B bits per dimension","textPreview":"Normalize residuals, rotate, and encode B bits per dimension","textChars":60,"textLines":1,"bbox":[666,310,208,76]}
+{"kind":"shape","id":"sh/u107it07","slide":5,"bbox":[958,252,280,150]}
+{"kind":"textbox","id":"sh/10vqpsj2","slide":5,"text":"Probe and rank","textPreview":"Probe and rank","textChars":14,"textLines":1,"bbox":[976,268,244,34]}
+{"kind":"textbox","id":"sh/gzm9wnih","slide":5,"text":"Visit nearby lists and estimate distances from codes","textPreview":"Visit nearby lists and estimate distances from codes","textChars":52,"textLines":1,"bbox":[976,310,244,76]}
+{"kind":"textbox","id":"sh/03u9srqt","slide":5,"text":"Index build","textPreview":"Index build","textChars":11,"textLines":1,"bbox":[42,184,540,34]}
+{"kind":"textbox","id":"sh/143alw7y","slide":5,"text":"Query time","textPreview":"Query time","textChars":10,"textLines":1,"bbox":[958,184,280,34]}
+{"kind":"textbox","id":"sh/ehsrq18n","slide":5,"text":"IVF controls how many vectors are examined. RaBitQ controls the bytes moved and the cost of scoring each examined vector.","textPreview":"IVF controls how many vectors are examined. RaBitQ controls the bytes moved and the cost of scoring each examined vector.","textChars":121,"textLines":1,"bbox":[150,482,980,86]}
+{"kind":"notes","id":"nt/hk84m3","slide":5,"text":"Explain the division of labor between IVF partitioning and RaBitQ quantization.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 2, 3."}
+{"kind":"slide","id":"sl/qdrvhj","slide":6,"title":"RABITQ BACKGROUND","textShapes":11}
+{"kind":"textbox","id":"sh/ba14f21s","slide":6,"text":"RABITQ BACKGROUND","textPreview":"RABITQ BACKGROUND","textChars":17,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/wbul87id","slide":6,"name":"slide-6-title","text":"RaBitQ encodes direction on a rotated integer grid","textPreview":"RaBitQ encodes direction on a rotated integer grid","textChars":50,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/xc3mhcji","slide":6,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/mls32x0v","slide":6,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/n614bi1g","slide":6,"bbox":[42,160,545,450]}
+{"kind":"textbox","id":"sh/o7al4ni1","slide":6,"text":"1 · Center and normalize","textPreview":"1 · Center and normalize","textChars":24,"textLines":1,"bbox":[70,190,470,34]}
+{"kind":"textbox","id":"sh/98jmdsjm","slide":6,"text":"o = (oᵣ − c) / ‖oᵣ − c‖","textPreview":"o = (oᵣ − c) / ‖oᵣ − c‖","textChars":23,"textLines":1,"bbox":[70,244,470,56]}
+{"kind":"textbox","id":"sh/61c3eh0f","slide":6,"text":"2 · Rotate into a shared orthogonal basis","textPreview":"2 · Rotate into a shared orthogonal basis","textChars":41,"textLines":1,"bbox":[70,326,470,34]}
+{"kind":"textbox","id":"sh/7254nmh0","slide":6,"text":"o′ = P⁻¹o     and     PᵀP = I","textPreview":"o′ = P⁻¹o     and     PᵀP = I","textChars":29,"textLines":1,"bbox":[70,380,470,56]}
+{"kind":"textbox","id":"sh/vipo76d4","slide":6,"text":"3 · Store the closest integer direction","textPreview":"3 · Store the closest integer direction","textChars":39,"textLines":1,"bbox":[70,462,470,34]}
+{"kind":"textbox","id":"sh/uxg7y1cz","slide":6,"text":"x̂ = arg max ⟨x / ‖x‖, o′⟩","textPreview":"x̂ = arg max ⟨x / ‖x‖, o′⟩","textChars":26,"textLines":1,"bbox":[70,516,470,56]}
+{"kind":"textbox","id":"sh/hk769gva","slide":6,"text":"Why this helps","textPreview":"Why this helps","textChars":14,"textLines":1,"bbox":[644,180,540,42]}
+{"kind":"textbox","id":"sh/gjyp0bup","slide":6,"text":"• No learned quantization codebook\n\n• Distances and dot products are estimated from compact integer codes plus small factors\n\n• Orthogonal rotation preserves geometry while spreading coordinates across the grid\n\n• Bit width B directly controls the storage-accuracy trade-off","textPreview":"• No learned quantization codebook |  | • Distances and dot products are estimated from compact integer codes plus small factors |  | • O...","textChars":274,"textLines":7,"bbox":[644,246,545,330]}
+{"kind":"notes","id":"nt/qdrvhj","slide":6,"text":"Walk through centering, normalization, orthogonal rotation, and nearest-direction coding.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 3."}
+{"kind":"slide","id":"sl/pb1kua","slide":7,"title":"DESIGN CHALLENGE","textShapes":16}
+{"kind":"textbox","id":"sh/2l47a94n","slide":7,"text":"DESIGN CHALLENGE","textPreview":"DESIGN CHALLENGE","textChars":16,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/pof6543y","slide":7,"name":"slide-7-title","text":"A direct RaBitQ port fights the GPU execution model","textPreview":"A direct RaBitQ port fights the GPU execution model","textChars":51,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/on6pczmd","slide":7,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/fidozu5w","slide":7,"text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"textbox","id":"sh/eh476p4b","slide":7,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[42,164,70,42]}
+{"kind":"textbox","id":"sh/1kv614n2","slide":7,"text":"Sequential factor search","textPreview":"Sequential factor search","textChars":24,"textLines":1,"bbox":[130,164,380,38]}
+{"kind":"textbox","id":"sh/0jmp8zmh","slide":7,"text":"The CPU enumerates D·2ᴮ⁻¹ critical scales with per-vector state and a priority queue.","textPreview":"The CPU enumerates D·2ᴮ⁻¹ critical scales with per-vector state and a priority queue.","textChars":85,"textLines":1,"bbox":[540,164,660,68]}
+{"kind":"shape","id":"sh/redovu50","slide":7,"bbox":[130,248,1070,0]}
+{"kind":"textbox","id":"sh/qtkn2p4f","slide":7,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[42,280,70,42]}
+{"kind":"textbox","id":"sh/8natwvm1","slide":7,"text":"Irregular control flow","textPreview":"Irregular control flow","textChars":22,"textLines":1,"bbox":[130,280,380,38]}
+{"kind":"textbox","id":"sh/toja503m","slide":7,"text":"Fine-grained state updates and branches create warp divergence.","textPreview":"Fine-grained state updates and branches create warp divergence.","textChars":63,"textLines":1,"bbox":[540,280,660,68]}
+{"kind":"shape","id":"sh/6l8bu54v","slide":7,"bbox":[130,364,1070,0]}
+{"kind":"textbox","id":"sh/7m1s3alg","slide":7,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[42,396,70,42]}
+{"kind":"textbox","id":"sh/kzqtsvm5","slide":7,"text":"No direct SIMD equivalent","textPreview":"No direct SIMD equivalent","textChars":25,"textLines":1,"bbox":[130,396,380,38]}
+{"kind":"textbox","id":"sh/l0za103q","slide":7,"text":"CPU packed/shuffle and bit-scan routines do not map directly to SIMT execution.","textPreview":"CPU packed/shuffle and bit-scan routines do not map directly to SIMT execution.","textChars":79,"textLines":1,"bbox":[540,396,660,68]}
+{"kind":"shape","id":"sh/yx8bql4z","slide":7,"bbox":[130,480,1070,0]}
+{"kind":"textbox","id":"sh/jyhszqlk","slide":7,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[42,512,70,42]}
+{"kind":"textbox","id":"sh/4vut4f29","slide":7,"text":"Pipeline overhead","textPreview":"Pipeline overhead","textChars":17,"textLines":1,"bbox":[130,512,380,38]}
+{"kind":"textbox","id":"sh/5w3udk3u","slide":7,"text":"Separate filtering, refinement, and top-K kernels repeatedly touch global memory.","textPreview":"Separate filtering, refinement, and top-K kernels repeatedly touch global memory.","textChars":81,"textLines":1,"bbox":[540,512,660,68]}
+{"kind":"shape","id":"sh/dczahkvy","slide":7,"bbox":[130,596,1070,0]}
+{"kind":"textbox","id":"sh/cbqtofud","slide":7,"text":"The solution changes both the algorithm and the storage layout—not just the programming language.","textPreview":"The solution changes both the algorithm and the storage layout—not just the programming language.","textChars":97,"textLines":1,"bbox":[130,630,980,40]}
+{"kind":"notes","id":"nt/pb1kua","slide":7,"text":"Make clear why GPU-native design is necessary rather than a straightforward CUDA port.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 2."}
+{"kind":"slide","id":"sl/s7gy1l","slide":8,"title":"GPU INDEX BUILD","textShapes":14}
+{"kind":"textbox","id":"sh/fitw3qds","slide":8,"text":"GPU INDEX BUILD","textPreview":"GPU INDEX BUILD","textChars":15,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/gj2xcvud","slide":8,"name":"slide-8-title","text":"Index construction exposes intra-vector parallelism","textPreview":"Index construction exposes intra-vector parallelism","textChars":51,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/hkby50by","slide":8,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/2lkfe5cj","slide":8,"text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/3mtg7at4","slide":8,"bbox":[284,292,64,20]}
+{"kind":"shape","id":"sh/4n2xgvup","slide":8,"bbox":[600,292,64,20]}
+{"kind":"shape","id":"sh/povy90ba","slide":8,"bbox":[916,292,64,20]}
+{"kind":"shape","id":"sh/qp4fi5cf","slide":8,"bbox":[42,224,244,180]}
+{"kind":"textbox","id":"sh/bqdgbat0","slide":8,"text":"Balanced K-means","textPreview":"Balanced K-means","textChars":16,"textLines":1,"bbox":[60,240,208,34]}
+{"kind":"textbox","id":"sh/ji9gvy5s","slide":8,"text":"Learn centroids and assign vectors to IVF lists","textPreview":"Learn centroids and assign vectors to IVF lists","textChars":47,"textLines":1,"bbox":[60,282,208,106]}
+{"kind":"shape","id":"sh/ih0fmto7","slide":8,"bbox":[348,224,254,180]}
+{"kind":"textbox","id":"sh/5kbyxoni","slide":8,"text":"Normalize + rotate","textPreview":"Normalize + rotate","textChars":18,"textLines":1,"bbox":[366,240,218,34]}
+{"kind":"textbox","id":"sh/4jixo36d","slide":8,"text":"Process residuals by cluster; use GEMM for the shared orthogonal transform","textPreview":"Process residuals by cluster; use GEMM for the shared orthogonal transform","textChars":74,"textLines":1,"bbox":[366,282,218,106]}
+{"kind":"shape","id":"sh/vu9gre5g","slide":8,"bbox":[664,224,254,180]}
+{"kind":"textbox","id":"sh/ut0fi9ov","slide":8,"text":"Block per vector","textPreview":"Block per vector","textChars":16,"textLines":1,"bbox":[682,240,218,34]}
+{"kind":"textbox","id":"sh/hwrytonm","slide":8,"text":"Threads cooperate across dimensions and candidate scaling factors","textPreview":"Threads cooperate across dimensions and candidate scaling factors","textChars":65,"textLines":1,"bbox":[682,282,218,106]}
+{"kind":"shape","id":"sh/wvixkj61","slide":8,"bbox":[980,224,258,180]}
+{"kind":"textbox","id":"sh/fqtg3i50","slide":8,"text":"Pack the index","textPreview":"Pack the index","textChars":14,"textLines":1,"bbox":[998,240,222,34]}
+{"kind":"textbox","id":"sh/epkzudof","slide":8,"text":"Separate 1-bit codes, ex-codes, factors, and vector IDs","textPreview":"Separate 1-bit codes, ex-codes, factors, and vector IDs","textChars":55,"textLines":1,"bbox":[998,282,222,106]}
+{"kind":"textbox","id":"sh/aloj2h8n","slide":8,"text":">1M","textPreview":">1M","textChars":3,"textLines":1,"bbox":[76,478,320,72]}
+{"kind":"textbox","id":"sh/bmx0vmp8","slide":8,"text":"960-D vectors quantized per second to 8-bit codes","textPreview":"960-D vectors quantized per second to 8-bit codes","textChars":49,"textLines":1,"bbox":[76,554,320,64]}
+{"kind":"textbox","id":"sh/c7614rqd","slide":8,"text":"Cluster-at-a-time launches bound temporary storage. Block-per-vector mapping enables intra-vector parallelism and coalesced reads.","textPreview":"Cluster-at-a-time launches bound temporary storage. Block-per-vector mapping enables intra-vector parallelism and coalesced reads.","textChars":130,"textLines":1,"bbox":[440,490,750,110]}
+{"kind":"notes","id":"nt/s7gy1l","slide":8,"text":"Explain the cluster-at-a-time launch granularity and block-per-vector thread mapping.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 2, 4, 5."}
+{"kind":"slide","id":"sl/tifaic","slide":9,"title":"TWO-PHASE RESCALING SEARCH","textShapes":13}
+{"kind":"textbox","id":"sh/036x4zyh","slide":9,"text":"TWO-PHASE RESCALING SEARCH","textPreview":"TWO-PHASE RESCALING SEARCH","textChars":26,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/f2xgvuhw","slide":9,"name":"slide-9-title","text":"Algorithm 1 uses two GPU-parallel grids","textPreview":"Algorithm 1 uses two GPU-parallel grids","textChars":39,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/e1of2pgb","slide":9,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/d0fyt4zq","slide":9,"text":"09","textPreview":"09","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"textbox","id":"sh/sz6x0zy5","slide":9,"text":"Objective","textPreview":"Objective","textChars":9,"textLines":1,"bbox":[42,158,160,30]}
+{"kind":"textbox","id":"sh/rydgruh0","slide":9,"text":"maximize  f(t) = ⟨x(t), o′⟩ / ‖x(t)‖","textPreview":"maximize  f(t) = ⟨x(t), o′⟩ / ‖x(t)‖","textChars":36,"textLines":1,"bbox":[42,194,540,50]}
+{"kind":"shape","id":"sh/qx4fypgf","slide":9,"bbox":[328,342,72,18]}
+{"kind":"shape","id":"sh/5wvypkzu","slide":9,"bbox":[718,342,72,18]}
+{"kind":"shape","id":"sh/4bmxwfy9","slide":9,"bbox":[42,288,288,150]}
+{"kind":"textbox","id":"sh/2x4fm1gr","slide":9,"text":"1 · Search range","textPreview":"1 · Search range","textChars":16,"textLines":1,"bbox":[60,304,252,34]}
+{"kind":"textbox","id":"sh/nydwf6hc","slide":9,"text":"Use maxᵢ|o′ᵢ| and B to initialize [tstart, tend].","textPreview":"Use maxᵢ|o′ᵢ| and B to initialize [tstart, tend].","textChars":49,"textLines":1,"bbox":[60,346,252,76]}
+{"kind":"shape","id":"sh/ozmxobyx","slide":9,"bbox":[400,288,320,150]}
+{"kind":"textbox","id":"sh/p0fehgzi","slide":9,"text":"2 · Coarse grid","textPreview":"2 · Coarse grid","textChars":15,"textLines":1,"bbox":[418,304,284,34]}
+{"kind":"textbox","id":"sh/et4fi1gv","slide":9,"text":"Evaluate Ncoarse uniformly spaced t values in parallel; reduce to tcenter.","textPreview":"Evaluate Ncoarse uniformly spaced t values in parallel; reduce to tcenter.","textChars":74,"textLines":1,"bbox":[418,346,284,76]}
+{"kind":"shape","id":"sh/fudwb6hg","slide":9,"bbox":[790,288,448,150]}
+{"kind":"textbox","id":"sh/0vmxkry1","slide":9,"text":"3 · Fine grid","textPreview":"3 · Fine grid","textChars":13,"textLines":1,"bbox":[808,304,412,34]}
+{"kind":"textbox","id":"sh/1wvedwz6","slide":9,"text":"Search [tcenter−δ, tcenter+δ] with Nfine parallel samples.","textPreview":"Search [tcenter−δ, tcenter+δ] with Nfine parallel samples.","textChars":58,"textLines":1,"bbox":[808,346,412,76]}
+{"kind":"textbox","id":"sh/q5kfehgj","slide":9,"text":"Classical ternary search repeatedly shrinks a unimodal interval. Algorithm 1 keeps that coarse-to-fine idea but uses two fixed GPU-parallel rounds—64 coarse and 32 fine samples in the experiments.","textPreview":"Classical ternary search repeatedly shrinks a unimodal interval. Algorithm 1 keeps that coarse-to-fine idea but uses two fixed GPU-parall...","textChars":196,"textLines":1,"bbox":[82,492,1116,102]}
+{"kind":"textbox","id":"sh/r6tw7mh4","slide":9,"text":"O(1) rounds means fixed synchronization depth; each sample still rounds and scores D coordinates.","textPreview":"O(1) rounds means fixed synchronization depth; each sample still rounds and scores D coordinates.","textChars":97,"textLines":1,"bbox":[160,620,960,36]}
+{"kind":"notes","id":"nt/tifaic","slide":9,"text":"Describe Algorithm 1 line-by-line and clarify that it is inspired by, but does not literally execute, ternary search.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 5, 9."}
+{"kind":"slide","id":"sl/7dbasp","slide":10,"title":"SEARCH PIPELINE","textShapes":15}
+{"kind":"textbox","id":"sh/pk36dsbi","slide":10,"text":"SEARCH PIPELINE","textPreview":"SEARCH PIPELINE","textChars":15,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/2hs7idcr","slide":10,"name":"slide-10-title","text":"Queries become independent work units","textPreview":"Queries become independent work units","textChars":37,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/3i1obidc","slide":10,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/c7upo7u9","slide":10,"text":"10","textPreview":"10","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/x836hcbe","slide":10,"bbox":[246,308,56,20]}
+{"kind":"shape","id":"sh/q5c7mxc3","slide":10,"bbox":[496,308,56,20]}
+{"kind":"shape","id":"sh/b6lof2to","slide":10,"bbox":[746,308,56,20]}
+{"kind":"shape","id":"sh/sbq5c3up","slide":10,"bbox":[996,308,56,20]}
+{"kind":"shape","id":"sh/tcj658va","slide":10,"bbox":[42,246,206,150]}
+{"kind":"textbox","id":"sh/90zqxkjy","slide":10,"text":"Batch rotation","textPreview":"Batch rotation","textChars":14,"textLines":1,"bbox":[60,262,170,34]}
+{"kind":"textbox","id":"sh/ozq94f2d","slide":10,"text":"One GEMM produces Q′","textPreview":"One GEMM produces Q′","textChars":20,"textLines":1,"bbox":[60,304,170,76]}
+{"kind":"shape","id":"sh/nyh8va1s","slide":10,"bbox":[292,246,206,150]}
+{"kind":"textbox","id":"sh/mx8r25k7","slide":10,"text":"Cluster selection","textPreview":"Cluster selection","textChars":17,"textLines":1,"bbox":[310,262,170,34]}
+{"kind":"textbox","id":"sh/xojq14ju","slide":10,"text":"Top-nprobe centroids","textPreview":"Top-nprobe centroids","textChars":20,"textLines":1,"bbox":[310,304,170,76]}
+{"kind":"shape","id":"sh/wnq98z29","slide":10,"bbox":[542,246,206,150]}
+{"kind":"textbox","id":"sh/b2h8zu1o","slide":10,"text":"Pair scheduling","textPreview":"Pair scheduling","textChars":15,"textLines":1,"bbox":[560,262,170,34]}
+{"kind":"textbox","id":"sh/a18r6pkj","slide":10,"text":"Sort (query, cluster) pairs","textPreview":"Sort (query, cluster) pairs","textChars":27,"textLines":1,"bbox":[560,304,170,76]}
+{"kind":"shape","id":"sh/lsja54j6","slide":10,"bbox":[792,246,206,150]}
+{"kind":"textbox","id":"sh/kra9cz2l","slide":10,"text":"Cluster-local search","textPreview":"Cluster-local search","textChars":20,"textLines":1,"bbox":[810,262,170,34]}
+{"kind":"textbox","id":"sh/4vit8nah","slide":10,"text":"Filter, refine, local top-K","textPreview":"Filter, refine, local top-K","textChars":27,"textLines":1,"bbox":[810,304,170,76]}
+{"kind":"shape","id":"sh/5wrah8r2","slide":10,"bbox":[1042,246,196,150]}
+{"kind":"textbox","id":"sh/i90b6dsr","slide":10,"text":"Batch merge","textPreview":"Batch merge","textChars":11,"textLines":1,"bbox":[1060,262,160,34]}
+{"kind":"textbox","id":"sh/ju9sfi9c","slide":10,"text":"Global top-K per query","textPreview":"Global top-K per query","textChars":22,"textLines":1,"bbox":[1060,304,160,76]}
+{"kind":"textbox","id":"sh/sz2tcnat","slide":10,"text":"Sorting pairs by cluster improves code reuse and lets blocks process probed lists independently.","textPreview":"Sorting pairs by cluster improves code reuse and lets blocks process probed lists independently.","textChars":96,"textLines":1,"bbox":[148,470,984,68]}
+{"kind":"textbox","id":"sh/t0bu5sre","slide":10,"text":"The dominant work happens inside cluster-local search, so the rest of the design is organized around that kernel.","textPreview":"The dominant work happens inside cluster-local search, so the rest of the design is organized around that kernel.","textChars":113,"textLines":1,"bbox":[200,566,880,60]}
+{"kind":"notes","id":"nt/7dbasp","slide":10,"text":"Follow a batch from rotation through cluster selection, pair scheduling, local search, and final merge.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 4, 5, 6."}
+{"kind":"slide","id":"sl/z1lj5r","slide":11,"title":"TWO-STAGE DISTANCE ESTIMATION","textShapes":12}
+{"kind":"textbox","id":"sh/2hoful0z","slide":11,"text":"TWO-STAGE DISTANCE ESTIMATION","textPreview":"TWO-STAGE DISTANCE ESTIMATION","textChars":29,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/pkfyp0zq","slide":11,"name":"slide-11-title","text":"Most vectors pay only for a 1-bit distance estimate","textPreview":"Most vectors pay only for a 1-bit distance estimate","textChars":51,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/oj6xwvi5","slide":11,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/bmxgrqhg","slide":11,"text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/qlofy50v","slide":11,"bbox":[42,166,740,430]}
+{"kind":"textbox","id":"sh/dozyt0zm","slide":11,"text":"All candidates in a probed list","textPreview":"All candidates in a probed list","textChars":31,"textLines":1,"bbox":[74,198,650,40]}
+{"kind":"shape","id":"sh/cn6x0vi1","slide":11,"bbox":[120,286,460,34]}
+{"kind":"textbox","id":"sh/zahgvahs","slide":11,"text":"1-bit code filter","textPreview":"1-bit code filter","textChars":17,"textLines":1,"bbox":[188,248,260,34]}
+{"kind":"shape","id":"sh/yp8f2507","slide":11,"bbox":[490,408,210,34]}
+{"kind":"textbox","id":"sh/onq54z2d","slide":11,"text":"Only survivors","textPreview":"Only survivors","textChars":14,"textLines":1,"bbox":[480,366,220,32]}
+{"kind":"textbox","id":"sh/poz6d43y","slide":11,"text":"Refine with ex-code","textPreview":"Refine with ex-code","textChars":19,"textLines":1,"bbox":[468,464,250,34]}
+{"kind":"textbox","id":"sh/2lon2pkn","slide":11,"text":"discard","textPreview":"discard","textChars":7,"textLines":1,"bbox":[82,378,120,30]}
+{"kind":"textbox","id":"sh/3mxobul8","slide":11,"text":"short code","textPreview":"short code","textChars":10,"textLines":1,"bbox":[84,514,160,30]}
+{"kind":"textbox","id":"sh/crq58j2p","slide":11,"text":"long code","textPreview":"long code","textChars":9,"textLines":1,"bbox":[594,514,160,30]}
+{"kind":"textbox","id":"sh/dsz6hoja","slide":11,"text":"Why it matters","textPreview":"Why it matters","textChars":14,"textLines":1,"bbox":[842,190,350,42]}
+{"kind":"textbox","id":"sh/qp8n69kj","slide":11,"text":"• Filtering touches many vectors and dominates runtime.\n\n• The ex-code is fetched only for promising candidates.\n\n• High recall does not require loading raw vectors for reranking.","textPreview":"• Filtering touches many vectors and dominates runtime. |  | • The ex-code is fetched only for promising candidates. |  | • High recall d...","textChars":179,"textLines":5,"bbox":[842,266,350,250]}
+{"kind":"notes","id":"nt/z1lj5r","slide":11,"text":"Explain short-code filtering and ex-code refinement, emphasizing avoided memory traffic.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 4, 6."}
+{"kind":"slide","id":"sl/w07jle","slide":12,"title":"KERNEL CO-DESIGN","textShapes":8}
+{"kind":"textbox","id":"sh/5sjq9sny","slide":12,"text":"KERNEL CO-DESIGN","textPreview":"KERNEL CO-DESIGN","textChars":16,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/i5s7yd47","slide":12,"name":"slide-12-title","text":"Two inner-product kernels target different GPU bottlenecks","textPreview":"Two inner-product kernels target different GPU bottlenecks","textChars":58,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/3q187i5s","slide":12,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/g3apw3m1","slide":12,"text":"12","textPreview":"12","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/h4jq58nm","slide":12,"bbox":[42,164,570,438]}
+{"kind":"shape","id":"sh/u187ut4b","slide":12,"bbox":[628,164,610,438]}
+{"kind":"textbox","id":"sh/v2h83y5w","slide":12,"text":"Lookup-table kernel","textPreview":"Lookup-table kernel","textChars":19,"textLines":1,"bbox":[72,194,500,42]}
+{"kind":"textbox","id":"sh/0zu987ml","slide":12,"text":"• Precompute query-dependent partial inner products\n\n• Keep LUTs in shared memory\n\n• Reuse tables across hundreds of threads\n\n• Fast when shared-memory residency is sufficient","textPreview":"• Precompute query-dependent partial inner products |  | • Keep LUTs in shared memory |  | • Reuse tables across hundreds of threads |  |...","textChars":175,"textLines":7,"bbox":[72,266,490,270]}
+{"kind":"textbox","id":"sh/103qhc36","slide":12,"text":"Bitwise decomposition","textPreview":"Bitwise decomposition","textChars":21,"textLines":1,"bbox":[658,194,530,42]}
+{"kind":"textbox","id":"sh/54zitsv2","slide":12,"text":"• Quantize each query into signed integers\n\n• Decompose the inner product by bit plane\n\n• Use AND + POPCNT over 32 dimensions per operation\n\n• Much smaller shared-memory footprint","textPreview":"• Quantize each query into signed integers |  | • Decompose the inner product by bit plane |  | • Use AND + POPCNT over 32 dimensions per...","textChars":179,"textLines":7,"bbox":[658,266,530,270]}
+{"kind":"textbox","id":"sh/k361kneh","slide":12,"text":"At high dimensionality, LUT capacity can limit occupancy; the bitwise kernel remains lightweight.","textPreview":"At high dimensionality, LUT capacity can limit occupancy; the bitwise kernel remains lightweight.","textChars":97,"textLines":1,"bbox":[160,628,960,38]}
+{"kind":"notes","id":"nt/w07jle","slide":12,"text":"Compare the memory-centric LUT method with the compute-centric bitwise method.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 6, 7."}
+{"kind":"slide","id":"sl/fx1qpz","slide":13,"title":"BITWISE KERNEL","textShapes":9}
+{"kind":"textbox","id":"sh/wreh4ve1","slide":13,"text":"BITWISE KERNEL","textPreview":"BITWISE KERNEL","textChars":14,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/bq50vqxg","slide":13,"name":"slide-13-title","text":"Bitwise decomposition turns dot products into popcounts","textPreview":"Bitwise decomposition turns dot products into popcounts","textChars":55,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/apcz2lgv","slide":13,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/9o3itgfa","slide":13,"text":"13","textPreview":"13","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/onuh0byp","slide":13,"bbox":[42,158,1196,330]}
+{"kind":"textbox","id":"sh/mlczylgz","slide":13,"text":"Pack","textPreview":"Pack","textChars":4,"textLines":1,"bbox":[64,524,120,32]}
+{"kind":"textbox","id":"sh/tk7i5kfu","slide":13,"text":"32 code dimensions per machine word","textPreview":"32 code dimensions per machine word","textChars":35,"textLines":1,"bbox":[64,562,300,52]}
+{"kind":"textbox","id":"sh/8jy1cfe9","slide":13,"text":"Decompose","textPreview":"Decompose","textChars":9,"textLines":1,"bbox":[446,524,160,32]}
+{"kind":"textbox","id":"sh/65cryh4b","slide":13,"text":"One binary inner product per query bit plane","textPreview":"One binary inner product per query bit plane","textChars":44,"textLines":1,"bbox":[446,562,330,52]}
+{"kind":"textbox","id":"sh/76lsrm5w","slide":13,"text":"Accumulate","textPreview":"Accumulate","textChars":10,"textLines":1,"bbox":[858,524,160,32]}
+{"kind":"textbox","id":"sh/87u90rmh","slide":13,"text":"Shift and add the weighted popcount results","textPreview":"Shift and add the weighted popcount results","textChars":43,"textLines":1,"bbox":[858,562,330,52]}
+{"kind":"image","id":"im/uxg32l8v","slide":13,"name":"","alt":"Figure 1 from the paper: bitwise inner-product computation","bbox":[58,172,1164,292]}
+{"kind":"notes","id":"nt/fx1qpz","slide":13,"text":"Use Figure 1 to show bit-plane decomposition, AND operations, popcount, and weighted accumulation.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 7."}
+{"kind":"slide","id":"sl/eejla5","slide":14,"title":"FUSED CLUSTER-LOCAL SEARCH","textShapes":13}
+{"kind":"textbox","id":"sh/wrytwvqh","slide":14,"text":"FUSED CLUSTER-LOCAL SEARCH","textPreview":"FUSED CLUSTER-LOCAL SEARCH","textChars":26,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/bqps3q9w","slide":14,"name":"slide-14-title","text":"One fused kernel keeps intermediate state on chip","textPreview":"One fused kernel keeps intermediate state on chip","textChars":49,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/apgrul8b","slide":14,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/9o7a1grq","slide":14,"text":"14","textPreview":"14","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/ony9sbq5","slide":14,"bbox":[42,164,1196,356]}
+{"kind":"shape","id":"sh/nm5szq9k","slide":14,"bbox":[296,314,54,20]}
+{"kind":"shape","id":"sh/mlwrql8f","slide":14,"bbox":[588,314,54,20]}
+{"kind":"shape","id":"sh/1knaxgru","slide":14,"bbox":[880,314,54,20]}
+{"kind":"shape","id":"sh/0je9obq9","slide":14,"bbox":[72,248,226,146]}
+{"kind":"textbox","id":"sh/adgryho7","slide":14,"text":"1-bit estimate","textPreview":"1-bit estimate","textChars":14,"textLines":1,"bbox":[90,264,190,34]}
+{"kind":"textbox","id":"sh/byp87mps","slide":14,"text":"Score every code","textPreview":"Score every code","textChars":16,"textLines":1,"bbox":[90,306,190,72]}
+{"kind":"shape","id":"sh/wzy90r6d","slide":14,"bbox":[350,248,240,146]}
+{"kind":"textbox","id":"sh/x0ra9wny","slide":14,"text":"Candidate filter","textPreview":"Candidate filter","textChars":16,"textLines":1,"bbox":[368,264,204,34]}
+{"kind":"textbox","id":"sh/m9graxob","slide":14,"text":"Reject by lower bound","textPreview":"Reject by lower bound","textChars":21,"textLines":1,"bbox":[368,306,204,72]}
+{"kind":"shape","id":"sh/nap832pg","slide":14,"bbox":[642,248,240,146]}
+{"kind":"textbox","id":"sh/oby9w761","slide":14,"text":"Ex-code refine","textPreview":"Ex-code refine","textChars":14,"textLines":1,"bbox":[660,264,204,34]}
+{"kind":"textbox","id":"sh/9c7q5c7m","slide":14,"text":"Improve only survivors","textPreview":"Improve only survivors","textChars":22,"textLines":1,"bbox":[660,306,204,72]}
+{"kind":"shape","id":"sh/e5wr6xoz","slide":14,"bbox":[934,248,274,146]}
+{"kind":"textbox","id":"sh/z658z2pk","slide":14,"text":"In-block top-K","textPreview":"In-block top-K","textChars":14,"textLines":1,"bbox":[952,264,238,34]}
+{"kind":"textbox","id":"sh/3alo7y5c","slide":14,"text":"Emit local candidates","textPreview":"Emit local candidates","textChars":21,"textLines":1,"bbox":[952,306,238,72]}
+{"kind":"textbox","id":"sh/29cnyt4r","slide":14,"text":"Shared memory + registers","textPreview":"Shared memory + registers","textChars":25,"textLines":1,"bbox":[414,458,450,32]}
+{"kind":"textbox","id":"sh/pc3698ni","slide":14,"text":"Fusion removes sequential kernel launches, intermediate global-memory writes, and synchronization between stages.","textPreview":"Fusion removes sequential kernel launches, intermediate global-memory writes, and synchronization between stages.","textChars":113,"textLines":1,"bbox":[146,566,988,70]}
+{"kind":"notes","id":"nt/eejla5","slide":14,"text":"Contrast four separate kernels with the paper's fused cluster-local implementation.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 7, 8."}
+{"kind":"slide","id":"sl/8bd27p","slide":15,"title":"GPU INDEX LAYOUT","textShapes":4}
+{"kind":"textbox","id":"sh/fu1s72pg","slide":15,"text":"GPU INDEX LAYOUT","textPreview":"GPU INDEX LAYOUT","textChars":16,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/gva9g7q1","slide":15,"name":"slide-15-title","text":"The memory layout is designed around the dominant access pattern","textPreview":"The memory layout is designed around the dominant access pattern","textChars":64,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/1w3a9c7m","slide":15,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/6psrad8z","slide":15,"text":"15","textPreview":"15","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"textbox","id":"sh/sra9cnq5","slide":15,"text":"CSR-like offsets make each cluster contiguous; short codes are interleaved so a warp reads adjacent dimensions from adjacent vectors.","textPreview":"CSR-like offsets make each cluster contiguous; short codes are interleaved so a warp reads adjacent dimensions from adjacent vectors.","textChars":133,"textLines":1,"bbox":[96,604,1088,54]}
+{"kind":"image","id":"im/614fetgn","slide":15,"name":"","alt":"Figure 2 from the paper: IVF-RaBitQ inverted-list data layout","bbox":[42,148,1196,440]}
+{"kind":"notes","id":"nt/8bd27p","slide":15,"text":"Explain the separate arrays for short codes, factors, long codes, and IDs, then the interleaved short-code layout.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 9."}
+{"kind":"slide","id":"sl/xxlz5e","slide":16,"title":"EXPERIMENTAL SETUP","textShapes":8}
+{"kind":"textbox","id":"sh/u1cfq9w3","slide":16,"text":"EXPERIMENTAL SETUP","textPreview":"EXPERIMENTAL SETUP","textChars":18,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/h43e1ove","slide":16,"name":"slide-16-title","text":"Evaluation spans six diverse vector datasets","textPreview":"Evaluation spans six diverse vector datasets","textChars":44,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/w3uxsjet","slide":16,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/jqlw3edk","slide":16,"text":"16","textPreview":"16","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/ipcfutwz","slide":16,"bbox":[42,158,600,448]}
+{"kind":"textbox","id":"sh/4ruxwju5","slide":16,"text":"Platform","textPreview":"Platform","textChars":8,"textLines":1,"bbox":[690,174,220,34]}
+{"kind":"textbox","id":"sh/zu1wrudg","slide":16,"text":"NVIDIA L40S, 48 GB\nCUDA 13.1\nUbuntu 22.04\nBatch size = 10⁴","textPreview":"NVIDIA L40S, 48 GB | CUDA 13.1 | Ubuntu 22.04 | Batch size = 10⁴","textChars":58,"textLines":4,"bbox":[690,224,430,128]}
+{"kind":"textbox","id":"sh/y9svipwv","slide":16,"text":"Baselines","textPreview":"Baselines","textChars":9,"textLines":1,"bbox":[690,382,220,34]}
+{"kind":"textbox","id":"sh/kzq587e9","slide":16,"text":"CAGRA\nIVF-Flat\nIVF-PQ with / without refinement\nRaBitQLib CPU counterpart","textPreview":"CAGRA | IVF-Flat | IVF-PQ with / without refinement | RaBitQLib CPU counterpart","textChars":73,"textLines":4,"bbox":[690,432,500,146]}
+{"kind":"textbox","id":"sh/l0z61cfu","slide":16,"text":"Default RaBitQ: 8 bits/dimension · Ncoarse = 64 · Nfine = 32","textPreview":"Default RaBitQ: 8 bits/dimension · Ncoarse = 64 · Nfine = 32","textChars":60,"textLines":1,"bbox":[90,628,1100,32]}
+{"kind":"image","id":"im/w7a9kvih","slide":16,"name":"","alt":"Table 1 from the paper: datasets used in evaluation","bbox":[56,176,572,405]}
+{"kind":"notes","id":"nt/xxlz5e","slide":16,"text":"Summarize platform, datasets, baselines, batch size, and default RaBitQ settings.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 9."}
+{"kind":"slide","id":"sl/z3mwhm","slide":17,"title":"SEARCH PERFORMANCE","textShapes":9}
+{"kind":"textbox","id":"sh/m1ofmdsv","slide":17,"text":"SEARCH PERFORMANCE","textPreview":"SEARCH PERFORMANCE","textChars":18,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/94zeh8rm","slide":17,"name":"slide-17-title","text":"IVF-RaBitQ leads the medium-to-high recall region","textPreview":"IVF-RaBitQ leads the medium-to-high recall region","textChars":49,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/83qxo3a1","slide":17,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/zyxwby9k","slide":17,"text":"17","textPreview":"17","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/l0fed8ra","slide":17,"bbox":[978,160,260,438]}
+{"kind":"textbox","id":"sh/kz6xk3ap","slide":17,"text":"At Recall = 0.95","textPreview":"At Recall = 0.95","textChars":16,"textLines":1,"bbox":[1000,188,216,30]}
+{"kind":"textbox","id":"sh/3u1gni9o","slide":17,"text":"2.2×","textPreview":"2.2×","textChars":4,"textLines":1,"bbox":[1000,234,210,72]}
+{"kind":"textbox","id":"sh/itsfuxs3","slide":17,"text":"average QPS vs. CAGRA","textPreview":"average QPS vs. CAGRA","textChars":21,"textLines":1,"bbox":[1000,310,210,64]}
+{"kind":"textbox","id":"sh/0fil0fad","slide":17,"text":"2.0–31.4×","textPreview":"2.0–31.4×","textChars":9,"textLines":1,"bbox":[1000,370,220,72]}
+{"kind":"textbox","id":"sh/1gbmt0by","slide":17,"text":"QPS vs. IVF-PQ without refinement","textPreview":"QPS vs. IVF-PQ without refinement","textChars":33,"textLines":1,"bbox":[1000,446,220,64]}
+{"kind":"textbox","id":"sh/ed03y5s7","slide":17,"text":"Bitwise scales better than LUT on very high-dimensional vectors.","textPreview":"Bitwise scales better than LUT on very high-dimensional vectors.","textChars":64,"textLines":1,"bbox":[1000,520,214,58]}
+{"kind":"image","id":"im/nqx4zyxw","slide":17,"name":"","alt":"Figure 3 from the paper: recall-QPS trade-offs across six datasets","bbox":[42,144,910,500]}
+{"kind":"notes","id":"nt/z3mwhm","slide":17,"text":"Read Figure 3 from the high-recall region and compare against CAGRA and both IVF-PQ modes.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 10."}
+{"kind":"slide","id":"sl/ho7cdu","slide":18,"title":"SYSTEM EFFICIENCY","textShapes":8}
+{"kind":"textbox","id":"sh/u98n6p8v","slide":18,"text":"SYSTEM EFFICIENCY","textPreview":"SYSTEM EFFICIENCY","textChars":17,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/hcz6h47m","slide":18,"name":"slide-18-title","text":"The same index is faster to build and substantially smaller","textPreview":"The same index is faster to build and substantially smaller","textChars":59,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/gbq58zq1","slide":18,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/76x4bup4","slide":18,"text":"18","textPreview":"18","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"shape","id":"sh/87q54zqp","slide":18,"bbox":[930,160,308,438]}
+{"kind":"textbox","id":"sh/jix47ap8","slide":18,"text":"7.7×","textPreview":"7.7×","textChars":4,"textLines":1,"bbox":[956,188,252,72]}
+{"kind":"textbox","id":"sh/yhony58n","slide":18,"text":"faster index build than CAGRA on average","textPreview":"faster index build than CAGRA on average","textChars":40,"textLines":1,"bbox":[956,264,252,64]}
+{"kind":"textbox","id":"sh/grulwr6l","slide":18,"text":"4.4×","textPreview":"4.4×","textChars":4,"textLines":1,"bbox":[956,336,252,72]}
+{"kind":"textbox","id":"sh/hs325w76","slide":18,"text":"faster build than IVF-PQ on average","textPreview":"faster build than IVF-PQ on average","textChars":35,"textLines":1,"bbox":[956,412,252,64]}
+{"kind":"textbox","id":"sh/upc3uhov","slide":18,"text":"Wiki-all example:\n7.49 GB for IVF-RaBitQ\n>30 GB for CAGRA and IVF-PQ with refinement","textPreview":"Wiki-all example: | 7.49 GB for IVF-RaBitQ | >30 GB for CAGRA and IVF-PQ with refinement","textChars":84,"textLines":3,"bbox":[956,494,250,92]}
+{"kind":"image","id":"im/na1c7qt4","slide":18,"name":"","alt":"Figure 4 from the paper: index build time","bbox":[42,142,850,240]}
+{"kind":"image","id":"im/obad0vup","slide":18,"name":"","alt":"Figure 5 from the paper: storage requirements","bbox":[42,400,850,230]}
+{"kind":"notes","id":"nt/ho7cdu","slide":18,"text":"Use Figures 4 and 5 to connect algorithmic simplicity to build time and raw-vector avoidance to storage.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 11."}
+{"kind":"slide","id":"sl/9x18ar","slide":19,"title":"SENSITIVITY AND PORTABILITY","textShapes":11}
+{"kind":"textbox","id":"sh/fyxkzyl8","slide":19,"text":"SENSITIVITY AND PORTABILITY","textPreview":"SENSITIVITY AND PORTABILITY","textChars":27,"textLines":1,"bbox":[42,24,460,24]}
+{"kind":"textbox","id":"sh/0z61s3mt","slide":19,"name":"slide-19-title","text":"Bit width controls recall; GPU execution preserves accuracy","textPreview":"Bit width controls recall; GPU execution preserves accuracy","textChars":59,"textLines":1,"bbox":[42,54,1125,68]}
+{"kind":"shape","id":"sh/10f2183e","slide":19,"bbox":[42,126,1196,0]}
+{"kind":"textbox","id":"sh/qt4jmt4r","slide":19,"text":"19","textPreview":"19","textChars":2,"textLines":1,"bbox":[1180,674,58,20]}
+{"kind":"textbox","id":"sh/rud0vylw","slide":19,"text":"Quantization-bit trade-off","textPreview":"Quantization-bit trade-off","textChars":26,"textLines":1,"bbox":[42,150,520,34]}
+{"kind":"textbox","id":"sh/dwfixo32","slide":19,"text":"GPU versus CPU","textPreview":"GPU versus CPU","textChars":14,"textLines":1,"bbox":[656,150,520,34]}
+{"kind":"textbox","id":"sh/3qd0rel0","slide":19,"text":"B = 5","textPreview":"B = 5","textChars":5,"textLines":1,"bbox":[82,548,120,42]}
+{"kind":"textbox","id":"sh/vm14721s","slide":19,"text":">0.95 recall","textPreview":">0.95 recall","textChars":12,"textLines":1,"bbox":[188,554,240,34]}
+{"kind":"textbox","id":"sh/uls3exk7","slide":19,"text":"B = 7","textPreview":"B = 7","textChars":5,"textLines":1,"bbox":[82,606,120,42]}
+{"kind":"textbox","id":"sh/hojm9cjy","slide":19,"text":">0.99 recall","textPreview":">0.99 recall","textChars":12,"textLines":1,"bbox":[188,612,240,34]}
+{"kind":"textbox","id":"sh/wnalg72d","slide":19,"text":"12.9×","textPreview":"12.9×","textChars":5,"textLines":1,"bbox":[706,526,430,72]}
+{"kind":"textbox","id":"sh/jql4bm14","slide":19,"text":"average GPU QPS speedup at Recall@10 = 0.95","textPreview":"average GPU QPS speedup at Recall@10 = 0.95","textChars":43,"textLines":1,"bbox":[706,602,430,64]}
+{"kind":"image","id":"im/9ore9czi","slide":19,"name":"","alt":"Figure 6 from the paper: bit-width recall-QPS trade-off","bbox":[42,194,560,320]}
+{"kind":"image","id":"im/365wvyhs","slide":19,"name":"","alt":"Figure 7 from the paper: GPU versus CPU recall-QPS trade-off","bbox":[656,194,582,320]}
+{"kind":"notes","id":"nt/9x18ar","slide":19,"text":"Discuss the bit-width control knob, then show that the GPU version matches CPU recall while greatly increasing QPS.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 11, 12."}
+{"kind":"slide","id":"sl/4wi1nx","slide":20,"title":"TAKEAWAYS","textShapes":9}
+{"kind":"textbox","id":"sh/x4nqpkvu","slide":20,"text":"TAKEAWAYS","textPreview":"TAKEAWAYS","textChars":9,"textLines":1,"bbox":[42,36,260,34]}
+{"kind":"textbox","id":"sh/a1c7u5wj","slide":20,"text":"IVF-RaBitQ shifts the\nGPU ANNS frontier","textPreview":"IVF-RaBitQ shifts the | GPU ANNS frontier","textChars":39,"textLines":2,"bbox":[42,132,900,180]}
+{"kind":"shape","id":"sh/b2l8nad4","slide":20,"bbox":[42,346,1196,0]}
+{"kind":"textbox","id":"sh/k7ep0zel","slide":20,"text":"GPU-native quantization","textPreview":"GPU-native quantization","textChars":23,"textLines":1,"bbox":[42,382,360,34]}
+{"kind":"textbox","id":"sh/l8nqtkv6","slide":20,"text":"Parallel factor exploration makes RaBitQ practical at scale.","textPreview":"Parallel factor exploration makes RaBitQ practical at scale.","textChars":60,"textLines":1,"bbox":[42,426,350,86]}
+{"kind":"textbox","id":"sh/y5w7ypwf","slide":20,"text":"Kernel + layout co-design","textPreview":"Kernel + layout co-design","textChars":25,"textLines":1,"bbox":[450,382,360,34]}
+{"kind":"textbox","id":"sh/z658rud0","slide":20,"text":"Two-stage scoring, bitwise/LUT kernels, and fusion reduce data movement.","textPreview":"Two-stage scoring, bitwise/LUT kernels, and fusion reduce data movement.","textChars":72,"textLines":1,"bbox":[450,426,350,86]}
+{"kind":"textbox","id":"sh/gbapoveh","slide":20,"text":"Strong measured trade-off","textPreview":"Strong measured trade-off","textChars":25,"textLines":1,"bbox":[858,382,360,34]}
+{"kind":"textbox","id":"sh/1cjqh0vm","slide":20,"text":"High recall and QPS with fast builds and compact storage.","textPreview":"High recall and QPS with fast builds and compact storage.","textChars":57,"textLines":1,"bbox":[858,426,350,86]}
+{"kind":"shape","id":"sh/9gje98r6","slide":20,"bbox":[42,558,1196,92]}
+{"kind":"textbox","id":"sh/8vadg3al","slide":20,"text":"Scope to remember: one L40S, GPU-resident large batches, and an empirically tuned two-phase grid search. Small-batch latency, out-of-core behavior, and broader GPU portability remain useful next questions.","textPreview":"Scope to remember: one L40S, GPU-resident large batches, and an empirically tuned two-phase grid search. Small-batch latency, out-of-core...","textChars":205,"textLines":1,"bbox":[68,578,1144,54]}
+{"kind":"notes","id":"nt/4wi1nx","slide":20,"text":"Close with the three design lessons, then state the evaluation scope and open questions.\n\n[Sources]\n- /Users/akahmad/Library/CloudStorage/OneDrive-IndianaUniversity(2)/Vector DB/papers/RabitQ-GPU.pdf, paper page(s) 2, 12."}

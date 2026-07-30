@@ -1,0 +1,1002 @@
+                                                  GPU-Native Approximate Nearest Neighbor Search with
+                                                        IVF-RaBitQ: Fast Index Build and Search
+                                                             Jifan Shi                                     Jianyang Gao                                        James Xia
+                                              Nanyang Technological University                  Nanyang Technological University                               NVIDIA
+                                                         Singapore                                        Singapore                                             USA
+                                                   jifan002@e.ntu.edu.sg                            gaoj0017@e.ntu.edu.sg                                 jamxia@nvidia.com
+
+                                                                               Tamás Béla Fehér                                   Cheng Long
+                                                                                     NVIDIA                          Nanyang Technological University
+                                                                                     Germany                                    Singapore
+
+
+
+
+arXiv:2602.23999v1 [cs.DB] 27 Feb 2026
+                                                                                tfeher@nvidia.com                          c.long@ntu.edu.sg
+
+                                         ABSTRACT                                                                       A variety of ANNS solutions have been proposed, among which
+                                         Approximate nearest neighbor search (ANNS) on GPUs is gaining               graph-based methods and cluster-based methods are most com-
+                                         increasing popularity for modern retrieval and recommendation               monly used in industrial systems. Graph-based methods usually
+                                         workloads that operate over massive high-dimensional vectors.               construct proximity graphs over data points and perform greedy
+                                         Graph-based indexes deliver high recall and throughput but in-              traversal to locate nearest neighbors. Representative algorithms,
+                                         cur heavy build-time and storage costs. In contrast, cluster-based          such as HNSW [36], NSG [15], and Vamana graph [23], are known
+                                         methods build and scale efficiently yet often need many probes for          for their competitive recall-performance trade-offs. Cluster-based
+                                         high recall, straining memory bandwidth and compute. Aiming to              methods, most notably inverted-file (IVF) indices, partition the
+                                         simultaneously achieve fast index build, high-throughput search,            vector space into coarse clusters and restrict search to a subset of
+                                         high recall, and low storage requirement for GPUs, we present               clusters. These methods offer simple data organization and efficient
+                                         IVF-RaBitQ (GPU), a GPU-native ANNS solution that integrates                index construction, which enable easy integration with existing
+                                         the cluster-based method IVF with RaBitQ quantization into an effi-         database systems. Furthermore, both types of methods are often en-
+                                         cient GPU index build/search pipeline. Specifically, for index build,       hanced by leveraging vector quantization for reducing the costs of
+                                         we develop a scalable GPU-native RaBitQ quantization method                 storing and accessing raw vectors and/or the costs of computing dis-
+                                         that enables fast and accurate low-bit encoding at scale. For search,       tances among raw vectors [1, 16, 20, 23, 28]. Most of these solutions
+                                         we develop GPU-native distance computation schemes for RaBitQ               were originally developed and optimized for CPU architectures.
+                                         codes and a fused search kernel to achieve high throughput with                As data scale and query volume continue to grow, many real-
+                                         high recall. With IVF-RaBitQ implemented and integrated into the            world ANNS deployments choose to use GPUs as their accelera-
+                                         NVIDIA cuVS Library, experiments on cuVS Bench across multiple              tors due to GPUs’ massive parallelism and high memory band-
+                                         datasets show that IVF-RaBitQ offers a strong performance fron-             width. For instance, Faiss has deployed GPU-based ANNS li-
+                                         tier in recall, throughput, index build time, and storage footprint.        brary cuVS to handle large-scale batched queries offline 1 . Ex-
+                                         For Recall≈0.95, IVF-RaBitQ achieves 2.2× higher QPS than the               isting GPU-based ANNS methods largely follow the same two
+                                         state-of-the-art graph-based method CAGRA, while also construct-            paradigms as their CPU counterparts, namely graph-based ap-
+                                         ing indices 7.7× faster on average. Compared to the cluster-based           proaches [21, 26, 29, 40, 48, 49, 53, 54, 57] and cluster-based ap-
+                                         method IVF-PQ, IVF-RaBitQ delivers on average over 2.7× higher              proaches [6, 24, 46, 50, 52, 56]. Graph-based GPU methods re-
+                                         throughput while avoiding accessing the raw vectors for reranking.          design proximity graph building and traversal to better match
+                                                                                                                     GPU execution, leveraging warp-level parallelism, shared-memory
+                                                                                                                     caching, and fine-grained scheduling to mitigate control-flow di-
+                                         Artifact Availability:                                                      vergence and irregular memory access. Representative systems
+                                         The source code, data, and/or other artifacts have been made available at   such as SONG [57], cuHNSW [26], GGNN [21], and CAGRA [40]
+                                         https://github.com/VectorDB-NTU/cuvs_rabitq.                                demonstrate that graph-based ANNS can achieve strong recall and
+                                                                                                                     competitive query performance on GPUs.
+                                         1    INTRODUCTION                                                              Compared with graph-based indices, cluster-based GPU methods
+                                         Approximate Nearest Neighbor Search (ANNS) on high-                         offer a different set of trade-offs. A key merit is that cluster-based
+                                         dimensional vector data has become a fundamental component in               methods expose regular computation patterns that align well with
+                                         modern data management and machine learning. It supports key                GPU primitives: coarse cluster selection can be implemented using
+                                         applications such as semantic search [4], Retrieval-Augmented Gen-          dense linear algebra (e.g., GEMM for computing query–centroid
+                                         eration (RAG) [12], and recommender systems [8, 13, 31]. With the           distances), and the subsequent probing within selected clusters can
+                                         widespread adoption of embedding-based models [11, 19, 41, 42],             be parallelized as large, contiguous streams of codes or vectors.
+                                         production workloads now often involve massive high-dimensional             This makes it natural to exploit GPU batching and achieve high
+                                         vectors [47, 51]. As a result, designing scalable and efficient ANNS        1 https://developer.nvidia.com/blog/enhancing-gpu-accelerated-vector-search-in-
+                                         solutions has become a long-standing and active research topic.             faiss-with-nvidia-cuvs/
+throughput. Moreover, cluster-based indices typically have simpler                          pipeline. Within the pipeline, we further develop a two-phase par-
+structures than proximity graphs, with more predictable memory                              allel grid search algorithm for exploring the rescaling factors in
+access, which eases GPU memory management and improves mem-                                 RaBitQ quantization. These techniques enable scalable and high-
+ory coalescing.                                                                             throughput RaBitQ quantization for massive data vectors on GPUs
+   Motivated by the above considerations, this paper focuses on                             (e.g., quantizing over 1 million 960-dimensional vectors per second
+cluster-based ANNS methods on GPUs. Within this family, IVF-Flat                            to 8-bit RaBitQ codes). Second, during search, we adopt a two-
+and IVF-PQ are widely used baselines [24, 33, 43, 46, 56]. IVF-Flat                         stage distance estimation strategy for finding nearest neighbors of
+stores full-precision vectors and performs brute-force scanning                             a query, namely a filtering stage based on the 1-bit RaBitQ code
+within selected clusters. Its accuracy is strong, but the scan stage is                     (which consists of the most significant bit of each diemension of
+often dominated by memory bandwidth due to high-dimensional                                 the code), followed by a refinement stage using the ex-code (which
+floating-point loads. IVF-PQ reduces memory traffic by compressing                          consists of the remaining bits of each dimension of the code) only
+vectors using product quantization (PQ) [28]. However, it requires                          for candidates that pass the filter. Since the filtering stage (which
+learning codebooks during index construction, introducing addi-                             checkes many data vectors) dominates the overall computation,
+tional overhead on building complexity. Also, the compressed rep-                           we develop two GPU-native inner-product computation schemes,
+resentation only provides approximate distance estimates without                            namely one based on lookup tables and the other based on bitwise
+strict accuracy guarantees. As a result, achieving high recall often                        decomposition, to accelerate this stage. Third, we design a fused
+requires reranking with the raw vectors (e.g., raw vectors are stored                       cluster-local search kernel for finding nearest neighbors locally
+in main memory and are accessed during search), which increases                             within a cluster, which integrates distance filtering, refinement,
+the memory footprint and complicates the overall pipeline.                                  and top-𝐾 selection into a single GPU kernel, substantially reduc-
+   Recently, a new vector quantization method called RaBitQ was                             ing kernel-launch overhead and global-memory traffic. Fourth, to
+proposed [17, 18], which improves upon PQ in several important                              support the index build and search pipelines, we design a GPU-
+aspects. First, RaBitQ does not require codebook training. Second,                          oriented index layout that aligns data organization with access
+RaBitQ enables more accurate distance estimation with tight, the-                           patterns of the fused kernel, enabling high memory coalescing and
+oretically grounded error bounds, which can eliminate the need                              cache efficiency.
+to rerank candidates using raw vectors when targeting high recall.                             We integrate IVF-RaBitQ into NVIDIA cuVS library [43] and
+RaBitQ has been combined with IVF for CPU-based ANN search                                  cuVS Bench [39], enabling reproducible benchmarking and direct
+and has shown consistent improvements over PQ [17, 18]. Never-                              comparisons with existing GPU baselines under a unified evaluation
+theless, bringing RaBitQ to GPUs and integrating it with IVF is                             framework. We conduct extensive experiments using cuVS Bench
+non-trivial and introduces several algorithmic and system chal-                             with diverse datasets, demonstrating IVF-RaBitQ’s advantages in
+lenges. Specifically, the quantization procedure of RaBitQ involves                         the trade-off among recall, throughput, index build time, and stor-
+searching over rescaling factors and evaluating candidates, which                           age footprint. For query performance, we evaluate methods under
+can be expensive and control-flow heavy. When implemented on                                large-batch query settings to fully utilize GPU resources. Com-
+CPU, RaBitQ’s distance evaluation step benefits from wide SIMD                              pared with the state-of-the-art graph-based GPU method, CAGRA,
+vectorization and specialized bit-level routines (e.g., AVX-512-style                       IVF-RaBitQ achieves comparable or higher throughput (1.3×~5.6×
+packed/shuffle operations and fast bit-scan / popcount primitives)                          speedup for Recall≈0.95) while reducing index construction time by
+to accelerate asymmetric inner products and reduce per-dimension                            up to order of magnitude (3.4×~13.1× speedup) with far less storage
+overhead [16]. On GPUs with SIMT (Single Instruction, Multiple                              requirement. Compared with IVF-PQ implemented in NVIDIA cuVS
+Thread) execution models, the control-flow heavy quantization                               Library, IVF-RaBitQ achieves significantly higher query throughput
+becomes warp-divergent, and the CPU SIMD-optimized distance                                 (1.3×~31.4× speedup for Recall≈0.95) and accuracy under similar
+kernels have no direct equivalent. A naive port either underutilizes                        index build cost and storage budget. These results show that IVF-
+the GPU or incurs excessive memory traffic and kernel overhead. Re-                         RaBitQ is a practical and scalable solution for large-scale GPU-based
+alizing RaBitQ effectively on GPUs therefore requires GPU-native                            ANNS problems.
+design, including scalable quantization strategies, GPU-oriented                               For the rest of the paper, we present the preliminaries in Section 2,
+distance-evaluation primitives, and careful integration with the IVF                        the IVF-RaBitQ (GPU) method in Section 3, the experiments in
+probe-and-scan pipeline.                                                                    Section 4, the related work in Section 5, and the conclusion in
+   In this paper, we present IVF-RaBitQ (GPU) 2 , the first GPU-                            Section 6.
+native ANNS solution that tightly integrates IVF coarse partition-
+ing with RaBitQ quantization, for achieving fast index build, high-                         2 PRELIMIARIES
+throughput search, high recall, and compact storage simultaneously.
+We summarize our technical contributions to the development of                              2.1 Approximate NN Search and the IVF Index
+IVF-RaBitQ as follows. First, during index build, apart from building                       Approximate Nearest Neighbor Search (ANNS) finds nearest neigh-
+the IVF index, we quantize the data vectors with RaBitQ. For this                           bors of a query vector from a large collection of high-dimensional
+task, we design a cluster-at-a-time, block-per-vector quantization                          data vectors. It involves two phases, namely the index phase and
+                                                                                            the query phase. In the index phase, it builds an index on a given
+                                                                                            set of 𝑁 vectors O ⊆ R𝐷 . In the query phase, given a query vector
+2 Since the GPU setting is the focus of this paper, we may refer to it simply as IVF-       q ∈ R𝐷 , it finds 𝐾 approximate nearest neighbors with the help of
+RaBitQ in the rest of the paper.                                                            the index. Compared to exact search, ANNS trades a small loss in
+                                                                                        2
+accuracy for substantial gains in efficiency. The accuracy of ANNS                 G, the quantization process does not need to enumerate all of them.
+is usually measured using recall. For a query vector q, let N𝐾 (q)                 Instead, it only enumerates those which are closest to 𝑡 · o′ for some
+denote the set of its exact 𝐾 nearest neighbors, and let N̂𝐾 (q) be                𝑡. Furthermore, while there are infinite rescaling factors, there are
+the 𝐾 neighbors returned by an ANNS algorithm. The recall for                      only 𝐷 · 2𝐵−1 critical ones, at which the vectors that are closest to
+this query is defined as Recall@𝐾 (q) = |N𝐾 (q) ∩ N̂𝐾 (q)|/𝐾 . That                𝑡 · o′ in G would change [17]. As a result, the quantization process
+is, this metric measures how many of the true nearest neighbors of                 can explore these critical rescaling factors only. In summary, the
+the query are returned by the approximate search. In this paper, we                quantization process is to identify and enumerate 𝐷 · 2𝐵−1 critical
+target the batched setting: the input queries are provided as a batch              rescaling factors. For each factor 𝑡, it finds the vector x in G that is
+Q ∈ R𝑛𝑞 ×𝐷 , and and we want to find the 𝐾 approximate nearest                     closest to 𝑡 · o′ and computes its cosine similarity with o′ . Finally,
+neighbors for every query in the batch.                                            it returns the vector x̂, which has the greatest cosine similarity.
+    In the IVF index, vectors are first partitioned into clusters using                Given a raw query vector qr , we review the process of estimat-
+a clustering algorithm (e.g., K-means [38] or its variations [3, 34]).             ing the Euclidean distance between qr and a raw data vector or in
+When IVF is used for nearest neighbor search, the search process is                RaBitQ as follows. It first rotates qr with the same matrix P used for
+usually carried out in two stages [28]. First, given a query vector, a             rotating the data vectors. We denote the query vector after rotation
+few nearest clusters are identified based on the distances between                 by q′ . It then estimates the distance between qr and or based on sev-
+their centroids to the query. Then, these clusters are probed by                   eral variables: namely (1) the dot product between the RaBitQ code
+computing the distances between the vectors in the clusters and                    of o, i.e., x̂, and the rotated query vector, q′ and (2) some factors [16].
+the query vector and finding the nearest neighbors. With different                 Note that some of these factors are independent on the query and
+settings of the number of clusters to probe, IVF provides different                can be pre-computed before the query is known. Other factors can
+accuracy-efficiency trade-offs.                                                    only be computed given the query, but can be shared among data
+                                                                                   vectors so that the amortized cost for computing the factors for
+2.2    The RaBitQ Quantization Method                                              each data vector is negligible. As a result, the cost of estimating
+We first review the process of quantizing a raw vector or in Ra-                   the distance is dominated by that of computing the dot product
+BitQ [17, 18]. First, it normalizes or to a unit vector o wrt a center             between x̂ and q′ . For detailed expressions of the computation, we
+vector c, i.e., we have o = ∥oorr −c                                               refer readers to the documentation of the RaBitQ Library 3 .
+                                  −c∥ . Then, it focuses on quantizing
+the unit vector o since the Euclidean distance or dot product be-
+tween two raw vectors can be computed based on the dot product                     2.3     NVIDIA GPU Architecture
+between their normalized vectors and some factors which can be                     2.3.1 Thread Hierarchy. NVIDIA GPU implements the Single In-
+pre-computed and stored [17, 18]. Specifically, it constructs a code-              struction Multiple Threads (SIMT) execution model. The basic
+book by shifting, normalizing, and randomly rotating vectors whose                 scheduling and execution unit in the GPU is the warp, which is a
+coordinates are 𝐵-bit unsigned integers, where 𝐵 could be 1, 2, 3, ....            group of 32 threads. All the threads in a warp execute the same
+Formally, given the number of dimensions of a vector 𝐷 and the                     instructions and can use warp-level primitives to communicate
+number of bits used to quantize each dimension 𝐵, the codebook                     and exchange data. If threads within a single warp take different
+Gr is defined as follows:                                                          conditional paths, this scenario constitutes warp divergence which
+                                                                                   carries a performance penalty. A group of warps are organized
+                                                                                   as a thread block. The block serves as the basic unit that can be
+                 (                                            )𝐷
+                  2𝐵 − 1
+           G := −        + 𝑢 𝑢 = 0, 1, 2, 3, . . . , 2𝐵 − 1             (1)        independently scheduled onto a Streaming Multiprocessor (SM),
+                    2
+                                                                                   which is the physical core unit on the GPU. Multiple blocks can
+                                                                                   be resident on a single SM simultaneously, depending on resource
+                           (                )
+                              x
+                     Gr := P        x∈G                                 (2)        availability and kernel requirements. A group of blocks constitutes
+                             ∥x∥
+                                                                                   a grid. A grid is the top-level organizational structure to execute
+where P is a random orthogonal matrix [25].                                        a single kernel, which is a function launched from the host (CPU)
+  To quantize the vector o, it takes o’s nearest vector in the code-               and executed on the device (GPU).
+book Gr , which we denote by ô, as its quantized vector. Let x̂ be the
+vector in G, which corresponds to ô (note that each vector in Gr                  2.3.2 Memory Hierarchy. GPU memory hierarchy is critical to the
+corresponds to a vector in G (before normalization and rotation)).                 design of a GPU-based solution. At the bottom, there is a global
+This process can be formally described as follows.                                 memory (also known as device memory), which serves as the pri-
+                                                                                   mary storage for data and can be accessed by all threads. The global
+                             x     2          
+                                                 x
+                                                                                  memory has the largest space and the highest latency on the GPU,
+           x̂ = arg min P       − o = arg max       , o′                (3)        and the locality of data access to the global memory is critical to
+                            ∥x∥                 ∥x∥
+                  x∈ G                  x∈ G
+                                                                                   the efficiency. Specifically, global memory accesses are issued at
+where o′ = P−1 o is the data vector after rotation.                                the warp level. When threads within a warp access contiguous
+   According to Equation 3, the quantization process is to find x̂,                and aligned memory addresses, the accesses can be coalesced into
+which is the vector x ∈ G that maximizes the the cosine similairty                 fewer memory transactions, which effectively exploits the band-
+with the data vector after rotation, i.e., o′ . According to the analysis          width of global memory. Upon the global memory, there is a cache
+in [17], the vector x̂ must be closest to a re-scaled vector o′ for some
+rescaling factor 𝑡, i.e., 𝑡 ·o′ . Therefore, while there are 2𝐵·𝐷 vectors in       3 https://vectordb-ntu.github.io/RaBitQ-Library/rabitq/estimator/
+
+                                                                               3
+level named L2 cache, which keeps data read/written to the global             IVF-RaBitQ, it is used to store the IVF index in GPU global memory,
+memory and is shared among all SMs. For each SM, there is an L1               which has separate contiguous arrays for 1-bit codes, ex-codes,
+cache and shared memory that use the same hardware. This type of              and auxiliary factors. We further adopt an interleaved layout for
+memory has low latency and can only be shared for threads within              1-bit codes that is tailored to the access pattern of the dominant
+an SM. At the top, each SM has 32-bit registers, which are private            filter stage, leading to improved memory coalescing on the GPU
+to threads and have the lowest read/write latency.                            (Section 3.4.3).
+
+3 THE GPU-BASED IVF-RABITQ METHOD                                             3.2    Index Build on GPU
+3.1 Overview                                                                  3.2.1 Clustering, Normalization and Rotation. We run GPU-based
+                                                                              Balanced K-means [44] to learn 𝑛𝑘 centroids and assign each data-
+IVF-RaBitQ (GPU) is a GPU-native ANNS solution that combines an               base vector to its nearest centroid. This produces the centroid matrix
+IVF coarse partition with RaBitQ quantization and implements both             C ∈ R𝑛𝑘 ×𝐷 and a cluster id for each vector. Within each cluster,
+index build and search as GPU-friendly pipelines. The overview of             we normalize each vector to unit ℓ2 norm wrt its corresponding
+its workflow is described as follows.                                         centroid. For simplicity, when the context is clear, we refer to the
+Index build. Given a set of 𝑁 raw data vectors O ∈ R𝑁 ×𝐷 ( 𝐷                  normalized vectors as (data) vectors and denote a data vector by
+is the vector dimensionality), we first learn 𝑛𝑘 IVF centroids and            o. We then apply a shared random orthogonal matrix P to rotate
+assign each data vector to its nearest centroid, thereby forming              data vectors and centroids, which is implemented using General
+𝑛𝑘 inverted lists. Within each cluster, we normalize the vectors              Matrix Multiplication (GEMM). Since P is orthogonal, the rota-
+with respect to the centroid, rotate them with a random orthogonal            tion preserves inner products and distances between data vectors,
+matrix P, and quantize them using RaBitQ and obtain their codes.              centroids, and therefore does not alter exact nearest-neighbor rela-
+Each code is stored in two parts: (i) the most significant bit of each        tionships. We denote a data vector after rotation by o′ .
+dimension (which we call the 1-bit RaBitQ code or simply the 1-
+                                                                              3.2.2 GPU-based RaBitQ Quantization for Data Vectors. Given a
+bit code) and (ii) the remaining bits (which we call the ex-code).
+                                                                              set of 𝑁 data vectors o and a budget of 𝐵 bits per dimension, we aim
+To enable efficient large-scale RaBitQ quantization on GPU, we
+                                                                              to develop a GPU-based solution for quantizing the data vectors
+write GPU kernels to process vectors in a cluster-wise manner, and
+                                                                              using RaBitQ, i.e., computing the RaBitQ codes of the data vectors.
+develop GPU-friendly algorithms for exploring the rescaling factors
+used in RaBitQ quantization (Section 3.2).                                    Kernel granularity and thread mapping. We first decide the ker-
+                                                                              nel granularity (i.e., how many vectors are processed per launch),
+Search. In IVF-RaBitQ, queries are processed in batches                       which directly affects the parallelism effectiveness by determining
+(Section 3.3). Given a query batch Q ∈ R𝑛𝑞 ×𝐷 and a probe count               how computation and memory resources are scheduled. Quantizing
+𝑛 probe , we first apply the same random orthogonal transformation            one vector at a time is prohibitively expensive when the dataset
+P used in index build to the queries and select the 𝑛 probe closest IVF       contains millions to billions of vectors, because kernel-launch over-
+clusters for each query. The search workload is then organized at the         head and per-vector scheduling costs accumulate quickly, and the
+granularity of (query, cluster) pairs, enabling independent and paral-        GPU’s massive parallelism (hundreds of thousands of concurrent
+lel processing within each probed cluster. For each (query, cluster)          threads) is difficult to fully utilize. At the other extreme, quantiz-
+pair, we perform a cluster-local search that evaluates candidates             ing all vectors at once can saturate the GPU, but it imposes a high
+stored in the corresponding inverted list and finds the top-𝐾 can-            GPU memory footprint (especially for intermediate buffers) and is
+didates (i.e., 𝐾 nearest neighbors) of the query within the cluster.          inflexible across datasets of different sizes. We therefore adopt a
+Specifically, it adopts a two-stage distance estimation strategy: a           cluster-at-a-time design: each kernel launch processes the vectors
+filtering stage based on the 1-bit RaBitQ code, followed by a refine-         in one cluster, which gives a natural and bounded unit of work
+ment stage using the ex-code only for candidates that pass the filter.        aligned with the IVF structure, and makes the implementation
+Since the filtering stage checks many data vectors and dominates              largely data-size independent.
+the overall computation, we design GPU-native inner-product com-                 Next, we decide the mapping between GPU execution units and
+putation methods to accelerate this stage (Section 3.4.1), and further        vectors. A straightforward approach is to assign a single thread
+integrate it with filtering, refinement, and top-𝐾 selection into a           to each vector, analogous to the parallelization strategy typically
+fused GPU kernel to reduce kernel-launch and memory-access over-              employed on CPUs. However, this prevents intra-vector paralleliza-
+heads (Section 3.4.2). Finally, the top-𝐾 candidates obtained from            tion: the computation required by RaBitQ for a single vector (which
+all probed clusters are merged to produce the global top-𝐾 result             involves exploring multiple critical scaling factors) becomes seri-
+for each query.                                                               alized within one thread, limiting throughput. Moreover, adjacent
+GPU index layout. To efficiently support ANNS on GPU, we                      threads in a warp would typically access different vectors located
+design a flattened Compressed Sparse Row (CSR)-like layout [5].               at different regions in global memory, which can easily lead to
+Intuitively, after K-means training, each vector is assigned to ex-           uncoalesced memory accesses and lower effective bandwidth. Addi-
+actly one cluster. If we conceptually use a binary matrix of size             tionally, under a cluster-at-a-time execution schedule, the number
+num_clusters×num_vectors, where entry (𝑖, 𝑗) = 1 indicates that               of concurrently processed vectors may be insufficient to fully utilize
+vector 𝑗 belongs to cluster 𝑖 (and 0 otherwise), the resulting matrix         the GPU. Thus, we adopt a block-per-vector mapping as a robust and
+is a sparse matrix since each column contains only one non-zero               flexible design point, which has several advantages: (1) it enables
+entry. Thus, the data can be organized into a CSR-like format. In             fine-grained parallelism for that vector, e.g., it can explore multiple
+                                                                          4
+critical scaling factors in parallel; and (2) the threads in the same               Algorithm 1: Two-Phase Parallel Grid-Search for RaBitQ
+warp access contiguous (or near-contiguous) locations of the same                   Quantization
+vector, yielding coalesced global-memory accesses. This improves                     Input: A 𝐷-dimensional rotated normalized vector o′ ; the
+both compute efficiency and memory throughput, and makes it                                   number of bits per dimension 𝐵;
+easier to maintain high occupancy even when operating cluster by                     Output: The quantization code x̂.
+cluster.                                                                           1 max𝑜 ← ParallelMax(|o |);
+                                                                                                                        ′
+
+Efficient exploration of rescaling factors. The standard Ra-                       2 Initialize 𝑡 start and 𝑡 end based on max𝑜 and 𝐵;
+BitQ quantization algorithm enumerates 𝐷 · 2𝐵−1 critical rescaling                 3 𝑣 max ← 0,       𝑡 max ← 𝑡 start ;
+factors in ascending order and evaluates them using incremen-
+tal updates [17]. To support this efficient enumeration, previous                  4 for 𝑡 in uniform grid over [𝑡 start, 𝑡 end ] with 𝑁 coarse samples do
+CPU implementation maintains per-vector state, typically using                          in parallel
+a small priority queue to generate the next rescaling factor with-                 5       Find the code xcur that is closest to 𝑡 · o′ and compute
+out explicitly materializing or sorting all candidates [17]. However,                        ⟨xcur, o′ ⟩ and ∥xcur ∥ ;
+this sequential enumeration relies on fine-grained state updates                   6       if ⟨xcur, o′ ⟩/∥xcur ∥ > 𝑣 max then
+and involves irregular control flow, which is not friendly to GPU                  7           𝑣 max ← ⟨xcur, o′ ⟩/∥xcur ∥, 𝑡 max ← 𝑡;
+execution model.                                                                   8       end
+    To achieve high accuracy across dimensionalities while main-                   9 end
+taining high performance, we propose a GPU-friendly search for                    10 𝑡 center ← ParallelArgMax(𝑣 max , 𝑡 max );
+the rescaling factor. Recall that the quantization process of RaBitQ
+                                                                                  11 𝛿 ← (𝑡 end − 𝑡 start )/(𝑁 coarse − 1);
+explores a set of ciritical rescaling factors. For each factor 𝑡, it iden-
+tifies a vector x ∈D G (which
+                            E is the closest to 𝑡 · o ) and computes
+                                                      ′
+                                                                                  12 𝑡 start ← max(𝑡 start , 𝑡 center − 𝛿), 𝑡
+                                                                                       ′                                        ′
+                                                                                                                                end
+                                                                                                                                    ← min(𝑡 end, 𝑡 center + 𝛿);
+the dot product      x
+                    ∥x∥ , o
+                            ′   (or ⟨x, o′ ⟩ /∥x∥). Finally, it returns the       13 𝑣 max ← 0, 𝑡 max ← 𝑡 center ;
+                                                                                                                      ′ , 𝑡 ′ ] with 𝑁
+vector x̂, which has the greatest dot prodcut. This quantization                  14 for 𝑡 in uniform grid over [𝑡 start   end         fine samples do
+process can be regarded as one of optimizing an objective function                     in parallel
+⟨x, o′ ⟩ /∥x∥ of 𝑡. We observe this objective function is often approx-           15      Find the code xcur that is closest to 𝑡 · o′ and compute
+imately unimodal in practice (i.e., it tends to increase then decrease                      ⟨xcur, o′ ⟩ and ∥xcur ∥ ;
+with a single peak (possibly with small local fluctuations)). A classi-           16      if ⟨xcur, o′ ⟩/∥xcur ∥ > 𝑣 max then
+cal ternary search locates the maximum of a unimodal function by                  17          𝑣 max ← ⟨xcur, o′ ⟩/∥xcur ∥, 𝑡 max ← 𝑡;
+repeatedly shrinking the interval; however, it is inherently iterative            18      end
+and not ideal for GPU control flow.                                               19 end
+    Inspired by ternary search, we adopt a two-phase grid search                  20 𝑡 max ← ParallelArgMax(𝑣 max , 𝑡 max );
+that achieves a similar coarse-to-fine narrowing effect using a fixed
+number of GPU-parallel rounds. The pseudocode of our algorithm                    21 Compute x̂ via rescaling and rounding of o′ with 𝑡 max ;
+is presented in Algorithm 1. Given a 𝐷-dimensional normalized                     22 return x̂;
+vector o′ (after rotation) and bit-width 𝐵, we first compute the
+maximum absolute entry max𝑜 = max𝑖 |𝑜𝑖′ | via a parallel reduction
+across dimensions, which is used to determine the search range
+                                                                                  the index build. This operation is implemented as a single GEMM
+[𝑡 start, 𝑡 end ] (line 1~2). The algorithm then proceeds in two phases.
+                                                                                  on the GPU, producing a contiguous rotated query batch Q′ that is
+In the coarse search phase (line 3~10), we uniformly sample 𝑁 coarse
+                                                                                  reused by all subsequent stages in the search pipeline.
+candidate rescaling factors across the search range and evaluate
+them in parallel using multiple threads. For each candidate 𝑡, we                 3.3.2 Cluster Selection. We select the 𝑛 probe closest clusters for
+find the code xcur that is closest to 𝑡 · o′ and compute the objec-               each query. Let C ∈ R𝑛𝑘 ×𝐷 be the centroid matrix and Q′ ∈ R𝑛𝑞 ×𝐷
+tive ⟨xcur, o′ ⟩/∥xcur ∥. A parallel reduction then identifies the best           be the rotated query batch. The squared Euclidean distance matrix
+candidate 𝑡 center . In the fine search phase (line 11~20), we narrow             between queries and centroids can be written in matrix form as
+the search range to a small neighborhood around 𝑡 center and repeat
+                                                                                                                            c − 2Q C ,
+                                                                                                         D = sq 1𝑛⊤𝑘 + 1𝑛𝑞 s⊤                                     (4)
+                                                                                                                                  ′ ⊤
+the parallel evaluation with 𝑁 fine samples to refine the solution.
+The final rescaling factor 𝑡 max is used to produce the quantization
+code x̂. On the GPU, for each rescaling factor, we assign a thread                where sq ∈ R𝑛𝑞 and sc ∈ R𝑛𝑘 store the squared ℓ2 norms of queries
+block to do the sampling and the reduction in parallel. In this way,              and centroids, respectively. The dominant term Q′ C⊤ is computed
+the algorithm can finish in 𝑂 (1) rounds on the GPU, which signifi-               via a single GEMM on the GPU, and a parallel top-𝐾 kernel [55] is
+cantly outperforms the standard quantization algorithm (𝑂 (𝐷 · 2𝐵 )               then used to select the 𝑛 probe nearest clusters per query.
+complexity).                                                                      3.3.3 Probe Scheduling via Workload Reorganization. After clus-
+                                                                                  ter selection, we reorganize the workload explicitly as a set of
+3.3    Search Pipeline on GPU                                                     (query, cluster) pairs, one pair per probed cluster of each query.
+3.3.1 Batch Rotation. Let Q ∈ R𝑛𝑞 ×𝐷 be a batch of queries. We                    We sort these pairs by cluster identifier before launching the search
+rotate the batch using the same shared orthogonal matrix P as in                  kernels. This reorganization is adopted from cuVS’s IVF-PQ [43],
+                                                                              5
+which converts the irregular per-query probe lists into an execu-            instructions and cannot be directly ported to GPUs due to funda-
+tion order that is friendly to GPU: first, blocks that process the           mental differences in execution models and available instruction
+same (or nearby) clusters execute closer in time, improving cache            sets. Thus, a straightforward approach would be to expand the
+locality for the RaBitQ codes; second, the clusters of a fixed query         binary codes into byte values and reuse conventional inner-product
+across the batch are less likely to be probed concurrently, which            operators. However, such a design is inefficient on GPUs, as it in-
+gives a tigher running top-𝐾 thershold (i.e., the current 𝐾-th best          troduces unnecessary type conversions and leads to suboptimal
+distance for each query) to enable more aggressive pruning in later          utilization of GPU compute and memory resources.
+probes. Before these workloads are mapped to SMs on the GPU, we                  To address the problem, we develop two GPU-native inner-
+compute query-dependent factors once per query and prepare the               product computation schemes for this type of inner product. The
+query representation needed by the chosen inner-product method               first scheme adopts a lookup table based strategy that trades shared-
+(Section 3.4.1); these results are reused across that query’s 𝑛 probe        memory capacity for reduced arithmetic operations, while the sec-
+cluster scans.                                                               ond scheme reformulates the inner product into a bitwise decom-
+                                                                             position that exploits GPU-friendly bitwise operations. These two
+3.3.4 Cluster-local Search and Two-stage Distance Estimation. For            schemes represent different design points in the trade-off between
+each (query, cluster) pair, we compute cluster-local top-𝐾 candi-            arithmetic intensity and on-chip memory usage, and are described
+dates (which are the query’s 𝐾 nearest neighbors locally within the          in detail below.
+the cluster) using a two-stage estimator:
+                                                                             (1) Lookup Table based Strategy. We first consider a memory-
+      • Stage 1 (filter): compute a fast 1-bit distance estimate (and        centric strategy that replaces arithmetic operations with table
+        a lower bound) based on the 1-bit RaBitQ code and prune              lookups by leveraging GPU shared memory. Specifically, we pre-
+        vectors whose values exceed the current threshold (i.e., the         compute query-dependent lookup tables (LUTs) and reuse them
+        current 𝐾-th best distance for each query).                          across all data vectors when evaluating the 1-bit estimated distance.
+      • Stage 2 (refinement): for the surviving candidates, read                 Different from GPU implementations of IVF-PQ (e.g., cuVS [43])
+        additional bits of the RaBitQ code (ex-code) to compute              that build LUTs over PQ codewords (i.e., per PQ dimen-
+        a more accurate estimated distance and then select the               sion/subspace), we construct LUTs that aggregate inner-product
+        cluster-local top-𝐾 candidates.                                      contributions over multiple dimensions of the 1-bit RaBitQ code.
+                                                                             Formally, we partition the dimensions into groups of 𝑈 bits and
+For simplicity, we refer to the estimated distances in Stage 1 and
+                                                                             construct multiple lookup tables accordingly. Let 𝑚 = 𝐷/𝑈 be the
+Stage 2 as the 1-bit estimated distance and the refined estimated dis-
+                                                                             number of partitioned blocks, and
+tance, respectively. Since the inner-product computation between
+the query and the 1-bit RaBitQ codes in Stage 1 dominates the com-                               x̂b( 𝑗 ) , q′ ( 𝑗 ) ∈ R𝑈 ,           𝑗 = 1, . . . , 𝑚
+putation (note that the computation is conducted for all vectors
+                                                                             be the subvectors corresponding to the 𝑗-th block of the 1-bit code
+in the probed clusters) [16], we develop two GPU-native inner-
+                                                                             x̂b and the query vector (after rotation) q′ , respectively. For each
+product computation schemes tailored to the GPU execution model
+                                                                             block, we precompute a lookup table (LUT) that stores the inner
+(Section 3.4.1). Moreover, this two-stage estimator is realized on
+                                                                             products between q′ ( 𝑗 ) and all possible 2𝑈 binary patterns and
+the GPU as a four-step cluster-local search procedure, including (1)
+                                                                             store the values. Specifically, given the 𝑗th block, we define the
+1-bit estimated distance computation, (2) candidate selection (i.e.,
+                                                                             corresponding LUT as follows:
+retaining vectors whose estimated distances pass the current thresh-
+old), (3) refined estimated distance computation, and (4) in-block                                            𝐿 𝑗 : {0, 1}𝑈 → R                                     (5)
+top-𝐾 selection (i.e., selecting the best 𝐾 candidates within a thread                                      𝑈
+block). These steps are fused into a single GPU kernel to reduce
+                                                                                                            ∑︁
+                                                                               𝐿 𝑗 (b) = ⟨q′ ( 𝑗 ) , b⟩ =         q′ [( 𝑗 − 1)𝑈 + 𝑖] · b[𝑖] , b ∈ {0, 1}𝑈           (6)
+kernel launch overhead and global-memory traffic (Section 3.4.2).                                           𝑖=1
+                                                                             Given a binary code vector x̂b , the inner product ⟨x̂b, q′ ⟩ can then
+3.3.5 Batch-level Merge. Each block outputs cluster-local candi-
+                                                                             be computed by summing the LUT entries corresponding to each
+dates. For each query, we merge candidates from its 𝑛 probe clusters
+                                                                             block:
+and run a GPU top-𝐾 to produce the final approximate nearest
+neighbours.                                                                                                 𝑚
+                                                                                                            ∑︁                               𝑚
+                                                                                                                                             ∑︁
+                                                                                             ⟨x̂b, q′ ⟩ =         ⟨x̂b( 𝑗 ) , q′ ( 𝑗 ) ⟩ =         𝐿 𝑗 x̂b( 𝑗 ) .   (7)
+                                                                                                                                                               
+
+3.4    Kernel and Data-Layout Co-design                                                                     𝑗=1                              𝑗=1
+
+3.4.1 GPU Inner-Product Computation for 1-bit Estimated Distance.            In practice, each binary block x̂b( 𝑗 ) is interpreted as an integer index
+Recall in RaBitQ, we need to compute the inner product between a             𝑘 ∈ {0, . . . , 2𝑈 − 1}, allowing the inner product computation to be
+query vector q′ (after rotation) and the 1-bit RaBitQ code of a data         performed via 𝑚 table lookups followed by a summation.
+vector, which we denote by x̂b , for computing the 1-bit estimated              According to Section 2.2, in IVF-RaBitQ, the inner product be-
+distance between the query and the vector (Section 2.2). That is,            tween x̂b and q′ has no relationship with which cluster x̂b belongs
+the inner product is computed in an asymmetric form, where query             to. That is, to compute the 1-bit estimated distance between a query
+vectors are represented in higher precision (e.g., floating-point),          vector and different data vectors, the LUTs only need to be com-
+while data vectors are encoded as compact 1-bit RaBitQ codes. Exist-         puted once and can be reused across all data vectors. For each query,
+ing CPU-oriented acceleration techniques [16] are based on SIMD              we have 𝐷/𝑈 LUTs, where each LUT uses the 𝑈 bits as entry and has
+                                                                         6
+                                                          q̂(0) [1]               q̂(0) [2]         ···             q̂(0) [D]                popcnt                       ≪0
+                                                                                                                                                                                                −2Bq −1 ⟨x̂b , q̂(Bq −1) ⟩
+                                        &                 q̂   (1)
+                                                                     [1]           (1)
+                                                                                  q̂        [2]     ···             q̂(1) [D]                popcnt                       ≪1
+                                        &
+                                                                ..                     ..                               ..                        ..                      ..
+                                                                                                                                                                                                          +
+x̂b [1] x̂b [2]   ···   x̂b [D]         &                                                           ..
+                                                                 .                      .                .               .                         .                       .                       Bq −2
+                                        &                                                                                                                                                          X
+                                                     q̂   (Bq −1)
+                                                                       [1]    (Bq −1)
+                                                                             q̂               [2]   ···        q̂   (Bq −1)
+                                                                                                                              [D]            popcnt                 ≪ (Bq − 1)                             2j ⟨x̂b , q̂(j) ⟩
+                                                                                                                                                                                                   j=0
+
+
+      Data Vector x̂b                                                        Query Vector q̂                                                                                                      Inner Product Result
+
+
+Figure 1: Bitwise Inner Product Computation. x̂b [𝑖] denotes the 𝑖th dimension (bit) of the data vector x̂b , and q̂ ( 𝑗 ) [𝑖] denotes the
+𝑗th bit of the query vector’s 𝑖th dimension q̂[𝑖].
+
+
+a size of sizeof(lut_type) × 2𝑈 bytes. To enable high-throughput
+execution, an ideal case should be that LUTs from different queries                                                                                𝐷
+can reside in an SM’s shared memory (e.g., up to 164 KB on Ampere
+                                                                                                                                                  ∑︁
+                                                                                                                                    ⟨x̂b, q̂⟩ =         x̂b [𝑖] · q̂[𝑖]                                                        (9)
+and 228 KB on Hopper-class GPUs) at the same time, so that multi-                                                                                 𝑖=1
+ple queries can be processed concurrently on a single SM. Thus, we                                                                                 𝐷                                     𝐵q −2
+set 𝑈 to 4 to achieve the best performance. For example, if we use
+                                                                                                                                                  ∑︁                                     ∑︁
+                                                                                                                                             =     x̂b [𝑖] · ­−2𝐵q −1 q̂ (𝐵q −1) [𝑖] +           2 𝑗 q̂ ( 𝑗 ) [𝑖] ®        (10)
+                                                                                                                                                             ©                                                    ª
+FP16 to store inner product results in LUT, for a 1,024-dimensional                                                                            𝑖=1                                        𝑗=0
+query, we only need 1024/4 × 24 × 2B = 8KB to store all LUTs.
+                                                                                                                                                             «                                                    ¬
+                                                                                                                                                                             q −2
+                                                                                                                                                                            𝐵∑︁
+Once the LUTs are loaded into the GPU’s shared memory, they can
+                                                                                                                                             = −2𝐵q −1 ⟨x̂b, q̂ (𝐵q −1) ⟩ +       2 𝑗 ⟨x̂b, q̂ ( 𝑗 ) ⟩                     (11)
+be shared with hundreds of threads within a thread block with low                                                                                                                𝑗=0
+access latency, enabling parallel inner-product evaluation for large
+batches of 1-bit RaBitQ codes.                                                                                                    This equation depicts that the inner product can be viewed as a
+(2) Bitwise Decomposition based Strategy. While the LUT-based                                                                  weighted sum of inner products between binary vectors x̂b and q̂ ( 𝑗 ) .
+approach is effective, it relies on query-dependent tables residing in                                                         As shown in Figure 1, the inner product between two binary vec-
+shared memory, which can limit on-chip residency and parallelism                                                               tors can be efficiently computed via bitwise AND (&) and population
+for high-dimensional vectors or GPUs with relatively small shared                                                              count (POPCNT) operations. Since GPU registers are 32 bits wide,
+memory. To complement this memory-centric design, we revisit                                                                   we can process 32 dimensions within a single operation, which
+the inner-product computation itself to develop a compute-centric                                                              provides an advantage over classical dimension-wise inner-product
+scheme that minimizes shared-memory usage and better exploits                                                                  computation. Once ⟨x̂b, q̂ ( 𝑗 ) ⟩ is computed, the final weighted sum
+GPU bitwise instructions.                                                                                                      can be obtained through several shift and add operations. Compared
+    The classical inner-product computation processes vectors di-                                                              to the LUT-based approach, the bitwise inner product trades addi-
+mension by dimension. On GPUs, however, there is no native in-                                                                 tional integer arithmetic for a substantially smaller shared-memory
+struction that multiplies a packed bit string directly with floating-                                                          footprint. On GPU, only the quantized query representation needs
+point values. As a result, a straightforward implementation must                                                               to be stored in shared memory (e.g., 0.5 KB for a 1,024-dimensional
+first extract each 1-bit entry from the bit string x̂b (at least at byte                                                       query with 4-bit quantization), making this approach particularly
+granularity) before performing the multiplications. Inspired by                                                                suitable for high-dimensional settings or scenarios where shared
+the bitwise decomposition in RaBitQ [18], we instead adopt a bit-                                                              memory is the limiting resource.
+wise inner-product computation that contrasts with the classical
+                                                                                                                               3.4.2 Fused Cluster-local Search Kernel. Building on the optimized
+dimension-wise approach. The key idea is to reorganize the com-
+                                                                                                                               inner-product computation, we next design a fused cluster-local
+putation so that each instruction processes multiple dimensions
+                                                                                                                               search kernel to efficiently execute the two-stage distance estima-
+at once using bit operations. To enable this, we first quantize each
+                                                                                                                               tion on the GPU. Recall in Section 3.3.4 that the cluster-local search
+rotated query into 𝐵 q -bit signed integers q̂. Based on Section 2.2,
+                                                                                                                               procedure for a (query, cluster) pair (which finds the 𝐾 nearest
+this quantization is performed once per query and reused across
+                                                                                                                               neighbors of the query within the cluster) consists of four logical
+all probed clusters, contributing negligible overhead to the overall
+                                                                                                                               steps, namely (1) 1-bit estimated distance computation, (2) candi-
+search pipeline. With the quantized query, the target inner product
+                                                                                                                               date selection, (3) refined estimated distance computation, and (4)
+⟨x̂b, q′ ⟩ can be rewritten as:
+                                                                                                                               in-block top-𝐾 selection. A straightforward approach is to imple-
+                                                                                                                               ment each of the these steps as a separate kernel. However, due to
+                                  ⟨x̂b, q′ ⟩ ≈ Δq · ⟨x̂b, q̂⟩.                                               (8)               data dependencies between consecutive steps, this design requires
+where Δq is the query quantization scale (step size) that maps                                                                 launching multiple kernels sequentially, where each kernel loads
+the integer-domain inner product back to its original scale (e.g.,                                                             its inputs from global memory and writes intermediate results back
+floating-point) .                                                                                                              to global memory. We note that shared memory is scoped to a sin-
+      Let q̂[𝑖] be the 𝑖th dimension of q̂ where 1 ≤ 𝑖 ≤ 𝐷 and                                                                 gle thread block and cannot be shared across blocks in different
+q̂ ( 𝑗 ) [𝑖] ∈ {0, 1} be the 𝑗th bit of q̂[𝑖] where 0 ≤ 𝑗 < 𝐵 q (please                                                        kernels, which means that it is necessary to store intermediate
+refer to presentation of q̂ in Figure 1 for illustration). The bitwise                                                         results in global memory between stages. Moreover, when work-
+decomposition can be represented using the following equation:                                                                 load imbalance arises across thread blocks, later kernels must wait
+                                                                                                                      7
+for the completion of earlier ones, leading to long-tail effects and          memory primarily for storing intermediate inner-product results,
+underutilization of streaming multiprocessors (SMs).                          candidate metadata, and top-𝐾 buffers. Exploiting this property,
+   To address these inefficiencies, we design a fused cluster-local           we reuse shared-memory regions across stages whenever their life-
+search kernel that integrates all four logical steps into a single            times do not overlap: (1) the shared-memory region initially used to
+kernel execution. Rather than launching multiple kernels for differ-          store the LUTs or quantized queries is reused to store intermediate
+ent stages, the fused design propagates intermediate results across           inner-product results during distance refinement; (2) the shared
+stages using on-chip memory, enabling block-level synchronization             memory allocated across the first three stages is repurposed as a
+instead of kernel-level synchronization. This design significantly            sorting buffer for maintaining the cluster-local top-𝐾 results in
+reduces kernel launch overhead, global-memory traffic, and syn-               the final stage. By carefully coordinating these reuse patterns, the
+chronization costs, especially under workload imbalance.                      fused kernel achieves a substantially smaller peak shared-memory
+                                                                              footprint than a naive allocation that reserves separate buffers for
+Kernel organization. The fused kernel adopts a block-centric
+                                                                              all stages.
+execution model, where each block takes a (query, cluster) pair as
+an input and returns the cluster-local 𝐾-nearest neighbours for
+the query. Upon launch, a block first loads the query-dependent               3.4.3 GPU-Oriented Index Layout. To support efficient execution
+representation into shared memory. Depending on the selected                  of the fused kernel, we co-design a GPU-oriented index layout
+inner-product computation method (Section 3.4.1), this representa-            that aligns data organization with cluster-local access patterns. IVF-
+tion is either the precomputed lookup tables (LUTs) or the quantized          RaBitQ follows a flattened IVF organization inspired by Compressed
+query vector used for bitwise inner-product evaluation. After that,           Sparse Row (CSR) [5] techniques, where vectors belonging to the
+threads in the block collaboratively scan the data vectors in the clus-       same cluster are stored contiguously and indexed via an offset
+ter and compute lower bounds of the 1-bit estimated distances. Each           array. Building on this baseline organization, we further reorganize
+thread processes one or more vectors and evaluates the inner prod-            RaBitQ codes and auxiliary data to improve data locality, memory
+uct between the query representation and the 1-bit RaBitQ codes.              coalescing, and cache efficiency during GPU execution. This layout
+Based on the inner product results, the 1-bit estimated distance              is co-designed with the fused kernel to enable high-throughput
+lower bounds are computed and compared against a query-specific               search on modern GPUs.
+threshold (the current 𝐾-th largest distance among the candidates
+found so far across clusters). Vectors whose lower bounds exceed              Stage-aware data decomposition. To match the multi-stage ex-
+the threshold are pruned early, while the remaining vectors are               ecution of the fused kernel, the data associated with each cluster
+selected as candidates for further refinement. Then, the fused kernel         is decomposed into multiple contiguous arrays according to their
+performs distance refinement for the surviving candidates. Since              usage patterns. Specifically, we separate the RaBitQ representa-
+the number of candidates typically constitutes a small fraction of            tion into short codes (the most significant bit, i.e., 1-bit RaBitQ
+the cluster size, we assign groups of threads within a warp to co-            codes) and long codes (ex-codes), which are accessed in the filtering
+operatively process each candidate. Specifically, threads within a            and refinement stages, respectively. Correspondingly, auxiliary fac-
+warp jointly compute the inner product between the query and the              tors required for distance estimation are split into short-factor and
+ex-codes of a candidate, which helps amortize the cost of access-             long-factor arrays, used for computing 1-bit distances and refined
+ing additional code bits and achieves better workload balance for             distances, respectively. In addition, a Pid array stores the unique
+cases where the number of candidates is small. Using the refined              identifier of each vector within the cluster. This stage-aware de-
+inner-product results together with the associated auxiliary factors,         composition improves data locality and avoids loading unused data
+the block computes the refined estimated distance for these candi-            in early stages of the fused kernel.
+dates. Finally, each block conducts a cluster-local top-𝐾 selection
+                                                                              Interleaved layout for 1-bit codes. Efficient inner-product com-
+using shared memory. After all vectors in the cluster have been
+                                                                              putation in the filtering stage requires high memory bandwidth
+processed, the block writes the cluster-local top-𝐾 results back to
+                                                                              when accessing the 1-bit RaBitQ codes. On GPUs, global memory
+global memory for subsequent merging across clusters, and updates
+                                                                              accesses are serviced via aligned memory transactions (e.g., 32, 64,
+the query-specific threshold atomically.
+                                                                              or 128 bytes), and accesses from consecutive threads in a warp can
+Shared-memory management via stage-aware reuse. A key                         be coalesced when they target adjacent addresses. To exploit this
+challenge of kernel fusion is managing shared-memory usage across             behavior, we design an interleaved layout for the 1-bit codes. As il-
+stages while preserving sufficient SM residency. Unlike CPU pro-              lustrated in Figure 2, for a cluster containing 𝑛 vectors of dimension
+grams that can allocate and free memory dynamically, the shared-              𝐷, the 1-bit codes are grouped every 32 dimensions (e.g., dimensions
+memory footprint of a GPU kernel must be determined at launch                 1–32, 33–64) and packed into 32-bit unsigned integers to match
+time, as it directly constrains the number of thread blocks that can          the GPU register width. The storage is interleaved such that, for
+concurrently reside on an SM. Excessive shared-memory allocation              each group of 32 dimensions, the packed codes of all 𝑛 vectors are
+can therefore reduce occupancy and limit overall throughput. We               stored contiguously before proceeding to the next group. With this
+observe that the shared-memory requirements of different stages               layout, threads within a warp access adjacent 32-bit words when
+in the fused kernel do not fully overlap in time. Specifically, the           processing the same dimension group across different vectors. As a
+memory used to store the query-dependent representation (i.e.,                result, memory accesses are coalesced into 128-byte transactions
+lookup tables or quantized query vectors) is only needed during the           and fit within a single L1 cache line, enabling efficient utilization
+1-bit distance estimation stage, while later stages require shared            of GPU memory bandwidth during inner-product computation.
+                                                                          8
+                            0            1                 2                     nk -1             nk
+        Offsets
+                            0           128               350        ···     Offset[nk -1]       Total
+      (Indices)                                                                                                                                  Interleaved Data Layout for Short Code
+                  Start
+
+    Short Code            C[1] Data           C[2] Data         C[3] Data     ···            C[nk ] Data                                 x̂b,1          x̂b,2        x̂b,3                  x̂b,n
+                                                                                                                         Dims 1-32                                              ···
+                                                                                                                                         [1-32]         [1-32]       [1-32]                 [1-32]
+
+
+  Short Factors           C[1] Data           C[2] Data         C[3] Data     ···            C[nk ] Data                                 x̂b,1          x̂b,2        x̂b,3      ···
+                                                                                                                                                                                            x̂b,n
+                                                                                                                        Dims 33-64      [33-64]        [33-64]      [33-64]                [33-64]
+
+
+                                                                                                                                  ..       ..             ..           ..       ..            ..
+    Long Code             C[1] Data           C[2] Data         C[3] Data     ···            C[nk ] Data                           .        .              .            .            .         .
+
+
+                                                                                                                                         x̂b,1          x̂b,2        x̂b,3      ···
+                                                                                                                                                                                            x̂b,n
+                                                                                                                      Dims D-31...D    [D-31...D]     [D-31...D]   [D-31...D]             [D-31...D]
+  Long Factors            C[1] Data           C[2] Data         C[3] Data     ···            C[nk ] Data
+
+
+                                                                                                                                         x̂b,1          x̂b,2        x̂b,3      ···         x̂b,n
+          Pids            C[1] Data           C[2] Data         C[3] Data     ···            C[nk ] Data
+
+
+                                 Contiguous memory for Cluster 2
+
+
+
+                                      Figure 2: Data layout for Inverted Lists in IVF-RaBitQ. nk is the number of clusters.
+
+Table 1: Datasets used in evaluation. 𝑁 is the total number                                                    compress database vectors into compact codes. It provides two op-
+of database vectors and 𝐷 is the number of dimensions.                                                         tions, namely one with refinement (named IVF-PQ (w/ref)) and the
+                                                                                                               other without refinement (named IVF-PQ (wo/ref)). IVF-PQ (w/ref)
+   Name                               Type                      𝑵            𝑫           Size (GB)             re-evaluates shortlisted candidates produced based on the PQ codes
+                                                                                                               using raw data vectors to improve recall. Apart from GPU-based
+   ImageNet                           Image           1,281,167              512             2.44
+                                                                                                               methods that are based on clustering, we also include CAGRA [40], a
+   CodeSearchNet                       Code           1,374,067              768             3.93
+                                                                                                               state-of-the-art graph-based GPU ANNS algorithm that constructs
+   GIST                               Image           1,000,000              960             3.58
+                                                                                                               and searches fixed-degree proximity graphs fully in parallel. For
+   OpenAI-3072-1M                      Text           1,000,000             3072             11.44
+                                                                                                               CPU-based methods, we include RaBitQLib [16] (which implements
+   OpenAI-1536-5M                      Text           5,000,000             1536             28.61
+                                                                                                               IVF-RaBitQ for ANNS with efficient SIMD instructions). Among
+   Wiki-all                            Text          10,000,000              768             28.64
+                                                                                                               these competitors, IVF-PQ and RaBitQLib provide the option for
+                                                                                                               vector quantization. For IVF-PQ (w/ref) and IVF-PQ (wo/ref), we
+                                                                                                               choose the best index settings (e.g., quantization dimensions, quan-
+4 EXPERIMENTS                                                                                                  tization bits, and number of clusters) for searching at Recall=0.95 to
+                                                                                                               evaluate the time-accuracy tradeoff. For IVF-RaBitQ and RaBitQLib,
+4.1 Experimental Setup
+                                                                                                               we quantize each dimension of vectors to 8 bits unless mentioned
+Experimental Platform. The GPU-based experiments are con-                                                      otherwise. For RaBitQ quantization on GPU, we empirically set
+ducted on a machine provided by Amazon Web Services [2]. The                                                   𝑁 coarse and 𝑁 fine to 64 and 32, respectively.
+machine is equipped with a single NVIDIA L40S GPU with 48 GB                                                   Benchmark. All experiments with GPU are conducted using
+of device memory, and an AMD EPYC 7R13 processor providing                                                     cuVS Bench [43], an open-source benchmarking suite developed
+8 virtual CPU cores. The NVIDIA driver version is 590.48.01 with                                               by NVIDIA for evaluating approximate nearest neighbor (ANN)
+CUDA 13.1. The CPU-based experiments are performed on a ma-                                                    algorithms on GPUs. It enables fair comparison across methods by
+chine equipped with Intel Xeon Gold 6418H processors and 1 TB                                                  enforcing consistent data loading, query batching, and performance
+of main memory. Both machines run Ubuntu 22.04 LTS (x86_64).                                                   measurement under GPU-resident settings. We have extended the
+Datasets. We use six modern real-world high-dimensional vector                                                 cuVS Bench framework by integrating our IVF-RaBitQ into the cuVS
+datasets to evaluate the performance, as detailed in Table 1. These                                            Library to allow fair comparison of IVF-RaBitQ with other GPU
+datasets are taken from the popular ANNS benchmarks and reflect                                                methods under unified workloads. Unless mentioned otherwise, we
+real-world ANNS search scenarios [9, 27, 41, 45]. The types include                                            use 𝑏𝑎𝑡𝑐ℎ𝑠𝑖𝑧𝑒 = 104 for the benchmark.
+image (ImageNet [10] and GIST [28]), code (CodeSearchNet [22]),
+and text (OpenAI-3072-1M, OpenAI-1536-5M[41] and Wiki-all [45]).                                               4.2    Experimental Results
+For each dataset (except for Wiki-all), we exclude 10,000 vectors                                              4.2.1 GPU ANNS Search Performance. In this subsection, we evalu-
+from the dataset as query vectors, and use the rest of them as                                                 ate the GPU-based ANN search performance of IVF-RaBitQ against
+base data vectors for index construction. For Wiki-all, the dataset                                            other representative baselines. For IVF-RaBitQ, we report two differ-
+includes 10,000 query vectors already.                                                                         ent GPU search modes: IVF-RaBitQ (LUT) and IVF-RaBitQ (Bitwise),
+Baselines. We compare our method against several modern ANN                                                    which correspond to two different inner production computation
+methods. For GPU-based methods, we first choose the widely used                                                methods (recall Section 3.4.1) used in our fused kernel. Our com-
+clustering-based methods, IVF-Flat and IVF-PQ, implemented in                                                  petitors include IVF-PQ (with and without refinement), IVF-Flat,
+the cuVS Library [43]. These methods are built on the inverted                                                 and CAGRA. Figure 3 reports the time-accuracy trade-off for these
+file (IVF) index. IVF-Flat [14] stores all database vectors in un-                                             methods on six high-dimensional datasets. The performance is eval-
+compressed form. IVF-PQ [7] applies product quantization [28] to                                               uated in QPS (query-per-second), and the accuracy is measured by
+                                                                                                           9
+                                                    IVF-RaBitQ (Bitwise)          IVF-RaBitQ (LUT)     CAGRA                  IVF-PQ (w/ref)        IVF-PQ (wo/ref)          IVF-FLAT
+                          ImageNet                                                ImageNet                                                 CodeSearchNet                                            CodeSearchNet
+      106                                                    106
+
+                                                                                                                        105                                                         105
+      105                                                    105
+QPS                                                    QPS                                                        QPS   104                                                   QPS   104
+      104                                                    104
+
+                                                                                                                        103                                                         103
+      103                                                    103
+            0.80   0.85      0.90     0.95   1.00                  0.80    0.85      0.90      0.95   1.00                    0.80      0.85      0.90     0.95       1.00                0.80   0.85      0.90     0.95   1.00
+                          Recall@10                                               Recall@50                                                  Recall@10                                               Recall@50
+                            GIST                                                    GIST                                                   OpenAI-3072-1M                                          OpenAI-3072-1M
+                                                                                                                        105                                                         105
+                                                             105
+      105
+                                                                                                                        104                                                         104
+QPS   104                                              QPS   104                                                  QPS                                                         QPS
+                                                                                                                        103                                                         103
+      103                                                    103
+                                                                                                                        102                                                         102
+            0.80   0.85      0.90     0.95   1.00                  0.80    0.85      0.90      0.95   1.00                    0.80      0.85      0.90     0.95       1.00                0.80   0.85      0.90     0.95   1.00
+                       Recall@10                                               Recall@50                                                       Recall@10                                                Recall@50
+                     OpenAI-1536-5M                                          OpenAI-1536-5M                                                     Wiki-all                                                 Wiki-all
+      105                                                    105                                                        105                                                         105
+
+
+      104                                                    104                                                                                                                    104
+                                                                                                                        104
+QPS                                                    QPS                                                        QPS                                                         QPS
+      103                                                    103
+                                                                                                                        103                                                         103
+
+      102                                                    102
+            0.80   0.85      0.90     0.95   1.00                  0.80    0.85      0.90      0.95   1.00                    0.80      0.85      0.90     0.95       1.00                0.80   0.85      0.90     0.95   1.00
+                          Recall@10                                               Recall@50                                                    Recall@10                                                Recall@50
+
+Figure 3: Time–accuracy trade-off of ANN search on representative datasets (log-scale). Bitwise and LUT denote the two GPU
+inner-product methods used by IVF-RaBitQ, while w/ refine and w/o refine indicate whether distance refinement is enabled for
+IVF-PQ.
+
+
+Recall@K (the ratio of true nearest neighbors found in the top-𝐾                                                        becomes more evident on higher recall, which highlights the advan-
+results returned by an ANNS algorithm ). Based on the results, we                                                       tage of cache reuse while probing many clusters for a large batch
+have the following observations.                                                                                        of queries.
+   (1) Overall performance trends. IVF-RaBitQ consistently achieves                                                        (4) Bitwise vs. LUT-based GPU kernels. We further investigate
+high query throughput while maintaining strong recall across all                                                        two inner product computation methods for IVF-RaBitQ: a bit-
+datasets. Compared with all competitors, IVF-RaBitQ provides sub-                                                       wise inner-product kernel and a lookup-table (LUT) based kernel.
+stantially higher throughput at medium-to-high recall regimes                                                           Both implementations achieve high performance across all datasets.
+(0.85–1).                                                                                                               As dimensionality increases, the LUT-based kernel is bounded by
+   (2) Comparison among IVF-based methods. Across all datasets,                                                         shared-memory capacity, whereas the bitwise formulation remains
+IVF-RaBitQ significantly outperforms IVF-PQ in terms of through-                                                        lightweight and scalable which is reflected by gap between the two
+put, especially at higher recall targets. Although IVF-PQ with refine-                                                  methods on the OpenAI-3072-1M dataset. We note that the relative
+ment (denoted as IVF-PQ (w/ref)) improves retrieval accuracy by                                                         performance of these two methods may vary based on the memory
+introducing an additional refinement stage, it still incurs consider-                                                   bandwidth and shared memory size of different GPUs.
+able computational and memory overhead when using raw vectors                                                              (5) Scalability across dataset sizes and dimensionalities. Across
+for reranking. In contrast, IVF-RaBitQ attains a more favorable                                                         datasets ranging from 1M to 10M vectors and dimensions from 512
+efficiency–accuracy balance without relying on reranking of raw                                                         to 3072, IVF-RaBitQ maintains robust performance and consistent
+vectors. To be specific, for Recall=0.95, IVF-RaBitQ has 2.0×~31.4×                                                     throughput advantages.
+speedup compared to IVF-PQ without refinement (denoted as IVF-
+PQ (wo/ref)), and 1.3×~5.3× speedup compared to IVF-PQ (w/ref).                                                         4.2.2 Index Build Time. Figure 4 shows the index build time for
+   (3) Comparison with CAGRA. IVF-RaBitQ demonstrates compa-                                                            the indexes used in Section 4.2.1. For all IVF-based methods, we
+rable or higher throughput than CAGRA across most datasets and                                                          use one-tenth of the dataset vectors to train the clusters and align
+recall ranges. IVF-RaBitQ benefits from compression while CAGRA                                                         the number of clusters to be trained. Also, we align the IVF-PQ and
+works with uncompressed data. On average, IVF-RaBitQ (Bitwise)                                                          IVF-RaBitQ to use the same compression ratio for quantization (i.e.,
+achieves a speed up of 1.8×, 2.2×, 3.3× compared to CAGRA for                                                           8 bits per dimension). We observe that IVF-RaBitQ has a very short
+recall=0.9, 0.95, 0.99@10, respectively. The performance advantage                                                      index build time across all evaluated datasets. When compared
+                                                                                                                        with CAGRA, the proposed method attains an average speedup
+                                                                                                             10
+                                                                                              IVF-RaBitQ          CAGRA                IVF-PQ             IVF-FLAT
+                               ImageNet                           CodeSearchNet                         GIST                                  OpenAI-3072-1M                               OpenAI-1536-5M                                             Wiki-all
+                                                                                                                               15.0                                          60
+                 5                                                                     5
+                                                    6                                                                          12.5                                          50                                                 60
+
+
+Build Time (s)
+                 4                                                                     4                                                                                     40
+                                                                                                                               10.0
+                 3                                  4                                  3                                                                                                                                        40
+                                                                                                                                7.5                                          30
+                 2                                                                     2                                        5.0                                          20
+                                                    2                                                                                                                                                                           20
+                 1                                                                     1                                        2.5                                          10
+                 0                                  0                                  0                                        0.0                                           0                                                   0
+                     Bit   Q         -PQ      AT          Bit Q         -PQ    AT            Bit Q         -PQ    AT                    Bit Q        -PQ       AT                    Bit Q             -PQ      AT                     Bit  Q               -PQ         AT
+                 -Ra   CAGRA        IVF    -FL      -Ra CAGR           IVF    -FL      -Ra CAGR         IVF      -FL             -Ra  CAGR          IVF      -FL              -Ra  CAGR               IVF     -FL                 -Ra   CAGRA           IVF         -FL
+                                          IVF                 A              IVF                 A             IVF                          A              IVF                           A                  IVF                                                  IVF
+       IVF                                         IVF                                IVF                                      IVF                                           IVF                                                IVF
+
+                                      Figure 4: Index build time across different datasets. Each subplot compares build time across methods.
+
+                                                                        RAW vectors        IVF-RaBitQ          CAGRA            IVF-PQ (w/ref)              IVF-PQ (wo/ref)                IVF-FLAT
+                                   ImageNet                       CodeSearchNet                         GIST                                  OpenAI-3072-1M                               OpenAI-1536-5M                                             Wiki-all
+                                                        5                                                                      15.0
+                 3.0
+                                                                                       4                                       12.5
+                 2.5                                    4                                                                                                                     30                                                  30
+                 2.0                                                                   3                                       10.0
+
+Size (GiB)
+                                                        3
+                                                                                                                                7.5                                           20                                                  20
+                 1.5                                                                   2
+                                                        2
+                 1.0                                                                                                            5.0
+                                                                                       1                                                                                      10                                                  10
+                 0.5                                    1                                                                       2.5
+                 0.0                                    0                              0                                        0.0                                            0                                                   0
+                       Bit      CA     Q                     Q
+                                                            BitIVF AGRC                      Q
+                                                                                            Bit         CA G                            Q
+                                                                                                                                      Bit  IVF AGRC                                 Q
+                                                                                                                                                                                   Bit     IVF AGRC                                     Q
+                                                                                                                                                                                                                                       Bit IVF AGRC
+                            -PQ A  GR                             -PQ A
+                                                              IVF (w/r                              -PQ RA
+                                                                                                IVF (w/r                                      -PQ A
+                                                                                                                                          IVF (w/r                                            -PQ A
+                                                                                                                                                                                          IVF (w/r                                            -PQ A
+                                                                                                                                                                                                                                          IVF (w/r
+                  -Ra   IVF (w/r
+                           -PQ ef)                  -Ra          -PQ ef)               -Ra         -PQ ef)                        -Ra        -PQ ef)                          -Ra            -PQ ef)                              -Ra        -PQ ef)
+           IVF                 (w o/r              IVF               (w o/ref         IVF              (w o/ref                IVF               (w o/ref                    IVF                 (w o/ref                       IVF              (w o/ref
+                              IVF )
+                             IVF     ef                             IVF )
+                                                                        -FL                       IVF IVF )
+                                                                                                         -FL                                    IVF )
+                                                                                                                                                    -FL                                         IVF )
+                                                                                                                                                                                                    -FL                                         IVF )
+                                                                                                                                                                                                                                                    -FL
+                                 -FL  AT                                    AT                                AT                                        AT                                              AT                                              AT
+
+    Figure 5: Storage requirement of different indexing methods. CAGRA and IVF-PQ (w/ref) require RAW vectors for refinement,
+    thus RAW storage is included.
+
+
+    of 7.7×. This is because CAGRA needs to spend more time on                                                                        4.2.4 Space-Accuracy Trade-off. IVF-RaBitQ offers flexible and fine-
+    its KNN graph building and graph optimization procedures. This                                                                    grained control over the space–accuracy trade-off by offering differ-
+    overhead becomes increasingly dominant as the dataset scale and                                                                   ent bits for quantization. In this subsection, we further investigate
+    dimensionality grow. Compared with other IVF-based methods,                                                                       the trade-off between storage efficiency and retrieval accuracy by
+    IVF-RaBitQ is overall faster than IVF-PQ (with a 4.4× speedup on                                                                  varying the bits used to quantize a dimension in IVF-RaBitQ. For
+    average) and is only suboptimal to IVF-Flat. Our proposed parallel                                                                the inner product computation, we use the bitwise method. Figure 6
+    quantization algorithm takes 𝑂 (1) rounds to quantize a vector, and                                                               shows the Recall–QPS curves under different bit configurations
+    does not need to train codebooks as IVF-PQ does. At the same time,                                                                on two representative datasets with different dimensions. For a
+    due to the efficient quantization of RaBitQ, our method incurs lower                                                              low-recall region (e.g., recall less than 0.6), 1-bit IVF-RaBitQ has a
+    memory write volume compared to IVF-Flat. When data scale grows,                                                                  significant advantage over other bit settings. This is because it does
+    the bottleneck of IVF-based methods shifts from quantization to                                                                   not need to access the ex-code to refine the 1-bit estimated distance.
+    clustering, which leads to a smaller performance gap between IVF-                                                                 We observe that for 𝐵 = 5 and 𝐵 = 7, IVF-RaBitQ is sufficient to
+    RaBitQ and IVF-PQ.                                                                                                                produce > 0.95 and 0.99 recall, respectively.
+
+                                                                                                                                                                      B=1                 B=3           B=5               B=7                B=9
+                                                                                                                                                               ImageNet                                                                        GIST
+                                                                                                                                                                                                              106
+    4.2.3 Storage Requirement. We analyze the storage requirement of
+                                                                                                                                        106
+    different ANN indices, which is the total amount of data that must be
+    stored to support search, as shown in Figure 5. We note that IVF-PQ                                                           QPS                                                                   QPS
+                                                                                                                                                                                                              105
+    (wo /ref) uses the same compression ratio (8 bits per dimension for                                                                 105
+    a floating-point vector) as IVF-RaBitQ. CAGRA, IVF-Flat, and IVF-
+    PQ with refinement need to store the raw data vectors to support                                                                          0.5   0.6        0.7     0.8
+                                                                                                                                                               Recall@10
+                                                                                                                                                                                    0.9         1.0                 0.5     0.6          0.7
+                                                                                                                                                                                                                                         Recall@10
+                                                                                                                                                                                                                                                      0.8         0.9        1.0
+
+    exact or refined distance computation, which significantly increases
+    their storage demand. Compared to these methods, IVF-RaBitQ                                                                             Figure 6: Space-Performance trade-off of IVF-RaBitQ.
+    only needs less than 25% of their storage requirement to achieve a
+    comparable recall. For example, on Wiki-all (10M, 𝐷 = 768), IVF-
+    RaBitQ requires only 7.49 gigabytes of storage, whereas CAGRA                                                                     4.2.5 Comparison with CPU-based Counterpart. We further com-
+    and IVF-PQ (w/ref) consume more than 30 GB. Compared with                                                                         pare IVF-RaBitQ (GPU) with the bitwise inner product computation
+    IVF-PQ (wo/ref), which does not store raw vectors, IVF-RaBitQ                                                                     method and its counterpart on CPU, for which we adopt the im-
+    achieves a similar storage footprint while delivering substantially                                                               plementation from the RaBitQLib [16]. The CPU counterpart is
+    higher recall and query throughput. This advantage could enable                                                                   evaluated on an Intel Xeon Gold 6418H processor (24 cores, 48
+    deploying large-scale ANN systems within the limited memory                                                                       threads), which represents a high-performance server-class CPU
+    budget of modern GPUs.                                                                                                            platform. Figure 7 reports the time-accuracy trade-off curves on
+                                                                                                                          11
+                                        IVF-RaBitQ (GPU)               RaBitQLib (CPU)
+                                                                                                                        and tailor the traversal strategy for higher GPU throughput. CA-
+                          ImageNet                                                         GIST                         GRA [40] proposes a fast search algorithm that exploits software
+      106
+                                                                                                                        warp splitting and lightweight (forgettable) hash-table manage-
+                                                                 105
+      105
+                                                                                                                        ment to improve GPU utilization. BANG [48] targets graph-based
+QPS                                                        QPS                                                          billion-scale search, which introduces a parallel merge algorithm
+                                                                 104                                                    and integrates a bloom filter for acceleration.
+      104
+
+            0.80   0.85     0.90      0.95      1.00                    0.80      0.85     0.90      0.95   1.00        Cluster-based ANNS on GPU. While most graph-based meth-
+                          Recall@10                                                      Recall@10
+                                                                                                                        ods focus on maximizing the search throughput, the cluster-based
+Figure 7: Time-accuracy trade-off comparison between IVF-                                                               methods usually deliver faster index builds, lower memory usage,
+RaBitQ (GPU) and its CPU counterpart from RaBitQLib. The                                                                and a strong balance between speed and accuracy [30]. In 2016,
+GPU implementation runs on an NVIDIA L40S, and the CPU                                                                  Wieschollek et.al. proposed a two-level product and vector quan-
+counterpart runs on an Intel Xeon Gold 6418H (24 cores, 48                                                              tization tree that reduces the number of vector comparisons for
+threads).                                                                                                               ANNS tree traversal, which firstly demonstrates GPU performance
+                                                                                                                        is superior to CPU performance in large-scale ANN problems [50].
+                                                                                                                        Later, FAISS [24] develops a high-performance top-𝐾 selection al-
+two representative datasets. At Recall@10 = 0.9, 0.95, and 0.99, IVF-                                                   gorithm on a GPU and integrates it with IVF-PQ for billion-scale
+RaBitQ (GPU) achieves average QPS speedups of 13.0×, 12.9×, and                                                         ANNS search on multiple GPUs. Chen et. al. proposed a hierarchical
+12.5×, respectively over its CPU counterpart. Moreover, IVF-RaBitQ                                                      inverted index structure generated by line quantization to enable
+(GPU) achieves the same accuracy (recall) as its CPU counterpart,                                                       more fine-grained search in IVF [6]. Recently, Nvidia cuVS [43] fur-
+demonstrating the effectiveness of our GPU-quantization algorithm.                                                      ther optimizes LUT residency in shared memory (via low-precision
+                                                                                                                        LUT types and kernel-path switching), and employs fused/early-
+5           RELATED WORK                                                                                                stop kernels for IVF-PQ, making it a state-of-the-art implementation
+Graph-Based ANNS on GPU. Graph-based methods typically                                                                  for IVF-PQ on GPU. Rummy [56] and FusionANNS [46] both focus
+build a proximity graph and answer queries by iteratively expand-                                                       on the scenario when vector data is larger than the GPU global
+ing a candidate frontier from one or a few entry points, while prun-                                                    memory, where Rummy is based on pure IVF and FusionANNS fur-
+ing candidates based on distance comparisons. A branch of recent                                                        ther extends it with Product Quantization and a navigation graph.
+study utilizes modern GPUs to accelerate graph index construc-                                                          JUNO [33] utilizes ray-tracing cores on GPU for ANNS acceleration,
+tion. Graph-based GPU Nearest Neighbor (GGNN) [21] proposes a                                                           which implements a sparsity-and locality-aware search algorithm to
+parallel, bottom-up hierarchical construction algorithm that recur-                                                     select approximate top-𝐾 neighbour candidates. In contrast to these
+sively merges smaller, independent sub-graphs into a final global                                                       GPU cluster-based soltions that primarily build on IVF-Flat/IVF-PQ
+index. Yu et al. [54] developed GGraphCon, a GPU-based graph                                                            (and their codebook-based distance estimators), our IVF-RaBitQ
+construction framework that uses a divide-and-conquer framework                                                         integrates RaBitQ and introduces GPU-native quantization, inner-
+that partitions the graph building into different small tasks, and a                                                    product computation, and fused-kernel designs tailored to this
+sort-based strategy to build high-quality graphs in parallel. CAGRA                                                     method.
+[40] designs a search implementation-centric proximity graph con-
+struction method optimized for GPU, which utilizes a fixed-degree
+structure and a novel rank-based reordering strategy to optimize                                                        6   CONCLUSION
+graph connectivity. A recent work, concurrent with ours, develops                                                       We present IVF-RaBitQ (GPU), an end-to-end GPU-native ANNS
+a graph-based method called Jasper for ANNS on GPU, which uses                                                          framework that integrates IVF partitioning with RaBitQ quantiza-
+RaBitQ for vector quantization and supports data updates [37]. We                                                       tion. IVF-RaBitQ enables fast index build, high-throughput search,
+note that this work computes the rescaling factor on the CPU, while                                                     high recall, and compact storage by combining a scalable GPU
+performing the rescaling and rounding on the GPU - an execution                                                         quantization pipeline, GPU-native inner-product computation, a
+split that distinguishes it from our approach. Tagore [32] integrates                                                   fused cluster-local search kernel, and a GPU-oriented index layout.
+a two-phase GNN-Descent algorithm for rapid graph initialization                                                        We further integrate IVF-RaBitQ into NVIDIA cuVS and the cuVS
+and a unified Collect-Filter-Store (CFS) framework with specialized                                                     bench pipeline to support reproducible evaluation and fair compar-
+parallel kernels for fast graph edge pruning on GPU. The graph                                                          isons with existing GPU baselines. Experiments on various datasets
+index usually occupies a lot of space, whereas few methods can                                                          show that IVF-RaBitQ offers a strong trade-off frontier across re-
+achieve high recall with a small index size.                                                                            call, throughput, build time, and memory footprint, especially in
+   The graph-based ANNS search algorithms work cooperatively                                                            high-recall regimes.
+with the graph index, and recent GPU designs mainly focus on ac-
+celerating graph traversal and candidate management (e.g., priority
+queues, visited sets, and hash-table-based filtering) under massive                                                     ACKNOWLEDGMENTS
+parallelism. SONG [57] is the first work to implement graph-based                                                       We sincerely appreciate the insightful discussions and construc-
+ANNS search on GPU, adopting a three-stage pipeline with an                                                             tive suggestions provided by Artem Chirkin, Akira Naruse, and
+optimized priority queue and hash tables for NSW [35]. GGNN                                                             Hiroyuki Ootomo at NVIDIA, as well as Yutong Gou and Yuexuan
+[21] and GANNS [54] further use hierarchical graph structures                                                           Xu at Nanyang Technological University.
+                                                                                                                   12
+REFERENCES                                                                                     [20] Yutong Gou, Jianyang Gao, Yuexuan Xu, and Cheng Long. 2025. SymphonyQG:
+ [1] Cecilia Aguerrebere, Ishwar Singh Bhati, Mark Hildebrand, Mariano Tepper,                      Towards Symphonious Integration of Quantization and Graph for Approximate
+     and Theodore Willke. 2023. Similarity Search in the Blink of an Eye with                       Nearest Neighbor Search. Proc. ACM Manag. Data 3, 1, Article 80 (Feb. 2025),
+     Compressed Indices. Proc. VLDB Endow. 16, 11 (July 2023), 3433–3446. https:                    26 pages. https://doi.org/10.1145/3709730
+     //doi.org/10.14778/3611479.3611537                                                        [21] Fabian Groh, Lukas Ruppert, Patrick Wieschollek, and Hendrik P. A. Lensch.
+ [2] Amazon Web Services, Inc. 2026. Amazon EC2 G6e Instances. https://aws.                         2023. GGNN: Graph-Based GPU Nearest Neighbor Search. IEEE Transactions on
+     amazon.com/ec2/instance-types/g6e/. Accessed: 2026-02-23.                                      Big Data 9, 1 (2023), 267–279. https://doi.org/10.1109/TBDATA.2022.3161156
+ [3] David Arthur and Sergei Vassilvitskii. 2007. k-means++: the advantages of                 [22] Hamel Husain, Ho-Hsiang Wu, Tiferet Gazit, Miltiadis Allamanis, and Marc
+     careful seeding. In Proceedings of the Eighteenth Annual ACM-SIAM Symposium                    Brockschmidt. 2019. CodeSearchNet challenge: Evaluating the state of semantic
+     on Discrete Algorithms (New Orleans, Louisiana) (SODA ’07). Society for Industrial             code search. arXiv preprint arXiv:1909.09436 (2019).
+     and Applied Mathematics, USA, 1027–1035.                                                  [23] Suhas Jayaram Subramanya, Fnu Devvrit, Harsha Vardhan Simhadri, Ravishankar
+ [4] Fedor Borisyuk, Siddarth Malreddy, Jun Mei, Yiqun Liu, Xiaoyi Liu, Piyush                      Krishnawamy, and Rohan Kadekodi. 2019. DiskANN: Fast Accurate Billion-point
+     Maheshwari, Anthony Bell, and Kaushik Rangadurai. 2021. VisRel: Media                          Nearest Neighbor Search on a Single Node. In Advances in Neural Information Pro-
+     Search at Scale. In Proceedings of the 27th ACM SIGKDD Conference on Knowl-                    cessing Systems, H. Wallach, H. Larochelle, A. Beygelzimer, F. d'Alché-Buc, E. Fox,
+     edge Discovery & Data Mining (Virtual Event, Singapore) (KDD ’21). Asso-                       and R. Garnett (Eds.), Vol. 32. Curran Associates, Inc. https://proceedings.neurips.
+     ciation for Computing Machinery, New York, NY, USA, 2584–2592. https:                          cc/paper_files/paper/2019/file/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Paper.pdf
+     //doi.org/10.1145/3447548.3467081                                                         [24] Jeff Johnson, Matthijs Douze, and Hervé Jégou. 2021. Billion-Scale Similarity
+ [5] Aydin Buluç, Jeremy T. Fineman, Matteo Frigo, John R. Gilbert, and Charles E.                  Search with GPUs. IEEE Transactions on Big Data 7, 3 (2021), 535–547. https:
+     Leiserson. 2009. Parallel sparse matrix-vector and matrix-transpose-vector mul-                //doi.org/10.1109/TBDATA.2019.2921572
+     tiplication using compressed sparse blocks. In Proceedings of the Twenty-First            [25] William B Johnson and Joram Lindenstrauss. 1984. Extensions of Lipschitz
+     Annual Symposium on Parallelism in Algorithms and Architectures (Calgary, AB,                  mappings into a Hilbert space 26. Contemporary mathematics 26 (1984), 28.
+     Canada) (SPAA ’09). Association for Computing Machinery, New York, NY, USA,               [26] js1010. 2021. cuhnsw: CUDA implementation of Hierarchical Navigable Small
+     233–244. https://doi.org/10.1145/1583991.1584053                                               World Graph algorithm. https://github.com/js1010/cuhnsw. GitHub repository,
+ [6] Wei Chen, Jincai Chen, Fuhao Zou, Yuan-Fang Li, Ping Lu, Qiang Wang, and Wei                   Accessed: 2026-02-01.
+     Zhao. 2019. Vector and line quantization for billion-scale similarity search              [27] Elias Jääsaari, Ville Hyvönen, Matteo Ceccarello, Teemu Roos, and Mar-
+     on GPUs. Future Generation Computer Systems 99 (2019), 295–307. https:                         tin Aumüller. 2025.         VIBE: Vector Index Benchmark for Embeddings.
+     //doi.org/10.1016/j.future.2019.04.033                                                         arXiv:2505.17810 [cs.LG] https://arxiv.org/abs/2505.17810
+ [7] Artem Chirkin, Akira Naruse, Tamás Fehér, Yong Wang, and Corey Nolet. 2024.               [28] Herve Jégou, Matthijs Douze, and Cordelia Schmid. 2011. Product Quantization
+     Accelerating Vector Search: NVIDIA cuVS IVF-PQ (Part 1, Deep Dive). NVIDIA                     for Nearest Neighbor Search. IEEE Transactions on Pattern Analysis and Machine
+     Technical Blog. https://developer.nvidia.com/blog/accelerating-vector-search-                  Intelligence 33, 1 (2011), 117–128. https://doi.org/10.1109/TPAMI.2010.57
+     nvidia-cuvs-ivf-pq-deep-dive-part-1/                                                      [29] Sukjin Kim, Seongyeon Park, Si Ung Noh, Junguk Hong, Taehee Kwon, Hunseong
+ [8] Yannis Chronis, Helena Caminal, Yannis Papakonstantinou, Fatma Özcan, and                      Lim, and Jinho Lee. 2025. PathWeaver: a high-throughput multi-GPU system
+     Anastasia Ailamaki. 2025. Filtered Vector Search: State-of-the-Art and Research                for graph-based approximate nearest neighbor search. In Proceedings of the 2025
+     Opportunities. Proc. VLDB Endow. 18, 12 (Aug. 2025), 5488–5492. https://doi.                   USENIX Conference on Usenix Annual Technical Conference (Boston, MA, USA)
+     org/10.14778/3750601.3750700                                                                   (USENIX ATC ’25). USENIX Association, USA, Article 89, 17 pages.
+ [9] CSE, CUHK. 2018. GQR Datasets. https://www.cse.cuhk.edu.hk/systems/hash/                  [30] Jack Li. 2025. Understanding IVF Vector Index: How It Works and When to
+     gqr/datasets.html. Accessed: 2026-01-29.                                                       Choose It Over HNSW. Milvus Blog. https://milvus.io/blog/understanding-ivf-
+[10] Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li, and Li Fei-Fei. 2009. Im-               vector-index-how-It-works-and-when-to-choose-it-over-hnsw.md Accessed:
+     ageNet: A large-scale hierarchical image database. In 2009 IEEE Conference on                  2026-01-03.
+     Computer Vision and Pattern Recognition. 248–255. https://doi.org/10.1109/CVPR.           [31] Wen Li, Ying Zhang, Yifang Sun, Wei Wang, Mingjie Li, Wenjie Zhang, and
+     2009.5206848                                                                                   Xuemin Lin. 2020. Approximate Nearest Neighbor Search on High Dimensional
+[11] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019. BERT:                  Data — Experiments, Analyses, and Improvement. IEEE Transactions on Knowl-
+     Pre-training of Deep Bidirectional Transformers for Language Understanding.                    edge and Data Engineering 32, 8 (2020), 1475–1488. https://doi.org/10.1109/TKDE.
+     arXiv:1810.04805 [cs.CL] https://arxiv.org/abs/1810.04805                                      2019.2909204
+[12] Xin Luna Dong. 2024. The Journey to A Knowledgeable Assistant with Retrieval-             [32] Zhonggen Li, Xiangyu Ke, Yifan Zhu, Bocheng Yu, Baihua Zheng, and Yunjun Gao.
+     Augmented Generation (RAG). In Proceedings of the 17th ACM International                       2025. Scalable Graph Indexing using GPUs for Approximate Nearest Neighbor
+     Conference on Web Search and Data Mining (Merida, Mexico) (WSDM ’24). Asso-                    Search. Proc. ACM Manag. Data 3, 6, Article 360 (Dec. 2025), 27 pages. https:
+     ciation for Computing Machinery, New York, NY, USA, 4. https://doi.org/10.                     //doi.org/10.1145/3769825
+     1145/3616855.3638207                                                                      [33] Zihan Liu, Wentao Ni, Jingwen Leng, Yu Feng, Cong Guo, Quan Chen, Chao
+[13] Ming Du, Arnau Ramisa, Amit Kumar K C, Sampath Chanda, Mengjiao Wang,                          Li, Minyi Guo, and Yuhao Zhu. 2024. JUNO: Optimizing High-Dimensional
+     Neelakandan Rajesh, Shasha Li, Yingchuan Hu, Tao Zhou, Nagashri Lakshmi-                       Approximate Nearest Neighbour Search with Sparsity-Aware Algorithm and Ray-
+     narayana, Son Tran, and Doug Gray. 2022. Amazon Shop the Look: A Visual                        Tracing Core Mapping. In Proceedings of the 29th ACM International Conference on
+     Search System for Fashion and Home. In Proceedings of the 28th ACM SIGKDD                      Architectural Support for Programming Languages and Operating Systems, Volume
+     Conference on Knowledge Discovery and Data Mining (Washington DC, USA)                         2 (La Jolla, CA, USA) (ASPLOS ’24). Association for Computing Machinery, New
+     (KDD ’22). Association for Computing Machinery, New York, NY, USA, 2822–2830.                  York, NY, USA, 549–565. https://doi.org/10.1145/3620665.3640360
+     https://doi.org/10.1145/3534678.3539071                                                   [34] Mikko I. Malinen and Pasi Fränti. 2014. Balanced K-Means for Clustering. In
+[14] Tamás Fehér, Artem Chirkin, Christina Zhang, and Mahesh Doijade. 2023. Accel-                  Proceedings of the Joint IAPR International Workshop on Structural, Syntactic, and
+     erated Vector Search: Approximating with NVIDIA cuVS Inverted Index. NVIDIA                    Statistical Pattern Recognition - Volume 8621 (Joensuu, Finland) (S+SSPR 2014).
+     Technical Blog. https://developer.nvidia.com/blog/accelerated-vector-search-                   Springer-Verlag, Berlin, Heidelberg, 32–41. https://doi.org/10.1007/978-3-662-
+     approximating-with-nvidia-cuvs-ivf-flat/                                                       44415-3_4
+[15] Cong Fu, Chao Xiang, Changxu Wang, and Deng Cai. 2019. Fast approximate                   [35] Yury Malkov, Alexander Ponomarenko, Andrey Logvinov, and Vladimir Krylov.
+     nearest neighbor search with the navigating spreading-out graph. Proc. VLDB                    2014. Approximate nearest neighbor algorithm based on navigable small world
+     Endow. 12, 5 (Jan. 2019), 461–474. https://doi.org/10.14778/3303753.3303754                    graphs. Information Systems 45 (2014), 61–68. https://doi.org/10.1016/j.is.2013.
+[16] Jianyang Gao, Yutong Gou, Yuexuan Xu, Jifan Shi, Zhonghao Yang, and Cheng                      10.006
+     Long. 2025. The RaBitQ Library. In The 1st Workshop on Vector Databases. https:           [36] Yu A. Malkov and D. A. Yashunin. 2020. Efficient and Robust Approximate
+     //openreview.net/forum?id=OeZHhOsFir                                                           Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs.
+[17] Jianyang Gao, Yutong Gou, Yuexuan Xu, Yongyi Yang, Cheng Long, and Raymond                     IEEE Trans. Pattern Anal. Mach. Intell. 42, 4 (April 2020), 824–836. https://doi.
+     Chi-Wing Wong. 2025. Practical and Asymptotically Optimal Quantization of                      org/10.1109/TPAMI.2018.2889473
+     High-Dimensional Vectors in Euclidean Space for Approximate Nearest Neighbor              [37] Hunter McCoy, Zikun Wang, and Prashant Pandey. 2026. GPU-Accelerated
+     Search. Proc. ACM Manag. Data 3, 3, Article 202 (June 2025), 26 pages. https:                  ANNS: Quantized for Speed, Built for Change. arXiv:2601.07048 [cs.DB] https:
+     //doi.org/10.1145/3725413                                                                      //arxiv.org/abs/2601.07048
+[18] Jianyang Gao and Cheng Long. 2024. RaBitQ: Quantizing High-Dimensional                    [38] James B McQueen. 1967. Some methods of classification and analysis of multi-
+     Vectors with a Theoretical Error Bound for Approximate Nearest Neighbor                        variate observations. In Proc. of 5th Berkeley Symposium on Math. Stat. and Prob.
+     Search. Proc. ACM Manag. Data 2, 3, Article 167 (May 2024), 27 pages. https:                   281–297.
+     //doi.org/10.1145/3654970                                                                 [39] NVIDIA Corporation. 2026. cuVS Benchmark — cuVS documentation. https:
+[19] Google AI. 2024. Embeddings | Gemini API | Google AI for Developers. https:                    //docs.rapids.ai/api/cuvs/stable/cuvs_bench/. Accessed: 2026-02-26.
+     //ai.google.dev/gemini-api/docs/embeddings. Accessed: 2026-02-01.                         [40] Hiroyuki Ootomo, Akira Naruse, Corey Nolet, Ray Wang, Tamas Feher, and Yong
+                                                                                                    Wang. 2024. CAGRA: Highly Parallel Graph Construction and Approximate
+                                                                                                    Nearest Neighbor Search for GPUs . In 2024 IEEE 40th International Conference
+                                                                                          13
+     on Data Engineering (ICDE). IEEE Computer Society, Los Alamitos, CA, USA,                  [50] Patrick Wieschollek, Oliver Wang, Alexander Sorkine-Hornung, and Hendrik
+     4236–4247. https://doi.org/10.1109/ICDE60146.2024.00323                                         P. A. Lensch. 2016. Efficient Large-Scale Approximate Nearest Neighbor Search
+[41] OpenAI. 2024. New embedding models and API updates. https://openai.com/                         on the GPU. In 2016 IEEE Conference on Computer Vision and Pattern Recognition
+     index/new-embedding-models-and-api-updates/. Accessed: 2026-01-29.                              (CVPR). 2027–2035. https://doi.org/10.1109/CVPR.2016.223
+[42] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh,                    [51] Wikipedia contributors. 2024. Wikipedia:Pageview statistics — Wikipedia, The
+     Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark,                     Free Encyclopedia. https://en.wikipedia.org/wiki/Wikipedia:Pageview_statistics.
+     Gretchen Krueger, and Ilya Sutskever. 2021. Learning Transferable Visual Models                 Accessed: 2026-02-01.
+     From Natural Language Supervision. arXiv:2103.00020 [cs.CV] https://arxiv.                 [52] Jingyi Xi, Chenghao Mo, Ben Karsin, Artem Chirkin, Mingqin Li, and Minjia
+     org/abs/2103.00020                                                                              Zhang. 2025. VecFlow: A High-Performance Vector Data Management System
+[43] RAPIDS AI. [n.d.]. rapidsai/cuvs: cuVS – a library for vector search and clustering             for Filtered-Search on GPUs. Proc. ACM Manag. Data 3, 4, Article 271 (Sept.
+     on the GPU. GitHub repository. https://github.com/rapidsai/cuvs Accessed:                       2025), 27 pages. https://doi.org/10.1145/3749189
+     2026-01-03.                                                                                [53] Yuxiang Yang, Shiwen Chen, Yangshen Deng, and Bo Tang. 2025. ParaGraph:
+[44] RAPIDS AI. 2025. K-Means — cuVS C++ API Documentation (stable 25.12).                           Accelerating Graph Indexing through GPU-CPU Parallel Processing for Efficient
+     RAPIDS cuVS documentation. https://docs.rapids.ai/api/cuvs/stable/cpp_api/                      Cross-modal ANNS. In Proceedings of the 21st International Workshop on Data
+     cluster_kmeans/ Accessed: 2026-01-26.                                                           Management on New Hardware (DaMoN ’25). Association for Computing Machin-
+[45] RAPIDS Team. 2024. Wiki-all Dataset — cuVS Documentation. https://docs.                         ery, New York, NY, USA, Article 7, 10 pages. https://doi.org/10.1145/3736227.
+     rapids.ai/api/cuvs/stable/cuvs_bench/wiki_all_dataset/. Accessed: 2026-01-29.                   3736237
+[46] Bing Tian, Haikun Liu, Yuhang Tang, Shihai Xiao, Zhuohui Duan, Xiaofei Liao,               [54] Yuanhang Yu, Dong Wen, Ying Zhang, Lu Qin, Wenjie Zhang, and Xuemin Lin.
+     Hai Jin, Xuecang Zhang, Junhua Zhu, and Yu Zhang. 2025. Towards high-                           2022. GPU-accelerated Proximity Graph Approximate Nearest Neighbor Search
+     throughput and low-latency billion-scale vector search via CPU/GPU collabora-                   and Construction. In 2022 IEEE 38th International Conference on Data Engineering
+     tive filtering and re-ranking. In Proceedings of the 23rd USENIX Conference on File             (ICDE). 552–564. https://doi.org/10.1109/ICDE53745.2022.00046
+     and Storage Technologies (Santa Clara, CA, USA) (FAST ’25). USENIX Association,            [55] Jingrong Zhang, Akira Naruse, Xipeng Li, and Yong Wang. 2023. Parallel Top-K
+     USA, Article 11, 15 pages.                                                                      Algorithms on GPU: A Comprehensive Study and New Methods. In Proceedings
+[47] Dan Vanderkam, Rob Schonberger, Henry Rowley, and Sanjiv Kumar. 2013.                           of the International Conference for High Performance Computing, Networking,
+     Nearest Neighbor Search in Google Correlate. Technical Report. Google. http:                    Storage and Analysis (Denver, CO, USA) (SC ’23). Association for Computing
+     //www.google.com/trends/correlate/nnsearch.pdf                                                  Machinery, New York, NY, USA, Article 76, 13 pages. https://doi.org/10.1145/
+[48] Karthik Venkatasubba, Saim Khan, Somesh Singh, Harsha Vardhan Simhadri, and                     3581784.3607062
+     Jyothi Vedurada. 2025. BANG: Billion-Scale Approximate Nearest Neighbour                   [56] Zili Zhang, Fangyue Liu, Gang Huang, Xuanzhe Liu, and Xin Jin. 2024. Fast vector
+     Search Using a Single GPU . IEEE Transactions on Big Data 11, 06 (Dec. 2025),                   query processing for large datasets beyond GPU memory with reordered pipelin-
+     3142–3157. https://doi.org/10.1109/TBDATA.2025.3581085                                          ing. In Proceedings of the 21st USENIX Symposium on Networked Systems Design
+[49] Hui Wang, Wan-Lei Zhao, Xiangxiang Zeng, and Jianye Yang. 2021. Fast k-NN                       and Implementation (Santa Clara, CA, USA) (NSDI’24). USENIX Association, USA,
+     Graph Construction by GPU based NN-Descent. In Proceedings of the 30th ACM                      Article 2, 18 pages.
+     International Conference on Information & Knowledge Management (Virtual Event,             [57] Weijie Zhao, Shulong Tan, and Ping Li. 2020. SONG: Approximate Nearest
+     Queensland, Australia) (CIKM ’21). Association for Computing Machinery, New                     Neighbor Search on GPU. In 2020 IEEE 36th International Conference on Data
+     York, NY, USA, 1929–1938. https://doi.org/10.1145/3459637.3482344                               Engineering (ICDE). 1033–1044. https://doi.org/10.1109/ICDE48307.2020.00094
+
+
+
+
+                                                                                           14
+

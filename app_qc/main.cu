@@ -533,6 +533,7 @@ public:
         return res;
     }
 
+#ifdef GPU_BUFFER_BOOKKEEPING
     double get_load_from_host_time_s()
     {
         double total = 0.0;
@@ -549,7 +550,9 @@ public:
         }
         return total;
     }
+#endif
 
+#ifdef GPU_BUFFER_BOOKKEEPING
     double get_dump_to_host_time_s()
     {
         double total = 0.0;
@@ -566,7 +569,9 @@ public:
         }
         return total;
     }
+#endif
 
+#ifdef GPU_BUFFER_BOOKKEEPING
     double get_pingpong_mode2_dump_time_s()
     {
         double total = 0.0;
@@ -583,6 +588,45 @@ public:
         }
         return total;
     }
+#endif
+
+#ifdef GPU_BUFFER_BOOKKEEPING
+    ull get_load_from_host_bytes()
+    {
+        ull total = 0;
+        using GPUWorkerT = GPUWorker<QCGPUContext>;
+        auto workers = workers_list.queue_;
+        while (!workers.empty())
+        {
+            WorkerT *w = (WorkerT *)workers.front();
+            workers.pop();
+
+            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
+            if (gw)
+                total += gw->getContext()->get_load_from_host_bytes();
+        }
+        return total;
+    }
+#endif
+
+#ifdef GPU_BUFFER_BOOKKEEPING
+    ull get_dump_to_host_bytes()
+    {
+        ull total = 0;
+        using GPUWorkerT = GPUWorker<QCGPUContext>;
+        auto workers = workers_list.queue_;
+        while (!workers.empty())
+        {
+            WorkerT *w = (WorkerT *)workers.front();
+            workers.pop();
+
+            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
+            if (gw)
+                total += gw->getContext()->get_dump_to_host_bytes();
+        }
+        return total;
+    }
+#endif
 
     uint64_t get_max_clique_size()
     {
@@ -808,13 +852,27 @@ int main(int argc, char *argv[])
             cout << "--->:COUNT ONLY POSTPROCESS TIME: " << duration1.count() << " ms" << endl;
         }
 
+#ifdef GPU_BUFFER_BOOKKEEPING
+        const double load_from_host_time_s = app->get_load_from_host_time_s();
+        const ull load_from_host_bytes = app->get_load_from_host_bytes();
+        const double dump_to_host_time_s = app->get_dump_to_host_time_s();
+        const ull dump_to_host_bytes = app->get_dump_to_host_bytes();
+        const double pingpong_mode2_dump_time_s = app->get_pingpong_mode2_dump_time_s();
+#endif
+
         app->cleanup_runtime();
 
         cout << "Search only time (s): " << search_only_time_s << endl;
         cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-        cout << "load_from_host time (s): " << app->get_load_from_host_time_s() << endl;
-        cout << "dump_to_host time (s): " << app->get_dump_to_host_time_s() << endl;
-        cout << "pingpong=2 dump_to_host time (s): " << app->get_pingpong_mode2_dump_time_s() << endl;
+#ifdef GPU_BUFFER_BOOKKEEPING
+        cout << "load_from_host time (s): " << load_from_host_time_s << endl;
+        cout << "load_from_host data (GB): " << static_cast<double>(load_from_host_bytes) / (1024.0 * 1024.0 * 1024.0)
+             << " (" << load_from_host_bytes << " bytes)" << endl;
+        cout << "dump_to_host time (s): " << dump_to_host_time_s << endl;
+        cout << "dump_to_host data moved to host (GB): " << static_cast<double>(dump_to_host_bytes) / (1024.0 * 1024.0 * 1024.0)
+             << " (" << dump_to_host_bytes << " bytes)" << endl;
+        cout << "pingpong=2 dump_to_host time (s): " << pingpong_mode2_dump_time_s << endl;
+#endif
         cout << "Total count before maximality check: " << pre_max_quasi_cliques << endl;
         cout << "Largest clique size: " << max_clique_size << endl;
         cout << "Hybrid CPU big-root instrumentation: "

@@ -1,0 +1,22 @@
+Communication job: By the end, a systems/ML audience should understand why IVF-RaBitQ is a strong GPU ANNS design point, how its GPU-native quantization and search pipeline work, and what evidence supports its speed/accuracy/storage claims.
+
+1. Title
+2. Why GPU ANNS is difficult
+3. The design tension across existing methods
+4. Four technical contributions
+5. IVF and RaBitQ are complementary
+6. RaBitQ quantizes direction rather than raw coordinates
+7. A direct GPU port fails on control flow and memory behavior
+8. GPU-native index construction
+9. Algorithm 1: two-phase parallel grid search
+10. End-to-end query pipeline
+11. Two-stage distance estimation
+12. LUT and bitwise inner-product kernels
+13. Bitwise decomposition turns dimensions into popcounts
+14. A fused cluster-local kernel removes intermediate traffic
+15. The index layout follows the kernel access pattern
+16. Experimental scope and datasets
+17. Recall-throughput results
+18. Index build time and storage footprint
+19. Bit budgets and GPU-vs-CPU results
+20. Takeaways, scope, and open questions

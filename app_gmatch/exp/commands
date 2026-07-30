@@ -100,11 +100,11 @@ while IFS=$'\t' read -r ds q; do
 done < ds.txt
 
 while IFS=$'\t' read -r ds q; do
-# for run in {1..5}; do
+for run in {1..5}; do
     for pp in 0 1 2; do
         [ -z "$ds" ] && continue
 
-        fname="logs/$ds-$q-pp-$pp-new.log"
+        fname="logs/$ds-$q-pp-$pp-run-$run.log"
         # run_case $fname \
         #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong $pp -eta 1000 -cpu 0 -hg_steal 100000000 
 
@@ -115,6 +115,26 @@ while IFS=$'\t' read -r ds q; do
             fi
     done
     echo 
-# done
+done
 done < ds.txt
 
+Elapsed Time (sec): 172.30
+
+Device used Memory (%): 139.42
+Brd: - empty -Brd: 0 tasks (oh:3,635,873,688 ot:3,635,873,688 vt:9,092,668,153) 
+Bwr: - empty -Bwr: 0 tasks (oh:3,635,873,688 ot:3,635,873,688 vt:9,092,668,153) 
+Host used Memory (%): 88.53
+H: 1,770,699,573 tasks (oh:0 ot:3,541,399,146 vt:8,853,497,865) 
+
+
+
+loading from host 100,000,000
+
+Device used Memory (%): 0.00
+Brd: - empty -Brd: 0 tasks (oh:0 ot:0 vt:0) 
+Bwr: - empty -Bwr: 0 tasks (oh:0 ot:0 vt:0) 
+Host used Memory (%): 88.53
+H: 1,770,699,573 tasks (oh:0 ot:3,541,399,146 vt:8,853,497,865) 
+loading from host 100,000,000
+
+Device used Memory (%): 0.00
