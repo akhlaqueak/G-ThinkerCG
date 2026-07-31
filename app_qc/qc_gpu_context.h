@@ -278,6 +278,9 @@ public:
             ld.vertices = wd.shared_vertices + (VERTICES_SIZE * WIB_IDX);
         } else {
             if (wd.total_vertices[WIB_IDX] > WVERTICES_SIZE) {
+                if (dd.drop_oversized_tasks != nullptr && dd.drop_oversized_tasks[0]) {
+                    return false;
+                }
                 if (LANE_IDX == 0) {
                     printf("d_build_initial_task overflow: total_vertices=%d exceeds WVERTICES_SIZE=%d for root_index=%llu\n",
                            wd.total_vertices[WIB_IDX], WVERTICES_SIZE, root_index);
@@ -525,6 +528,20 @@ public:
                     wd.total_vertices[WIB_IDX] = wd.tot_vert[WIB_IDX];
                 }
                 __syncwarp();
+
+                if (wd.total_vertices[WIB_IDX] > WVERTICES_SIZE)
+                {
+                    if (dd.drop_oversized_tasks != nullptr && dd.drop_oversized_tasks[0])
+                    {
+                        break;
+                    }
+                    if (LANE_IDX == 0)
+                    {
+                        printf("process oversized task: total_vertices=%d exceeds WVERTICES_SIZE=%d start=%llu end=%llu\n",
+                               wd.total_vertices[WIB_IDX], WVERTICES_SIZE, wd.start[WIB_IDX], wd.end[WIB_IDX]);
+                    }
+                    asm("trap;");
+                }
 
                 // select whether to store vertices in global or shared memory based on size
                 if (wd.total_vertices[WIB_IDX] <= VERTICES_SIZE)
@@ -1686,10 +1703,8 @@ public:
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
         auto alloc = append(wd.total_vertices[WIB_IDX]);
-        #ifdef GPU_BUFFER_BOOKKEEPING
         if (alloc.buffer == nullptr)
             return;
-        #endif
 
         uint64_t start_write = alloc.vt;
         auto &write_buffer = *alloc.buffer;

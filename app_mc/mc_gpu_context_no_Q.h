@@ -424,10 +424,8 @@ public:
                 continue; // there was no neighbor for this vertex...
             // adding 1 as vertices in new graph are number of neighbors + v itself
             auto alloc = append(sglen + 1); // allocates a subgraph by atomic operations, and puts v as well
-            #ifdef GPU_BUFFER_BOOKKEEPING
             if (alloc.buffer == nullptr)
                 continue;
-            #endif
             auto &dst = *alloc.buffer;
             auto vt = alloc.vt;
             if (LANEID == 0)

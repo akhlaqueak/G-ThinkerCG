@@ -38,12 +38,6 @@ public:
     ull *sources_num = nullptr;  // size of Lv
     VertexID *sources = nullptr; // Lv copy on GPU
     ui eta_limit = 1000 * N_WARPS;
-#ifdef GPU_BUFFER_BOOKKEEPING
-    double load_from_host_time_s_ = 0.0;
-    double dump_to_host_time_s_ = 0.0;
-    ull load_from_host_bytes_ = 0;
-    ull dump_to_host_bytes_ = 0;
-#endif
 
     // graph in CSR on GPU
     ull *row_ptrs = nullptr;
@@ -91,42 +85,6 @@ public:
     void set_eta_limit(ui limit)
     {
         eta_limit = limit;
-    }
-
-    double get_load_from_host_time_s() const
-    {
-#ifdef GPU_BUFFER_BOOKKEEPING
-        return load_from_host_time_s_;
-#else
-        return 0.0;
-#endif
-    }
-
-    double get_dump_to_host_time_s() const
-    {
-#ifdef GPU_BUFFER_BOOKKEEPING
-        return dump_to_host_time_s_;
-#else
-        return 0.0;
-#endif
-    }
-
-    ull get_load_from_host_bytes() const
-    {
-#ifdef GPU_BUFFER_BOOKKEEPING
-        return load_from_host_bytes_;
-#else
-        return 0;
-#endif
-    }
-
-    ull get_dump_to_host_bytes() const
-    {
-#ifdef GPU_BUFFER_BOOKKEEPING
-        return dump_to_host_bytes_;
-#else
-        return 0;
-#endif
     }
 
     void allocateMemory(ull reserved_mem = 0)
@@ -327,14 +285,6 @@ public:
         if (Brd.empty())
             return;
 
-#ifdef GPU_BUFFER_BOOKKEEPING
-        const auto dump_start = chrono::steady_clock::now();
-        const auto finish_dump_timing = [this, &dump_start]()
-        {
-            dump_to_host_time_s_ += chrono::duration<double>(chrono::steady_clock::now() - dump_start).count();
-        };
-#endif
-
         if (H.empty())
             H.clear();
 
@@ -342,18 +292,12 @@ public:
         const ull src_otail_raw = std::min<ull>(Brd.otail[0], Brd.capacity[0]);
         if (src_otail_raw <= src_ohead)
         {
-#ifdef GPU_BUFFER_BOOKKEEPING
-            finish_dump_timing();
-#endif
             return;
         }
         const ull src_otail = src_ohead + ((src_otail_raw - src_ohead) / 2) * 2;
         const ull offset_count = src_otail - src_ohead;
         if (offset_count == 0)
         {
-#ifdef GPU_BUFFER_BOOKKEEPING
-            finish_dump_timing();
-#endif
             return;
         }
 
@@ -374,9 +318,6 @@ public:
         {
             Brd.ohead[0] = src_otail;
             delete[] offsets;
-#ifdef GPU_BUFFER_BOOKKEEPING
-            finish_dump_timing();
-#endif
             return;
         }
 
@@ -393,10 +334,6 @@ public:
         const ull dst_vstart = H.vtail[0];
         const ull total_vertices = max_src_vend - min_src_vstart;
         const bool use_bulk_span = total_vertices <= total_sg_vertices * 2;
-#ifdef GPU_BUFFER_BOOKKEEPING
-        const ull vertex_bytes_to_host = (use_bulk_span ? total_vertices : total_sg_vertices) * sizeof(VertexID);
-        dump_to_host_bytes_ += offset_count * sizeof(ull) + vertex_bytes_to_host;
-#endif
         cout<<"dumping to host "<<(valid_offset_count / 2)<<endl;
 
         if (H.otail[0] + valid_offset_count > HOST_OFFSET_SZ)
@@ -446,9 +383,6 @@ public:
         }
         Brd.ohead[0] = src_otail;
         delete[] offsets;
-#ifdef GPU_BUFFER_BOOKKEEPING
-        finish_dump_timing();
-#endif
     }
 
     void load_from_host()
@@ -459,23 +393,12 @@ public:
             return;
         }
 
-#ifdef GPU_BUFFER_BOOKKEEPING
-        const auto load_start = chrono::steady_clock::now();
-        const auto finish_load_timing = [this, &load_start]()
-        {
-            load_from_host_time_s_ += chrono::duration<double>(chrono::steady_clock::now() - load_start).count();
-        };
-#endif
-
         const ull src_ohead = H.ohead[0];
         const ull src_otail = H.otail[0];
         const ull available_tasks = (src_otail - src_ohead) / 2;
 
         if (available_tasks == 0)
         {
-#ifdef GPU_BUFFER_BOOKKEEPING
-            finish_load_timing();
-#endif
             return;
         }
 
@@ -520,9 +443,6 @@ public:
         if (tasks_to_load == 0)
         {
             delete[] offsets;
-#ifdef GPU_BUFFER_BOOKKEEPING
-            finish_load_timing();
-#endif
             return;
         }
         cout<<"loading from host "<< tasks_to_load <<endl;
@@ -543,9 +463,6 @@ public:
 
         chkerr(cudaMemcpy(Bwr.offsets + dst_otail, translated_offsets, sizeof(ull) * offset_count, cudaMemcpyHostToDevice));
         Bwr.copy_host_to_device_range(H, dst_vstart, min_src_vstart, total_vertices);
-#ifdef GPU_BUFFER_BOOKKEEPING
-        load_from_host_bytes_ += offset_count * sizeof(ull) + total_vertices * sizeof(VertexID);
-#endif
         Bwr.otail[0] = dst_otail + offset_count;
         Bwr.vtail[0] = dst_vstart + total_vertices;
         H.otail[0] = offsets_start;
@@ -562,9 +479,6 @@ public:
         }
         delete[] translated_offsets;
         delete[] offsets;
-#ifdef GPU_BUFFER_BOOKKEEPING
-        finish_load_timing();
-#endif
     }
 };
 

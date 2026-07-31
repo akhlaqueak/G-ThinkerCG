@@ -118,6 +118,8 @@ void print_help(const char *program)
     cout << "  -o <file>           Output file for maximal quasi-cliques. Default: output.txt" << endl;
     cout << "  -rmnonmax [0|1]     Remove non-maximal results. Default: off" << endl;
     cout << "  -sched <0|1>        Scheduling mode: 0=dynamic, 1=static. Default: 0" << endl;
+    cout << "  -drop_oversized_tasks <0|1>" << endl;
+    cout << "                      0=stop on oversized GPU task, 1=silently drop it. Default: 0" << endl;
     cout << endl;
     cout << "Runtime parameters:" << endl;
     cout << "  -cpu <n>            Number of CPU workers. Default: 28" << endl;
@@ -147,6 +149,7 @@ class QCApp : public Master<QCCPUWorker, QCGPUContext>
 {
 public:
     bool gpu_enabled_;
+    bool drop_oversized_tasks_ = false;
 
     size_t initial_task_vertices_count(size_t root_index) const
     {
@@ -191,6 +194,7 @@ public:
         minimum_clique_size = cmd.GetOptionIntValue("-k", 10);
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
+        drop_oversized_tasks_ = cmd.GetOptionIntValue("-drop_oversized_tasks", 0) != 0;
         bool remove_nonmax = apply_remove_nonmax();
         store_cliques = remove_nonmax;
 
@@ -230,6 +234,7 @@ public:
         cout << "Output: " << output_file << endl;
         cout << "Remove non-maximal: " << (remove_nonmax ? "true" : "false") << endl;
         cout << "Scheduling: " << (scheduling_toggle == 0 ? "dynamic" : "static") << endl;
+        cout << "Drop oversized tasks: " << (drop_oversized_tasks_ ? "true" : "false") << endl;
         cout << "cpu workers: " << cmd.runtime.num_cpu_workers << endl;
         cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
         cout << "eta: " << eta_per_warp() << endl;
@@ -276,7 +281,10 @@ public:
         for (ui i = 0; i < hd.initial_vertices_count; i++)
         {
             if (is_big_task[i])
-                big_data_array.push(i);
+            {
+                if (!drop_oversized_tasks_)
+                    big_data_array.push(i);
+            }
             else
                 data_array.push_back(i);
         }
@@ -533,101 +541,6 @@ public:
         return res;
     }
 
-#ifdef GPU_BUFFER_BOOKKEEPING
-    double get_load_from_host_time_s()
-    {
-        double total = 0.0;
-        using GPUWorkerT = GPUWorker<QCGPUContext>;
-        auto workers = workers_list.queue_;
-        while (!workers.empty())
-        {
-            WorkerT *w = (WorkerT *)workers.front();
-            workers.pop();
-
-            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
-            if (gw)
-                total += gw->getContext()->get_load_from_host_time_s();
-        }
-        return total;
-    }
-#endif
-
-#ifdef GPU_BUFFER_BOOKKEEPING
-    double get_dump_to_host_time_s()
-    {
-        double total = 0.0;
-        using GPUWorkerT = GPUWorker<QCGPUContext>;
-        auto workers = workers_list.queue_;
-        while (!workers.empty())
-        {
-            WorkerT *w = (WorkerT *)workers.front();
-            workers.pop();
-
-            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
-            if (gw)
-                total += gw->getContext()->get_dump_to_host_time_s();
-        }
-        return total;
-    }
-#endif
-
-#ifdef GPU_BUFFER_BOOKKEEPING
-    double get_pingpong_mode2_dump_time_s()
-    {
-        double total = 0.0;
-        using GPUWorkerT = GPUWorker<QCGPUContext>;
-        auto workers = workers_list.queue_;
-        while (!workers.empty())
-        {
-            WorkerT *w = (WorkerT *)workers.front();
-            workers.pop();
-
-            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
-            if (gw)
-                total += gw->get_pingpong_mode2_dump_time_s();
-        }
-        return total;
-    }
-#endif
-
-#ifdef GPU_BUFFER_BOOKKEEPING
-    ull get_load_from_host_bytes()
-    {
-        ull total = 0;
-        using GPUWorkerT = GPUWorker<QCGPUContext>;
-        auto workers = workers_list.queue_;
-        while (!workers.empty())
-        {
-            WorkerT *w = (WorkerT *)workers.front();
-            workers.pop();
-
-            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
-            if (gw)
-                total += gw->getContext()->get_load_from_host_bytes();
-        }
-        return total;
-    }
-#endif
-
-#ifdef GPU_BUFFER_BOOKKEEPING
-    ull get_dump_to_host_bytes()
-    {
-        ull total = 0;
-        using GPUWorkerT = GPUWorker<QCGPUContext>;
-        auto workers = workers_list.queue_;
-        while (!workers.empty())
-        {
-            WorkerT *w = (WorkerT *)workers.front();
-            workers.pop();
-
-            GPUWorkerT *gw = dynamic_cast<GPUWorkerT *>(w);
-            if (gw)
-                total += gw->getContext()->get_dump_to_host_bytes();
-        }
-        return total;
-    }
-#endif
-
     uint64_t get_max_clique_size()
     {
         uint64_t res = hc.max_clique_size;
@@ -734,12 +647,14 @@ public:
         chkerr(cudaMalloc((void **)&dd.minimum_clique_size, sizeof(int)));
         chkerr(cudaMalloc((void **)&dd.scheduling_toggle, sizeof(int)));
         chkerr(cudaMalloc((void **)&dd.store_cliques, sizeof(bool)));
+        chkerr(cudaMalloc((void **)&dd.drop_oversized_tasks, sizeof(bool)));
 
         chkerr(cudaMemcpy(dd.minimum_degree_ratio, &minimum_degree_ratio, sizeof(double), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.minimum_degrees, minimum_degrees, sizeof(int) * (hg.number_of_vertices + 1), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.minimum_clique_size, &minimum_clique_size, sizeof(int), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.scheduling_toggle, &scheduling_toggle, sizeof(int), cudaMemcpyHostToDevice));
         chkerr(cudaMemcpy(dd.store_cliques, &store_cliques, sizeof(bool), cudaMemcpyHostToDevice));
+        chkerr(cudaMemcpy(dd.drop_oversized_tasks, &drop_oversized_tasks_, sizeof(bool), cudaMemcpyHostToDevice));
 
         chkerr(cudaMalloc((void **)&dd.total_tasks, sizeof(int)));
 
@@ -852,27 +767,10 @@ int main(int argc, char *argv[])
             cout << "--->:COUNT ONLY POSTPROCESS TIME: " << duration1.count() << " ms" << endl;
         }
 
-#ifdef GPU_BUFFER_BOOKKEEPING
-        const double load_from_host_time_s = app->get_load_from_host_time_s();
-        const ull load_from_host_bytes = app->get_load_from_host_bytes();
-        const double dump_to_host_time_s = app->get_dump_to_host_time_s();
-        const ull dump_to_host_bytes = app->get_dump_to_host_bytes();
-        const double pingpong_mode2_dump_time_s = app->get_pingpong_mode2_dump_time_s();
-#endif
-
         app->cleanup_runtime();
 
         cout << "Search only time (s): " << search_only_time_s << endl;
         cout << "Total time (s): " << t.elapsed() / 1e6 << endl;
-#ifdef GPU_BUFFER_BOOKKEEPING
-        cout << "load_from_host time (s): " << load_from_host_time_s << endl;
-        cout << "load_from_host data (GB): " << static_cast<double>(load_from_host_bytes) / (1024.0 * 1024.0 * 1024.0)
-             << " (" << load_from_host_bytes << " bytes)" << endl;
-        cout << "dump_to_host time (s): " << dump_to_host_time_s << endl;
-        cout << "dump_to_host data moved to host (GB): " << static_cast<double>(dump_to_host_bytes) / (1024.0 * 1024.0 * 1024.0)
-             << " (" << dump_to_host_bytes << " bytes)" << endl;
-        cout << "pingpong=2 dump_to_host time (s): " << pingpong_mode2_dump_time_s << endl;
-#endif
         cout << "Total count before maximality check: " << pre_max_quasi_cliques << endl;
         cout << "Largest clique size: " << max_clique_size << endl;
         cout << "Hybrid CPU big-root instrumentation: "

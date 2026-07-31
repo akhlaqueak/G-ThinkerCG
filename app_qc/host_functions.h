@@ -203,6 +203,7 @@ struct GPU_Data
     int* minimum_clique_size;
     int* scheduling_toggle;
     bool* store_cliques;
+    bool* drop_oversized_tasks;
 
     uint64_t* buffer_offset_start;
     uint64_t* buffer_start;
@@ -544,6 +545,7 @@ void free_memory(CPU_Data& hd, GPU_Data& dd, CPU_Cliques& hc, bool free_gpu)
     chkerr(cudaFree(dd.minimum_clique_size));
     chkerr(cudaFree(dd.scheduling_toggle));
     chkerr(cudaFree(dd.store_cliques));
+    chkerr(cudaFree(dd.drop_oversized_tasks));
 
     chkerr(cudaFree(dd.total_tasks));
 
