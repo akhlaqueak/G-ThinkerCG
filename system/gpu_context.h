@@ -121,13 +121,8 @@ public:
     }
     void resetLevel()
     {
-        Brd.n_tasks_proc[0] = 0;
-        Bwr.n_tasks_proc[0] = 0;
-        H.n_tasks_proc[0] = 0;
-        
         Brd.eta_filled[0] = false;
         Bwr.eta_filled[0] = false;
-
         Brd.overflow[0] = false;
         Bwr.overflow[0] = false;
     }
@@ -184,7 +179,7 @@ public:
     {
         if (ping_pong_mode)
             return this->isOverflow();
-        return (Bwr.n_tasks_proc[0] > eta); // Destination
+        return Bwr.eta_filled[0]; // Destination
     }
 
     __device__ __host__ bool isOverflow()

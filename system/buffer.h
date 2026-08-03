@@ -25,7 +25,6 @@ public:
     ull *vtail = nullptr;
     ull *ohead = nullptr;
     ull *capacity = nullptr;
-    ui *n_tasks_proc = nullptr;
     bool second_buffer = false; // the second buffer in ping-pong mode.
     volatile bool *overflow = nullptr;
     volatile bool *eta_filled = nullptr;
@@ -47,7 +46,6 @@ public:
 
         allocatePtrs();
         capacity[0] = HOST_BUFF_SZ;
-        n_tasks_proc[0] = 0;
         std::cout << "Host allocated Buffer: " << capacity[0] << std::endl;
     }
 
@@ -100,29 +98,31 @@ public:
         {
             ull ot = atomicAdd(otail, 2);
             ull write_vt = atomicAdd(vtail, sglen);
-            ui et = atomicAdd(n_tasks_proc, 1);
             const ull next_ot = ot + 2;
             const ull next_vt = write_vt + sglen;
-            const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
-            const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
-            const bool out_of_bounds = next_ot > capacity[0] || (next_vt - vertex_base) > vertex_span;
+            const ull cap = capacity[0];
+            const ull vertex_base = second_buffer ? cap / 2 : 0;
+            const ull vertex_span = second_buffer ? cap / 2 : cap;
+            const ull warning_limit = vertex_base + (vertex_span * 9) / 10;
+            const bool out_of_bounds = next_ot > cap || next_vt > cap;
+            const ull tasks_before = (ot - ohead[0]) / 2;
 
-            if (out_of_bounds || (next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span))
+            if (out_of_bounds || next_vt >= warning_limit)
                 overflow[0] = true;
 
-            if (et + 1 > eta)
+            if (tasks_before <= eta && tasks_before + 1 > eta)
                 eta_filled[0] = true;
 
             if (!out_of_bounds)
             {
-                if (capacity[0] == HOST_BUFF_SZ)
+                if (cap == HOST_BUFF_SZ)
                     assert(next_ot <= HOST_OFFSET_SZ && next_vt <= HOST_BUFF_SZ);
 
                 offsets[ot] = write_vt;
                 offsets[ot + 1] = next_vt;
                 vt = write_vt;
             }
-            else if (next_ot <= capacity[0])
+            else if (next_ot <= cap)
             {
                 offsets[ot] = write_vt;
                 offsets[ot + 1] = write_vt;
@@ -146,22 +146,27 @@ public:
         {
             ot = atomicAdd(otail, 2ULL * num);
             write_vt = atomicAdd(vtail, sglen * num);
-            atomicAdd(n_tasks_proc, num);
 
             const ull next_ot = ot + 2ULL * num;
             const ull next_vt = write_vt + sglen * num;
-            const ull vertex_base = second_buffer ? capacity[0] / 2 : 0;
-            const ull vertex_span = second_buffer ? capacity[0] / 2 : capacity[0];
+            const ull cap = capacity[0];
+            const ull vertex_base = second_buffer ? cap / 2 : 0;
+            const ull vertex_span = second_buffer ? cap / 2 : cap;
+            const ull warning_limit = vertex_base + (vertex_span * 9) / 10;
+            const ull tasks_before = (ot - ohead[0]) / 2;
             out_of_bounds =
-                (capacity[0] == HOST_BUFF_SZ) ?
+                (cap == HOST_BUFF_SZ) ?
                     (next_ot > HOST_OFFSET_SZ || next_vt > HOST_BUFF_SZ) :
-                    (next_ot > capacity[0] || (next_vt - vertex_base) > vertex_span);
+                    (next_ot > cap || next_vt > cap);
             can_write_invalid_offsets =
-                (capacity[0] == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
-                (capacity[0] != HOST_BUFF_SZ && next_ot <= capacity[0]);
+                (cap == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
+                (cap != HOST_BUFF_SZ && next_ot <= cap);
 
-            if (out_of_bounds || (next_vt - vertex_base) >= static_cast<ull>(0.9 * vertex_span))
+            if (out_of_bounds || next_vt >= warning_limit)
                 overflow[0] = true;
+
+            if (tasks_before <= eta && tasks_before + num > eta)
+                eta_filled[0] = true;
 
             if (!out_of_bounds)
                 vt = write_vt;
@@ -266,7 +271,6 @@ public:
         chkerr(cudaMallocManaged((void **)&vtail, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&ohead, sizeof(ull)));
         chkerr(cudaMallocManaged((void **)&capacity, sizeof(ull)));
-        chkerr(cudaMallocManaged((void **)&n_tasks_proc, sizeof(ui)));
         chkerr(cudaMallocManaged((void **)&overflow, sizeof(bool)));
         chkerr(cudaMallocManaged((void **)&eta_filled, sizeof(bool)));
         overflow[0] = false;

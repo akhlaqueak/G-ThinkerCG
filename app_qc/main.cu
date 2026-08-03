@@ -110,28 +110,28 @@ void print_help(const char *program)
     cout << "Usage: " << program << " -f <graph.sbin> [options]" << endl;
     cout << endl;
     cout << "Required:" << endl;
-    cout << "  -f <path>           Input expanded binary graph (.sbin)." << endl;
+    cout << "  -f <graph.sbin>" << endl;
     cout << endl;
     cout << "QC parameters:" << endl;
-    cout << "  -g <gamma>          Minimum degree ratio in [0.5, 1]. Default: 0.5" << endl;
-    cout << "  -k <size>           Minimum quasi-clique size (> 1). Default: 10" << endl;
-    cout << "  -o <file>           Output file for maximal quasi-cliques. Default: output.txt" << endl;
-    cout << "  -rmnonmax [0|1]     Remove non-maximal results. Default: off" << endl;
-    cout << "  -sched <0|1>        Scheduling mode: 0=dynamic, 1=static. Default: 0" << endl;
-    cout << "  -drop_oversized_tasks <0|1>" << endl;
-    cout << "                      0=stop on oversized GPU task, 1=silently drop it. Default: 0" << endl;
+    cout << "  -g 0.5" << endl;
+    cout << "  -k 10" << endl;
+    cout << "  -o output.txt" << endl;
+    cout << "  -rmnonmax 0" << endl;
+    cout << "  -sched 0" << endl;
+    cout << "  -drop_oversized_tasks 0" << endl;
     cout << endl;
     cout << "Runtime parameters:" << endl;
-    cout << "  -cpu <n>            Number of CPU workers. Default: 28" << endl;
-    cout << "  -gpu <n>            Number of GPU workers. Default: 1" << endl;
-    cout << "  -cpuchunk <n>       CPU tasks per fetch. Default: 10" << endl;
-    cout << "  -gpuchunk <n>       GPU roots/tasks per fetch. Default: 10000" << endl;
-    cout << "  -eta <n>            ETA per warp. Default: 2000" << endl;
-    cout << "  -tau <n>            CPU timeout threshold (microseconds). Runtime default." << endl;
-    cout << "  -pingpong <0|1|2>   0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
+    cout << "  -cpu 28" << endl;
+    cout << "  -gpu 1" << endl;
+    cout << "  -cpuchunk 10" << endl;
+    cout << "  -gpuchunk 10000" << endl;
+    cout << "  -eta 2000" << endl;
+    cout << "  -tau <microseconds>" << endl;
+    cout << "  -pingpong 1" << endl;
     cout << endl;
     cout << "Other:" << endl;
-    cout << "  -h, --help          Show this help message and exit." << endl;
+    cout << "  -h" << endl;
+    cout << "  --help" << endl;
 }
 
 bool wants_help()

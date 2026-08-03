@@ -46,20 +46,22 @@ run_case() {
 }
 
 while IFS=$'\t' read -r ds k g; do
-
+for pp in 0 1 2; do
     [ -z "$ds" ] && continue
 
-    run_case "$ds-$k-$g-pp1.log" \
-        ./run -f "../ds/$ds.sbin" -k $k -g $g -cpu 0 -pingpong 1
+    run_case "$ds-$k-$g-pp$pp.log" \
+        ./run -f "../ds/$ds.sbin" -k $k -g $g -cpu 0 -pingpong $pp -drop_oversized_tasks 1
+done
+    run_case "$ds-$k-$g-cpu.log" \
+        ./run -f "../ds/$ds.sbin" -k $k -g $g -gpu 0 
 
-    run_case "$ds-$k-$g-pp2.log" \
-        ./run -f "../ds/$ds.sbin" -k $k -g $g -cpu 0 -pingpong 2
-
+    run_case "$ds-$k-$g-hybrid.log" \
+        ./run -f "../ds/$ds.sbin" -k $k -g $g 
 done < ds.txt
 
 
-while IFS=$'\t' read -r ds ; do
-        fname=logs/$ds-$q-pingpong_abort.log
+while IFS=$'\t' read -r ds k g; do
+        fname=logs/$ds-$k-$g-pp0.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else
