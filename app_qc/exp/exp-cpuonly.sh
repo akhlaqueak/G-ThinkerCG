@@ -46,22 +46,27 @@ run_case() {
 }
 
 while IFS=$'\t' read -r ds k g; do
-for pp in 0 1 2; do
     [ -z "$ds" ] && continue
+# for pp in 0 1 2; do
 
-    run_case "$ds-$k-$g-pp$pp.log" \
-        ./run -f "../ds/$ds.sbin" -k $k -g $g -cpu 0 -pingpong $pp -drop_oversized_tasks 1
-done
-    run_case "$ds-$k-$g-cpu.log" \
-        ./run -f "../ds/$ds.sbin" -k $k -g $g -gpu 0 
+#     run_case "$ds-$k-$g-pp$pp-gpuchunk-1m.log" \
+#         ./run -f "../ds/$ds.sbin" -k $k -g $g -cpu 0 -pingpong $pp -drop_oversized_tasks 1 -gpuchunk 1000000
+# done
+# #     run_case "$ds-$k-$g-cpu.log" \
+# #         ./run -f "../ds/$ds.sbin" -k $k -g $g -gpu 0 
 
-    run_case "$ds-$k-$g-hybrid.log" \
-        ./run -f "../ds/$ds.sbin" -k $k -g $g 
-done < ds.txt
+#     run_case "$ds-$k-$g-hybrid-gpuchunk-1m.log" \
+#         ./run -f "../ds/$ds.sbin" -k $k -g $g -gpuchunk 1000000
+    run_case "$ds-$k-$g-fastqc.log" \
+        ./fastqc -f "../ds/$ds.sbin" -k $k -g $g 
+    run_case "$ds-$k-$g-quick.log" \
+        ./quick -f "../ds/$ds.sbin" -k $k -g $g 
+
+done < ds-new.txt
 
 
 while IFS=$'\t' read -r ds k g; do
-        fname=logs/$ds-$k-$g-pp0.log
+        fname=logs/$ds-$k-$g-hybrid-gpuchunk-1m.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else
