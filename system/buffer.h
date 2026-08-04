@@ -26,8 +26,8 @@ public:
     ull *ohead = nullptr;
     ull *capacity = nullptr;
     bool second_buffer = false; // the second buffer in ping-pong mode.
-    volatile bool *overflow = nullptr;
-    volatile bool *eta_filled = nullptr;
+    bool *overflow = nullptr;
+    bool *eta_filled = nullptr;
 
     static ull sizeOf()
     {
