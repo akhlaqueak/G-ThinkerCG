@@ -308,9 +308,10 @@ public:
 
             ull v = sources[vp];
 
-            ull vt = Bwr.append(2); // header + one matched vertex
-            if (vt == INVALID_BUFFER_POS)
+            auto alloc = Bwr.append(2); // header + one matched vertex
+            if (!alloc.valid())
                 return;
+            ull vt = alloc.vt;
             if (LANEID == 0)
             {
                 Bwr.vertices[vt] = 1;
@@ -339,9 +340,6 @@ public:
             ull sglen64 = Brd.vertices[so.st];
             if (sglen64 == 0 || sglen64 > querySize[0])
             {
-                if (LANEID == 0)
-                    printf("GM invalid task header: st=%llu en=%llu header=%llu qsz=%u\n",
-                           so.st, so.en, sglen64, querySize[0]);
                 asm("trap;");
             }
             ui id = static_cast<ui>(sglen64);
@@ -363,17 +361,11 @@ public:
                 ui bnCount = preBackNeighborCount[id];
                 if (bnCount == 0)
                 {
-                    if (LANEID == 0)
-                        printf("GM invalid prefix bnCount=0: id=%u sglen=%u st=%llu en=%llu mode=%d share=%d\n",
-                               id, sglen, so.st, so.en, static_cast<int>(CUR_MODE), static_cast<int>(shareIntersection[id]));
                     asm("trap;");
                 }
                 ui u_prime = preBackNeighbors[querySize[0] * id];
                 if (u_prime >= querySize[0])
                 {
-                    if (LANEID == 0)
-                        printf("GM invalid prefix u_prime: id=%u sglen=%u bnCount=%u u_prime=%u qsz=%u st=%llu en=%llu\n",
-                               id, sglen, bnCount, u_prime, querySize[0], so.st, so.en);
                     asm("trap;");
                 }
                 ui u_prime_M = partial_subgraphs[WARPID][ID2order[u_prime]];
@@ -469,8 +461,6 @@ public:
 
                         if (len >= TEMPSIZE - 32)
                         {
-                            if (GTHID == 0)
-                                printf("* ");
                             base_i += 32;
                             break;
                         }
@@ -573,9 +563,9 @@ public:
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append_batch(sglen + 2, min);
-                                    if (alloc.buffer == nullptr)
+                                    if (!alloc.valid())
                                         return;
-                                    auto &dst = *alloc.buffer;
+                                    auto &dst = alloc.to_host ? H : Bwr;
                                     auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
@@ -595,9 +585,9 @@ public:
                                 {
                                     ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                     auto alloc = append(sglen + 1 + min);
-                                    if (alloc.buffer == nullptr)
+                                    if (!alloc.valid())
                                         return;
-                                    auto &dst = *alloc.buffer;
+                                    auto &dst = alloc.to_host ? H : Bwr;
                                     auto vt = alloc.vt;
                                     if (LANEID == 0)
                                         dst.vertices[vt] = sglen + 1;
@@ -624,17 +614,11 @@ public:
                 ui bnCount = backNeighborCount[id];
                 if (bnCount == 0)
                 {
-                    if (LANEID == 0)
-                        printf("GM invalid expand bnCount=0: id=%u sglen=%u st=%llu en=%llu mode=%d share=%d\n",
-                               id, sglen, so.st, so.en, static_cast<int>(CUR_MODE), static_cast<int>(shareIntersection[id]));
                     asm("trap;");
                 }
                 ui u_prime = backNeighbors[querySize[0] * id];
                 if (u_prime >= querySize[0])
                 {
-                    if (LANEID == 0)
-                        printf("GM invalid expand u_prime: id=%u sglen=%u bnCount=%u u_prime=%u qsz=%u st=%llu en=%llu\n",
-                               id, sglen, bnCount, u_prime, querySize[0], so.st, so.en);
                     asm("trap;");
                 }
                 ui u_prime_M = partial_subgraphs[WARPID][ID2order[u_prime]];
@@ -739,8 +723,6 @@ public:
 
                             if (len >= TEMPSIZE - 32)
                             {
-                                if (GTHID == 0)
-                                    printf("# ");
                                 base_i += 32;
                                 break;
                             }
@@ -760,9 +742,9 @@ public:
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append_batch(sglen + 2, min);
-                                if (alloc.buffer == nullptr)
+                                if (!alloc.valid())
                                     return;
-                                auto &dst = *alloc.buffer;
+                                auto &dst = alloc.to_host ? H : Bwr;
                                 auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
@@ -782,9 +764,9 @@ public:
                             {
                                 ui min = len - batch_id < prefixBatchSize[0] ? len - batch_id : prefixBatchSize[0];
                                 auto alloc = append(sglen + 1 + min);
-                                if (alloc.buffer == nullptr)
+                                if (!alloc.valid())
                                     return;
-                                auto &dst = *alloc.buffer;
+                                auto &dst = alloc.to_host ? H : Bwr;
                                 auto vt = alloc.vt;
                                 if (LANEID == 0)
                                     dst.vertices[vt] = sglen + 1;

@@ -26,8 +26,8 @@ public:
     ull *ohead = nullptr;
     ull *capacity = nullptr;
     bool second_buffer = false; // the second buffer in ping-pong mode.
-    bool *overflow = nullptr;
-    bool *eta_filled = nullptr;
+    volatile bool *overflow = nullptr;
+    volatile bool *eta_filled = nullptr;
 
     static ull sizeOf()
     {
@@ -91,7 +91,7 @@ public:
         return {vt, vt + sglen};
     }
 
-    __device__ ull append(ull sglen)
+    __device__ BufferReservation append(ull sglen)
     {
         ull vt = INVALID_BUFFER_POS;
         if (LANEID == 0)
@@ -129,23 +129,20 @@ public:
             }
         }
         vt = __shfl_sync(FULL, vt, 0);
-        return vt;
+        return {vt, false};
     }
-    __device__ ull append(SubgraphOffsets &so)
+    __device__ BufferReservation append(SubgraphOffsets &so)
     {
         return append(so.en - so.st);
     }
-    __device__ ull append_batch(ull sglen, ui num)
+    __device__ BufferReservation append_batch(ull sglen, ui num)
     {
         ull vt = INVALID_BUFFER_POS;
         ull ot = 0;
-        ull write_vt = 0;
-        unsigned int out_of_bounds = 0;
-        unsigned int can_write_invalid_offsets = 0;
         if (LANEID == 0)
         {
             ot = atomicAdd(otail, 2ULL * num);
-            write_vt = atomicAdd(vtail, sglen * num);
+            const ull write_vt = atomicAdd(vtail, sglen * num);
 
             const ull next_ot = ot + 2ULL * num;
             const ull next_vt = write_vt + sglen * num;
@@ -154,13 +151,10 @@ public:
             const ull vertex_span = second_buffer ? cap / 2 : cap;
             const ull warning_limit = vertex_base + (vertex_span * 9) / 10;
             const ull tasks_before = (ot - ohead[0]) / 2;
-            out_of_bounds =
+            const bool out_of_bounds =
                 (cap == HOST_BUFF_SZ) ?
                     (next_ot > HOST_OFFSET_SZ || next_vt > HOST_BUFF_SZ) :
                     (next_ot > cap || next_vt > cap);
-            can_write_invalid_offsets =
-                (cap == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
-                (cap != HOST_BUFF_SZ && next_ot <= cap);
 
             if (out_of_bounds || next_vt >= warning_limit)
                 overflow[0] = true;
@@ -170,30 +164,32 @@ public:
 
             if (!out_of_bounds)
                 vt = write_vt;
+            else
+            {
+                const bool can_write_invalid_offsets =
+                    (cap == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
+                    (cap != HOST_BUFF_SZ && next_ot <= cap);
+                if (can_write_invalid_offsets)
+                {
+                    for (ui i = 0; i < num; ++i)
+                    {
+                        offsets[ot + 2ULL * i] = write_vt + sglen * i;
+                        offsets[ot + 2ULL * i + 1] = write_vt + sglen * i;
+                    }
+                }
+            }
         }
-        ot = __shfl_sync(FULL, ot, 0);
-        write_vt = __shfl_sync(FULL, write_vt, 0);
-        out_of_bounds = __shfl_sync(FULL, out_of_bounds, 0);
-        can_write_invalid_offsets = __shfl_sync(FULL, can_write_invalid_offsets, 0);
         vt = __shfl_sync(FULL, vt, 0);
+        if (vt == INVALID_BUFFER_POS)
+            return {vt, false};
 
-        if (vt != INVALID_BUFFER_POS)
+        ot = __shfl_sync(FULL, ot, 0);
+        for (ui i = LANEID; i < num; i += 32)
         {
-            for (ui i = LANEID; i < num; i += 32)
-            {
-                offsets[ot + 2ULL * i] = write_vt + sglen * i;
-                offsets[ot + 2ULL * i + 1] = write_vt + sglen * (i + 1);
-            }
+            offsets[ot + 2ULL * i] = vt + sglen * i;
+            offsets[ot + 2ULL * i + 1] = vt + sglen * (i + 1);
         }
-        else if (out_of_bounds && can_write_invalid_offsets)
-        {
-            for (ui i = LANEID; i < num; i += 32)
-            {
-                offsets[ot + 2ULL * i] = write_vt + sglen * i;
-                offsets[ot + 2ULL * i + 1] = write_vt + sglen * i;
-            }
-        }
-        return vt;
+        return {vt, false};
     }
     __device__ SubgraphOffsets next()
     {

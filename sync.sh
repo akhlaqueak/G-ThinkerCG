@@ -12,6 +12,8 @@ REMOTE_DIR="/home/akhlaque.ak@gmail.com/G-ThinkerCG/"
 mkdir -p "$SSH_CONTROL_DIR"
 cd "$BASE_DIR" || exit 1
 
+echo "Sync executed at: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+
 ensure_ssh_master() {
   local ssh_start ssh_end
   ssh_start=$(date +%s)

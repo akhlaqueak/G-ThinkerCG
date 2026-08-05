@@ -10,12 +10,6 @@ class GPUContext
     };
 
 public:
-    struct BufferReservation
-    {
-        ull vt;
-        BufferT *buffer;
-    };
-
     // using ContextT = typename TaskT::ContextType;
     // using TaskType = TaskT;
     typedef typename TaskT::ContextType ContextT;
@@ -189,34 +183,40 @@ public:
 
     __device__ BufferReservation append(ull sglen)
     {
-        ull vt = Bwr.append(sglen);
-        if (vt != INVALID_BUFFER_POS)
-            return {vt, &Bwr};
+        BufferReservation result = Bwr.append(sglen);
+        if (result.valid())
+            return result;
 
         if (abort_chunk_on_device_full && ping_pong_mode)
-            return {INVALID_BUFFER_POS, nullptr};
+            return {INVALID_BUFFER_POS, false};
 
-        vt = H.append(sglen);
-        if (vt != INVALID_BUFFER_POS)
-            return {vt, &H};
+        result = H.append(sglen);
+        if (result.valid())
+        {
+            result.to_host = true;
+            return result;
+        }
 
-        return {INVALID_BUFFER_POS, nullptr};
+        return {INVALID_BUFFER_POS, false};
     }
 
     __device__ BufferReservation append_batch(ull sglen, ui num)
     {
-        ull vt = Bwr.append_batch(sglen, num);
-        if (vt != INVALID_BUFFER_POS)
-            return {vt, &Bwr};
+        BufferReservation result = Bwr.append_batch(sglen, num);
+        if (result.valid())
+            return result;
 
         if (abort_chunk_on_device_full && ping_pong_mode)
-            return {INVALID_BUFFER_POS, nullptr};
+            return {INVALID_BUFFER_POS, false};
 
-        vt = H.append_batch(sglen, num);
-        if (vt != INVALID_BUFFER_POS)
-            return {vt, &H};
+        result = H.append_batch(sglen, num);
+        if (result.valid())
+        {
+            result.to_host = true;
+            return result;
+        }
 
-        return {INVALID_BUFFER_POS, nullptr};
+        return {INVALID_BUFFER_POS, false};
     }
 
     __device__ void dumpToHost(SubgraphOffsets &so)
@@ -225,12 +225,12 @@ public:
             return;
 
         const ull sglen = so.en - so.st;
-        ull vt = H.append(sglen);
+        BufferReservation result = H.append(sglen);
 
-        if (H.overflow[0])
+        if (!result.valid())
             return;
 
-        H.copy_range(Brd, vt, so.st, sglen);
+        H.copy_range(Brd, result.vt, so.st, sglen);
     }
 
     void set_ping_pong_mode()

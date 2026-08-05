@@ -124,7 +124,9 @@ void print_help(const char *program)
     cout << "  -cpu 28" << endl;
     cout << "  -gpu 1" << endl;
     cout << "  -cpuchunk 10" << endl;
-    cout << "  -gpuchunk 10000" << endl;
+    cout << "  -c 4                  GPU chunk divisor" << endl;
+    cout << "  -min_gpuchunk 1000    Minimum GPU chunk" << endl;
+    cout << "  -hg_steal 1000000     Host tasks transferred to GPU" << endl;
     cout << "  -eta 2000" << endl;
     cout << "  -tau <microseconds>" << endl;
     cout << "  -pingpong 1" << endl;
@@ -150,6 +152,8 @@ class QCApp : public Master<QCCPUWorker, QCGPUContext>
 public:
     bool gpu_enabled_;
     bool drop_oversized_tasks_ = false;
+    size_t gpu_chunk_divisor_ = 4;
+    size_t min_gpu_chunk_ = 1000;
 
     size_t initial_task_vertices_count(size_t root_index) const
     {
@@ -195,6 +199,14 @@ public:
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
         drop_oversized_tasks_ = cmd.GetOptionIntValue("-drop_oversized_tasks", 0) != 0;
+        const int gpu_chunk_divisor = cmd.GetOptionIntValue("-c", 4);
+        const int min_gpu_chunk = cmd.GetOptionIntValue("-min_gpuchunk", 1000);
+        if (gpu_chunk_divisor <= 0)
+            throw std::invalid_argument("c must be greater than 0");
+        if (min_gpu_chunk <= 0)
+            throw std::invalid_argument("min_gpuchunk must be greater than 0");
+        gpu_chunk_divisor_ = static_cast<size_t>(gpu_chunk_divisor);
+        min_gpu_chunk_ = static_cast<size_t>(min_gpu_chunk);
         bool remove_nonmax = apply_remove_nonmax();
         store_cliques = remove_nonmax;
 
@@ -239,7 +251,9 @@ public:
         cout << "gpu workers: " << cmd.runtime.num_gpu_workers << endl;
         cout << "eta: " << eta_per_warp() << endl;
         cout << "cpu chunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
-        cout << "gpu chunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
+        cout << "gpu chunk divisor (c): " << gpu_chunk_divisor_ << endl;
+        cout << "minimum gpu chunk: " << min_gpu_chunk_ << endl;
+        cout << "host-to-gpu steal: " << cmd.runtime.hg_steal << endl;
         cout << "pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
 
@@ -301,6 +315,28 @@ public:
                 std::exit(EXIT_FAILURE);
             }
         }
+
+        const size_t n_roots = data_array.size();
+        const size_t base_gpu_chunk = std::max(n_roots / gpu_chunk_divisor_, min_gpu_chunk_);
+        size_t dynamic_gpu_chunk = base_gpu_chunk;
+        const size_t full_chunks = n_roots / base_gpu_chunk;
+        const size_t tail = n_roots % base_gpu_chunk;
+
+        if (cmd.runtime.num_cpu_workers == 0 && full_chunks > 0 && tail > 0 && tail < min_gpu_chunk_)
+        {
+            dynamic_gpu_chunk = (n_roots + full_chunks - 1) / full_chunks;
+        }
+
+        cmd.runtime.tasks_per_fetch_gpu_worker = dynamic_gpu_chunk;
+        tasks_per_fetch_gpu_worker_g = dynamic_gpu_chunk;
+        cout << "GPU chunk: max(" << n_roots << " / " << gpu_chunk_divisor_
+             << ", " << min_gpu_chunk_ << ") = " << base_gpu_chunk;
+        if (dynamic_gpu_chunk != base_gpu_chunk)
+        {
+            cout << ", adjusted to " << dynamic_gpu_chunk
+                 << " to absorb tail of " << tail << " tasks";
+        }
+        cout << endl;
 
         if (gpu_enabled_)
         {
@@ -716,6 +752,8 @@ int main(int argc, char *argv[])
         }
 
         app = new QCApp();
+        cout << "init time (s): " << t.elapsed() / 1e6 << endl;
+
         app->run();
         app->merge_cpu_cliques();
         if (app->gpu_enabled_)

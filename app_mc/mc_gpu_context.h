@@ -291,7 +291,10 @@ public:
             // sglen is passed by reference to this function, and it gets the length of subgraph
         }
 
-        ull vt = buff.append(sglen + 1);
+        auto alloc = buff.append(sglen + 1);
+        if (!alloc.valid())
+            return;
+        ull vt = alloc.vt;
         if (LANEID == 0)
         {
             buff.vertices[vt] = q;
@@ -349,7 +352,10 @@ public:
         // adding 1 in sglen, as q itself appears in subgraph as R
         assert(sglen + 1 < TEMPSIZE);
         // allocates a subgraph by atomic operations, and puts q in subgraph as well
-        auto vt = buff.append(sglen + 1);
+        auto alloc = buff.append(sglen + 1);
+        if (!alloc.valid())
+            return;
+        auto vt = alloc.vt;
 
         if (LANEID == 0)
         {
@@ -435,9 +441,9 @@ public:
                 continue; // there was no neighbor for this vertex...
             // adding 1 as vertices in new graph are number of neighbors + v itself
             auto alloc = append(sglen + 1); // allocates a subgraph by atomic operations, and puts v as well
-            if (alloc.buffer == nullptr)
+            if (!alloc.valid())
                 continue;
-            auto &dst = *alloc.buffer;
+            auto &dst = alloc.to_host ? H : Bwr;
             auto vt = alloc.vt;
             if (LANEID == 0)
             {

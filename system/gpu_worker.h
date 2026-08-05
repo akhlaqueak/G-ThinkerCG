@@ -100,7 +100,7 @@ public:
                 }
             }
         }
-        cout<<"----"<<endl;
+        // cout<<"----"<<endl;
     }
 
     bool layered_mode_expansion()
@@ -114,7 +114,7 @@ public:
         gc.init_level();
 
         auto tick = chrono::steady_clock::now();
-        deviceSynch();
+        // deviceSynch();
         // show_progress("layered after ");
 
         if (!gc.Bwr.empty())

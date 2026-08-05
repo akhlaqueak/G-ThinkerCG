@@ -420,15 +420,27 @@ inline std::string qc_expand_graph_path_from_data_graph(const std::string &data_
     return data_graph_path.substr(0, dot) + ".sbin";
 }
 
+inline std::string qc_data_graph_path_from_expanded_graph(const std::string &expanded_graph_path)
+{
+    if (expanded_graph_path.empty())
+        return "";
+
+    size_t slash = expanded_graph_path.find_last_of("/\\");
+    size_t dot = expanded_graph_path.find_last_of('.');
+    if (dot == std::string::npos || (slash != std::string::npos && dot < slash))
+        return expanded_graph_path + ".bin";
+
+    return expanded_graph_path.substr(0, dot) + ".bin";
+}
+
 inline void print_help(const char *program)
 {
-    std::cout << "Usage: " << program << " -dg <graph.bin> [-f <graph.sbin>] [options]" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Required:" << std::endl;
-    std::cout << "  -dg <path>          Input 1-hop binary graph used by the G2-AIMD worker." << std::endl;
+    std::cout << "Usage: " << program << " [-dg <graph.bin>] [-f <graph.sbin>] [options]" << std::endl;
     std::cout << std::endl;
     std::cout << "QC graph input:" << std::endl;
-    std::cout << "  -f <path>           Expanded binary graph (.sbin). If omitted, derive from -dg." << std::endl;
+    std::cout << "  -dg <path>          Input 1-hop graph (.bin). If omitted, derive from -f." << std::endl;
+    std::cout << "  -f <path>           Expanded graph (.sbin). If omitted, derive from -dg." << std::endl;
+    std::cout << "                       At least one of -dg or -f is required." << std::endl;
     std::cout << std::endl;
     std::cout << "QC parameters:" << std::endl;
     std::cout << "  -g <gamma>          Minimum degree ratio in [0.5, 1]. Default: 0.5" << std::endl;

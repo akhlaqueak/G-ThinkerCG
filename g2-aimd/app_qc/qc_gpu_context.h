@@ -2069,8 +2069,10 @@ inline void qc_prepare_runtime(QCApp &app)
 
     const std::vector<std::string> args = qc_process_args();
     const std::string program = args.empty() ? "run" : args[0];
-    const std::string data_graph_file = qc_get_option_value(args, "-dg", "");
+    std::string data_graph_file = qc_get_option_value(args, "-dg", "");
     qc_runtime_state::graph_file = qc_get_option_value(args, "-f", "");
+    if (data_graph_file.empty())
+        data_graph_file = qc_data_graph_path_from_expanded_graph(qc_runtime_state::graph_file);
     if (qc_runtime_state::graph_file.empty())
         qc_runtime_state::graph_file = qc_expand_graph_path_from_data_graph(data_graph_file);
     qc_runtime_state::output_file = qc_get_option_value(args, "-o", "output.txt");
@@ -2090,7 +2092,7 @@ inline void qc_prepare_runtime(QCApp &app)
     if (data_graph_file.empty())
     {
         print_help(program.c_str());
-        throw std::runtime_error("Missing required option -dg <graph.bin>");
+        throw std::runtime_error("Missing graph input: provide -dg <graph.bin> or -f <graph.sbin>");
     }
     if (qc_runtime_state::graph_file.empty())
     {
@@ -2170,7 +2172,6 @@ inline void qc_prepare_runtime(QCApp &app)
     if (qc_runtime_state::remove_nonmax)
         qc_runtime_state::temp_results.open(qc_runtime_state::temp_filename);
 
-    qc_runtime_state::search_timer.StartTimer();
 }
 
 inline void qc_iteration_failed(QCApp &app)

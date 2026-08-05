@@ -413,7 +413,7 @@ public:
     virtual void init_level()
     {
         transfer_cliques<<<NUM_OF_BLOCKS, BLOCK_SIZE>>>(dd);
-        chkerr(cudaDeviceSynchronize());
+        // chkerr(cudaDeviceSynchronize());
     }
     __device__ virtual void extend(QCBuffer &Brd, QCBuffer &Bwr, QCBuffer &H, ull *row_ptrs, VertexID *cols)
     {
@@ -1703,11 +1703,11 @@ public:
     {
         // uint64_t start_write = (WTASKS_SIZE * WARP_IDX) + dd.wtasks_offset[WTASKS_OFFSET_SIZE * WARP_IDX + (dd.wtasks_count[WARP_IDX])];
         auto alloc = append(wd.total_vertices[WIB_IDX]);
-        if (alloc.buffer == nullptr)
+        if (!alloc.valid())
             return;
 
         uint64_t start_write = alloc.vt;
-        auto &write_buffer = *alloc.buffer;
+        auto &write_buffer = alloc.to_host ? H : Bwr;
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
             write_buffer.vertices[start_write + k] = ld.vertices[k].vertexid;

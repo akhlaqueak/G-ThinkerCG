@@ -40,6 +40,17 @@ typedef unsigned long long int uintE;
 
 static constexpr ull INVALID_BUFFER_POS = ~0ULL;
 
+struct BufferReservation
+{
+    ull vt;
+    bool to_host;
+
+    __device__ __host__ bool valid() const
+    {
+        return vt != INVALID_BUFFER_POS;
+    }
+};
+
 #include "common/meta.h"
 #include "device/cuda_context.h"
 #include "util.h"

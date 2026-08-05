@@ -76,16 +76,16 @@ public:
     {
         require_gpu_if_requested(num_gpu_workers);
 
-        for (int i = 0; i < num_gpu_workers; i++)
-        {
-            WorkerT *worker = new GPUWorkerT(eta_total_);
-            worker->start();
-            workers_list.enqueue(worker);
-        }
         for (int i = 0; i < num_cpu_workers; i++)
         {
             WorkerT *worker = new CPUWorkerT();
             worker->start(); 
+            workers_list.enqueue(worker);
+        }
+        for (int i = 0; i < num_gpu_workers; i++)
+        {
+            WorkerT *worker = new GPUWorkerT(eta_total_);
+            worker->start();
             workers_list.enqueue(worker);
         }
         cout << "workers created, cpu: " << num_cpu_workers << ", gpu: " << num_gpu_workers << endl;
