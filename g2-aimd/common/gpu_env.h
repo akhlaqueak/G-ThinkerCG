@@ -88,7 +88,9 @@ inline void chkerr(cudaError_t code)
     if (code != cudaSuccess)
     {
         std::cout << cudaGetErrorString(code) << std::endl;
-        exit(-1);
+        if (code == cudaErrorMemoryAllocation)
+            std::cerr << "Return status: OOM" << std::endl;
+        exit(EXIT_FAILURE);
     }
 }
 

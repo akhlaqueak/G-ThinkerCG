@@ -14,6 +14,8 @@ run_case() {
     local logfile="logs/$1"
     shift
 
+    echo "Running $logfile"
+
     if [ -f "$logfile" ] && grep -q "Total time" "$logfile"; then
         echo "Skipping $logfile (already completed)"
         return
@@ -48,9 +50,9 @@ run_case() {
 while IFS=$'\t' read -r ds; do
 
     [ -z "$ds" ] && continue
-    for eta in 1000 2000 5000; do 
-    run_case "$ds-eta-$eta.log" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta
+    for eta in 1000 2000 5000 10000 20000; do 
+    run_case "$ds-eta-$eta-pp0.log" \
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta -pingpong 0
     done
 done < ds.txt
 
@@ -65,21 +67,20 @@ while IFS=$'\t' read -r ds ; do
 done < ds.txt
 
 
-for eta in 1000 2000 5000; do 
 while IFS=$'\t' read -r ds; do
+for eta in 1000 2000 5000 10000 20000; do 
 
         [ -z "$ds" ] && continue
         fname="logs/$ds-eta-$eta.log"
 
 
         if grep -q "Total time" "$fname" 2>/dev/null; then
-            grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
+            grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
         else
-            echo "X"
+            echo -en "X "
         fi
         # run_case "$fname" \
         #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta -pingpong 0
-done < ds.txt
-        echo
-        echo
 done
+        echo
+done < ds.txt

@@ -25,7 +25,7 @@ template<typename Application>
 class Worker
 {
 public:
-    void run(int argc, char *argv[], Application app)
+    bool run(int argc, char *argv[], Application app)
     {
         // deviceQuery();
         CommandLine cmd(argc, argv);
@@ -165,11 +165,12 @@ public:
         }
         // PipelineExecutor<Application>* executor = new PipelineExecutor<Application>(c, graph, max_partitioned_sources_num, app, max_view_bin_size, strategy);
         PipelineExecutor<Application>* executor = new PipelineExecutor<Application>(graph, app, plan.strategy);
-        executor->Run();
+        bool success = executor->Run();
 
         timer.EndTimer();
         timer.PrintElapsedMicroSeconds("Total time");
 
+        return success;
     }
 };
 

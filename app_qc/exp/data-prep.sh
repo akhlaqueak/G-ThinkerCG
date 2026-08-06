@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=data-prep
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --partition=medium
 #SBATCH --time=48:00:00
@@ -57,7 +57,7 @@ for d in "${datasets[@]}"; do
     start=$SECONDS
     echo "Processing $d"
 
-    if timeout 15m "$BIN_TO_SER" "/home/akhlaque.ak@gmail.com/graphs/data/kcore/$d.bin" "$d.sbin"; then
+    if timeout 15m "$BIN_TO_SER" "/home/akhlaque.ak@gmail.com/graphs/data/kcore/$d.bin"; then
         elapsed=$((SECONDS - start))
         echo "$d done in $(format_duration "$elapsed")"
     else

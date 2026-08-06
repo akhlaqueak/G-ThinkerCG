@@ -14,8 +14,11 @@ int main(int argc, char *argv[])
 {
     GMatchApp app;
     Worker<GMatchApp> worker;
-    worker.run(argc, argv, app);
-    
-    return 0;
-}
+    if (!worker.run(argc, argv, app))
+    {
+        std::cerr << "Return status: OOM" << std::endl;
+        return EXIT_FAILURE;
+    }
 
+    return EXIT_SUCCESS;
+}

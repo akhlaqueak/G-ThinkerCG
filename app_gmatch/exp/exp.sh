@@ -20,42 +20,47 @@
 # wikipedia_link_ru
 # link-dynamic-frwiki
 ds="
-edit-shwiki
-edit-cebwiki
 edit-mgwiktionary
+edit-cebwiki
+edit-shwiki
 edit-svwiki
-edit-zhwiki
-edit-viwiki
-edit-frwiktionary
-delicious-ti
-edit-enwiktionary
-trackers
-edit-eswiki
-edit-ruwiki
-edit-nlwiki
-edit-frwiki
-as-skitter
-edit-itwiki
-soc-livejournal
-dbpedia-link
-socfb-B-anon
-edit-jawiki
-zhishi-baidu-internallink
-zhishi-all
-edit-plwiki
 wikipedia_link_ceb
+wikipedia_link_sr
+edit-frwiktionary
+trackers
+edit-viwiki
+wikipedia_link_sh
+link-dynamic-frwiki
+edit-frwiki
+edit-eswiki
+edit-enwiktionary
+edit-arwiki
+web-wikipedia_link_en13-all
+wikipedia_link_ru
+wikipedia_link_de
+orkut-links
+edit-dewiki
+wikipedia_link_it
+sx-stackoverflow
+wikipedia_link_fr
+wikipedia_link_nl
+wikipedia_link_war
+wikipedia_link_sv
+edit-zhwiki
+soc-sinaweibo
 "
 
 
-quer="2 5 9"
+quer="2 5 7 8 9"
 timeout_threshold="10m"
 skip_existing_logs=0
-skip_completed_logs=1
+skip_completed_logs=0
 mkdir -p logs
 : > logs/failed.log
 
 run_case() {
-    local logfile="$1"
+    sleep 5s # sleeping because sometimes device is not ready from previous experiment
+    local logfile="logs/$1"
     shift
     local cmd_str
     printf -v cmd_str '%q ' "$@"
@@ -86,15 +91,14 @@ run_case() {
     fi
 }
 
-cp run run-exp
 for d in $ds; do 
     for q in $quer; do
-        # run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0
-        # run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
-        # run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
+        # run_case "$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0
+        run_case "$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
+        run_case "$d-$q-nocpu.log" ./run -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
         # run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 1
-        run_case "logs/$d-$q-with_cpu_gpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 1 -gpuchunk 100000 -cpuchunk 1
-        run_case "logs/$d-$q-nocpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -pingpong 1 -gpuchunk 100000 -cpu 0
+        # run_case "logs/$d-$q-with_cpu_gpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 1 -gpuchunk 100000 -cpuchunk 1
+        # run_case "logs/$d-$q-nocpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -pingpong 1 -gpuchunk 100000 -cpu 0
 
     done
 done

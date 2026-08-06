@@ -30,7 +30,7 @@ done < ds.txt
 
 
 # Set to 1 to skip completed runs, 0 to always rerun.
-SKIP_COMPLETED=0
+SKIP_COMPLETED=1
 
 run_case() {
     local logfile="logs/$1"
@@ -90,11 +90,12 @@ while IFS=$'\t' read -r ds q; do
 done < ds.txt
 
 while IFS=$'\t' read -r ds q; do
-for run in {1..5}; do
-    for pp in 0 1 2; do
+
+    for cpu in 1; do
+
         [ -z "$ds" ] && continue
 
-        fname="logs/$ds-$q-pp-$pp-run-$run.log"
+        fname="logs/$ds-$q-hybrid-$cpu.log"
         # run_case $fname \
         #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -q "$q" -pingpong $pp -eta 1000 -cpu 0 -hg_steal 100000000 
 
@@ -105,26 +106,7 @@ for run in {1..5}; do
             fi
     done
     echo 
-done
+
 done < ds.txt
 
-Elapsed Time (sec): 172.30
 
-Device used Memory (%): 139.42
-Brd: - empty -Brd: 0 tasks (oh:3,635,873,688 ot:3,635,873,688 vt:9,092,668,153) 
-Bwr: - empty -Bwr: 0 tasks (oh:3,635,873,688 ot:3,635,873,688 vt:9,092,668,153) 
-Host used Memory (%): 88.53
-H: 1,770,699,573 tasks (oh:0 ot:3,541,399,146 vt:8,853,497,865) 
-
-
-
-loading from host 100,000,000
-
-Device used Memory (%): 0.00
-Brd: - empty -Brd: 0 tasks (oh:0 ot:0 vt:0) 
-Bwr: - empty -Bwr: 0 tasks (oh:0 ot:0 vt:0) 
-Host used Memory (%): 88.53
-H: 1,770,699,573 tasks (oh:0 ot:3,541,399,146 vt:8,853,497,865) 
-loading from host 100,000,000
-
-Device used Memory (%): 0.00

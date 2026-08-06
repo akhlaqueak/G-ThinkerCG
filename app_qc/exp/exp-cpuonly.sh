@@ -54,9 +54,9 @@ while IFS=$'\t' read -r ds k g; do
 # done
 #     run_case "$ds-$k-$g-cpu.log" \
 #         ./run -f "../ds/$ds.sbin" -k $k -g $g -gpu 0 
-for c in 3 4; do
+for c in 2 3 4 5 10; do
 sleep 5s
-    run_case "$ds-$k-$g-hybrid-c$c.log" \
+    run_case "$ds-$k-$g-hybrid-c$c-cpufirst.log" \
         ./run -f "../ds/$ds.sbin" -k $k -g $g -c $c
 done
     # run_case "$ds-$k-$g-fastqc.log" \
@@ -68,8 +68,8 @@ done < ds.txt
 
 
 while IFS=$'\t' read -r ds k g; do
-for c in 3 4; do
-        fname=logs/$ds-$k-$g-hybrid-c$c.log
+for c in 2 3 4 5 10; do
+        fname=logs/$ds-$k-$g-hybrid-c$c-cpufirst.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
         else

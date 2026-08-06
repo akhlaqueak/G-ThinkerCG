@@ -145,7 +145,7 @@ public:
 
 
     // TODO: change
-    void Run()
+    bool Run()
     {
         app.sg->chunk[0] = MAXCHUNK;
 
@@ -153,10 +153,11 @@ public:
         {
             app.ctx->level[0] = 1;
             generateSubgraphs<<<BLK_NUMS, BLK_DIM>>>(app, i);
+            if (!SynchronizeKernel("generateSubgraphs"))
+                return false;
             i += app.sg->chunk[0];
             while (true)
             {
-                cudaDeviceSynchronize();
                 app.sg->swapBuffers();
                 if (app.sg->isEmpty())
                 {
@@ -171,25 +172,29 @@ public:
                     }
 
                     loadFromHost<<<BLK_NUMS, BLK_DIM>>>(app);
-                    cudaDeviceSynchronize();
+                    if (!SynchronizeKernel("loadFromHost"))
+                        return false;
                     continue;
                 }
                 process<<<BLK_NUMS, BLK_DIM>>>(app);
+                if (!SynchronizeKernel("process"))
+                    return false;
                 expand<<<BLK_NUMS, BLK_DIM>>>(app);
-                cudaDeviceSynchronize();
+                if (!SynchronizeKernel("expand"))
+                    return false;
                 // if (!app.sgHost->isEmpty())
                 // {
                 // }
+                if (app.sgHost->overflow[0])
+                {
+                    std::cerr << "Host buffer overflow" << std::endl;
+                    return false;
+                }
                 if (app.sg->isOverflow())
                 {
                     app.iterationFailed();
                     i -= app.sg->chunk[0];
                     break;
-                }
-                if (app.sgHost->isOverflowToHost())
-                {
-                    std::cout << "Host overflow occured";
-                    exit(0);
                 }
                 app.ctx->level[0]++;
             }
@@ -198,6 +203,22 @@ public:
             app.iterationSuccess();
         }
         app.completion();
+        return true;
+    }
+
+private:
+    bool SynchronizeKernel(const char *kernel_name)
+    {
+        cudaError_t error = cudaGetLastError();
+        if (error == cudaSuccess)
+            error = cudaDeviceSynchronize();
+
+        if (error == cudaSuccess)
+            return true;
+
+        std::cerr << "CUDA error after " << kernel_name << ": "
+                  << cudaGetErrorString(error) << std::endl;
+        return false;
     }
 
 public:

@@ -7,7 +7,7 @@ BIN_TO_SER_SRC := binToSer.cpp
 
 INC := -I.. -I../common/MPMCQueue/include -I../common/bliss -I../system/ -I../common
 CFLAGS := -std=c++20 -O3 -Xcompiler -fopenmp -lgomp -lpthread -DOPENMP
-CXXFLAGS := -std=c++20 -O3 -Wall -Wextra
+CXXFLAGS := -std=c++20 -O3 -Wall -Wextra -pthread
 DEBUGFLAGS := -g -G -Xcompiler -gdwarf-4
 REGFLAGS := --maxrregcount=64
 
