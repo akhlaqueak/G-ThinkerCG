@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <exception>
@@ -19,6 +20,14 @@ using namespace std;
 namespace
 {
     namespace fs = filesystem;
+
+    string io_failure(const string& message, int error_number)
+    {
+        if (error_number == 0) {
+            return message;
+        }
+        return message + ": " + error_code(error_number, generic_category()).message();
+    }
 
     template <typename T>
     void read_value(ifstream& in, T& value, const string& description)
@@ -50,9 +59,10 @@ namespace
     template <typename T>
     void write_value(ofstream& out, const T& value, const string& description)
     {
+        errno = 0;
         out.write(reinterpret_cast<const char*>(&value), sizeof(T));
         if (!out) {
-            throw runtime_error("Failed to write " + description);
+            throw runtime_error(io_failure("Failed to write " + description, errno));
         }
     }
 
@@ -68,9 +78,10 @@ namespace
             throw length_error(description + " is too large to write in one block");
         }
 
+        errno = 0;
         out.write(reinterpret_cast<const char*>(values.data()), static_cast<streamsize>(bytes));
         if (!out) {
-            throw runtime_error("Failed to write " + description);
+            throw runtime_error(io_failure("Failed to write " + description, errno));
         }
     }
 
@@ -137,9 +148,11 @@ namespace
             input.read(copy_buffer.data(), static_cast<streamsize>(copy_buffer.size()));
             const streamsize bytes_read = input.gcount();
             if (bytes_read > 0) {
+                errno = 0;
                 output.write(copy_buffer.data(), bytes_read);
                 if (!output) {
-                    throw runtime_error("Failed to merge temporary chunk: " + input_path.string());
+                    throw runtime_error(io_failure(
+                        "Failed to merge temporary chunk: " + input_path.string(), errno));
                 }
             }
         }
@@ -298,6 +311,7 @@ private:
 
         TemporaryDirectory temporary_directory(output_path);
         atomic<size_t> next_chunk{0};
+        atomic<uint64_t> generated_entries{0};
         atomic<bool> failed{false};
         exception_ptr worker_error;
         mutex error_mutex;
@@ -315,10 +329,15 @@ private:
                         break;
                     }
 
-                    ofstream chunk_output(temporary_directory.chunk_path(chunk), ios::binary);
+                    const fs::path chunk_path = temporary_directory.chunk_path(chunk);
+                    errno = 0;
+                    ofstream chunk_output(chunk_path, ios::binary);
                     if (!chunk_output) {
-                        throw runtime_error("Failed to create temporary chunk " + to_string(chunk));
+                        throw runtime_error(io_failure(
+                            "Failed to create temporary chunk " + chunk_path.string(), errno));
                     }
+                    const string chunk_description =
+                        "two-hop neighbors in temporary chunk " + chunk_path.string();
 
                     const size_t first_vertex = chunk * vertices_per_chunk;
                     const size_t last_vertex = min(vertex_count, first_vertex + vertices_per_chunk);
@@ -350,13 +369,17 @@ private:
                         }
 
                         sort(twohop_row.begin(), twohop_row.end());
-                        write_array(chunk_output, twohop_row, "two-hop neighbors");
+                        write_array(chunk_output, twohop_row, chunk_description);
                         row_sizes[vertex_index] = static_cast<uint64_t>(twohop_row.size());
+                        generated_entries.fetch_add(
+                            static_cast<uint64_t>(twohop_row.size()), memory_order_relaxed);
                     }
 
+                    errno = 0;
                     chunk_output.close();
                     if (!chunk_output) {
-                        throw runtime_error("Failed to finish temporary chunk " + to_string(chunk));
+                        throw runtime_error(io_failure(
+                            "Failed to finish temporary chunk " + chunk_path.string(), errno));
                     }
                 }
             }
@@ -386,7 +409,29 @@ private:
             worker.join();
         }
         if (worker_error) {
-            rethrow_exception(worker_error);
+            try {
+                rethrow_exception(worker_error);
+            }
+            catch (const exception& error) {
+                const uint64_t entries = generated_entries.load(memory_order_relaxed);
+                const double generated_gib =
+                    static_cast<double>(entries) * sizeof(int) / (1024.0 * 1024.0 * 1024.0);
+                const fs::path space_path = output_path.has_parent_path()
+                    ? output_path.parent_path() : fs::path(".");
+                error_code space_error;
+                const fs::space_info space = fs::space(space_path, space_error);
+
+                ostringstream message;
+                message << error.what() << ". Generated at least " << entries
+                        << " two-hop entries (" << generated_gib << " GiB) before failure";
+                if (!space_error) {
+                    message << "; filesystem space currently available: "
+                            << static_cast<double>(space.available) / (1024.0 * 1024.0 * 1024.0)
+                            << " GiB";
+                }
+                message << ". Check filesystem free space and user quota.";
+                throw runtime_error(message.str());
+            }
         }
 
         for (size_t vertex = 0; vertex < vertex_count; vertex++) {

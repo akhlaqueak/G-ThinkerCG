@@ -11,7 +11,7 @@
 
 
 run_case() {
-    local logfile="logs/$1"
+    local logfile="$1"
     shift
 
     echo "Running $logfile"
@@ -51,9 +51,16 @@ while IFS=$'\t' read -r ds; do
 
     [ -z "$ds" ] && continue
     for eta in 1000 2000 5000 10000 20000; do 
-    run_case "$ds-eta-$eta-pp0.log" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta -pingpong 0
+        fname="logs/$ds-eta-$eta-pp0.log"
+    # run_case "$fname" \
+    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta -pingpong 0
+        if grep -q "Total time" "$fname" 2>/dev/null; then
+            grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+        else
+            echo -en "X "
+        fi
     done
+    echo
 done < ds.txt
 
 
