@@ -196,11 +196,15 @@ public:
             // sglen is passed by reference to this function, and it gets the length of subgraph
         }
 
-        uintE vt = sg->append(sglen + 1);
+        auto alloc = this->append(sglen + 1);
+        if (!alloc.valid())
+            return;
+        auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+        uintE vt = alloc.vt;
         if (LANEID == 0)
         {
-            sg->wrBuff.vertices[vt] = q;
-            sg->wrBuff.labels[vt] = R;
+            write_buffer.vertices[vt] = q;
+            write_buffer.labels[vt] = R;
         }
         vt++;
 
@@ -220,10 +224,10 @@ public:
             uintE loc = scanIndex(pred) + vt;
             if (pred)
             {
-                sg->wrBuff.vertices[loc] = v;
-                sg->wrBuff.labels[loc] = label;
+                write_buffer.vertices[loc] = v;
+                write_buffer.labels[loc] = label;
                 if (label == Q)
-                    sg->wrBuff.labels[loc] = v < q ? X : P;
+                    write_buffer.labels[loc] = v < q ? X : P;
             }
 
             if(LANEID==31)
@@ -254,13 +258,15 @@ public:
         // adding 1 in sglen, as q itself appears in subgraph as R
         assert(sglen + 1 < TEMPSIZE);
         // allocates a subgraph by atomic operations, and puts q in subgraph as well
-        auto vt = sg->append(sglen + 1);
-        if (sg->isOverflow())
+        auto alloc = this->append(sglen + 1);
+        if (!alloc.valid())
             return;
+        auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+        auto vt = alloc.vt;
         if (LANEID == 0)
         {
-            sg->wrBuff.vertices[vt] = q;
-            sg->wrBuff.labels[vt] = R;
+            write_buffer.vertices[vt] = q;
+            write_buffer.labels[vt] = R;
         }
         vt++; // as one element is written i.e. q
         uintV *tempv = this->tempv + GLWARPID * TEMPSIZE;
@@ -272,10 +278,10 @@ public:
             auto k = vt + i;
             ui v = tempv[i];
             Label label = templ[i];
-            sg->wrBuff.vertices[k] = v;
-            sg->wrBuff.labels[k] = label;
+            write_buffer.vertices[k] = v;
+            write_buffer.labels[k] = label;
             if (label == Q)
-                sg->wrBuff.labels[k] = v < q ? X : P;
+                write_buffer.labels[k] = v < q ? X : P;
         }
     }
 
@@ -335,19 +341,23 @@ public:
             if (sglen == 0)
                 continue; // there was no neighbor for this vertex...
             // adding 1 as vertices in new graph are number of neighbors + v itself
-            uintE vt = sg->append(sglen + 1); // allocates a subgraph by atomic operations, and puts v as well
+            auto alloc = this->append(sglen + 1);
+            if (!alloc.valid())
+                return;
+            auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+            uintE vt = alloc.vt;
             if (LANEID == 0)
             {
-                sg->wrBuff.vertices[vt] = v;
-                sg->wrBuff.labels[vt] = R;
+                write_buffer.vertices[vt] = v;
+                write_buffer.labels[vt] = R;
                 // if(sglen>10) printf("%u:%u ", v, sglen);
             }
             vt++; // as one element is written i.e. v
             for (uintE j = st + LANEID, k = vt + LANEID; j < en; j += 32, k += 32)
             {
                 uintV u = ctx->d_cols[j];
-                sg->wrBuff.vertices[k] = u;
-                sg->wrBuff.labels[k] = (u < v) ? X : P;
+                write_buffer.vertices[k] = u;
+                write_buffer.labels[k] = (u < v) ? X : P;
             }
         }
         __syncthreads();
@@ -371,11 +381,14 @@ public:
             if (sgHost->isEnd(so))
                 break;
             ull sglen = so.en - so.st;
-            Index vt = sg->append(sglen);
-            for (ull i = so.st + LANEID, j = vt + LANEID; i < so.en; i += 32, j += 32)
+            auto alloc = this->append(sglen);
+            if (!alloc.valid())
+                return;
+            auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+            for (ull i = so.st + LANEID, j = alloc.vt + LANEID; i < so.en; i += 32, j += 32)
             {
-                sg->wrBuff.vertices[j] = sgHost->rdBuff.vertices[i];
-                sg->wrBuff.labels[j] = sgHost->rdBuff.labels[i];
+                write_buffer.vertices[j] = sgHost->rdBuff.vertices[i];
+                write_buffer.labels[j] = sgHost->rdBuff.labels[i];
             }
         }
     }
@@ -387,6 +400,8 @@ public:
             return;
         }
         ull vt = sgHost->append(so->en - so->st);
+        if (vt == INVALID_BUFFER_POS)
+            return;
         // if(GTHID==0)
         //     printf("%d-%d ", vt, so->en - so->st);
 

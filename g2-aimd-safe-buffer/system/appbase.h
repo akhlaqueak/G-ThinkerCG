@@ -70,6 +70,20 @@ template <template <typename> class BuffType, class GraphType = Graph>
 class AppBase
 {
 public:
+    static constexpr bool requires_query_plan = false;
+
+    using BufferType = BuffType<Index>;
+
+    struct AppendResult
+    {
+        ull vt;
+        BufferType *buffer;
+        bool to_host = false;
+
+        __device__ bool valid() const { return vt != INVALID_BUFFER_POS; }
+        __device__ BufferType &dst() const { return *buffer; }
+    };
+
     SubgraphContainer<BuffType<Index>> *sg;
     SubgraphContainer<BuffType<ull>> *sgHost;
 
@@ -108,6 +122,42 @@ public:
 
         sg->allocateMemory(alloc);
         sgHost->allocateMemory();
+    }
+
+    __device__ AppendResult append(Index sglen)
+    {
+        ull vt = sg->append(sglen);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &sg->wrBuff};
+        if (sg->chunk[0] > MINCHUNK)
+            return {INVALID_BUFFER_POS, nullptr};
+        vt = sgHost->append(sglen);
+        return vt == INVALID_BUFFER_POS ? AppendResult{INVALID_BUFFER_POS, nullptr}
+                                        : AppendResult{vt, &sgHost->wrBuff, true};
+    }
+
+    __device__ AppendResult append(Index sglen, Index midpos)
+    {
+        ull vt = sg->append(sglen, midpos);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &sg->wrBuff};
+        if (sg->chunk[0] > MINCHUNK)
+            return {INVALID_BUFFER_POS, nullptr};
+        vt = sgHost->append(sglen, midpos);
+        return vt == INVALID_BUFFER_POS ? AppendResult{INVALID_BUFFER_POS, nullptr}
+                                        : AppendResult{vt, &sgHost->wrBuff, true};
+    }
+
+    __device__ AppendResult append_batch(Index sglen, ui num, StoreStrategy mode)
+    {
+        ull vt = sg->append_batch(sglen, num, mode);
+        if (vt != INVALID_BUFFER_POS)
+            return {vt, &sg->wrBuff};
+        if (sg->chunk[0] > MINCHUNK)
+            return {INVALID_BUFFER_POS, nullptr};
+        vt = sgHost->append_batch(sglen, num, mode);
+        return vt == INVALID_BUFFER_POS ? AppendResult{INVALID_BUFFER_POS, nullptr}
+                                        : AppendResult{vt, &sgHost->wrBuff, true};
     }
 
     __device__ virtual void generateSubgraphs(unsigned int base) = 0;

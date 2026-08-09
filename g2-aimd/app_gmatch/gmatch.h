@@ -15,6 +15,8 @@
 class GMatchApp : public AppBase<BufferBase>
 {
 public:
+    static constexpr bool requires_query_plan = true;
+
     // temporary array to store local candidate ?????
     ui *tempv;
     // bool *templ;

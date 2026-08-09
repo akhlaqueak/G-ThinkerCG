@@ -1759,16 +1759,17 @@ public:
 
     __device__ void d_write_to_tasks(GPU_Data &dd, Warp_Data &wd, Local_Data &ld)
     {
-        uint64_t start_write = sg->append(wd.total_vertices[WIB_IDX]);
-        if (sg->isOverflow())
+        auto alloc = this->append(wd.total_vertices[WIB_IDX]);
+        if (!alloc.valid())
             return;
+        auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
         for (int k = LANE_IDX; k < wd.total_vertices[WIB_IDX]; k += WARP_SIZE)
         {
-            sg->wrBuff.vertices[start_write + k] = ld.vertices[k].vertexid;
-            sg->wrBuff.label[start_write + k] = ld.vertices[k].label;
-            sg->wrBuff.indeg[start_write + k] = ld.vertices[k].indeg;
-            sg->wrBuff.exdeg[start_write + k] = ld.vertices[k].exdeg;
-            sg->wrBuff.lvl2adj[start_write + k] = 0;
+            write_buffer.vertices[alloc.vt + k] = ld.vertices[k].vertexid;
+            write_buffer.label[alloc.vt + k] = ld.vertices[k].label;
+            write_buffer.indeg[alloc.vt + k] = ld.vertices[k].indeg;
+            write_buffer.exdeg[alloc.vt + k] = ld.vertices[k].exdeg;
+            write_buffer.lvl2adj[alloc.vt + k] = 0;
         }
     }
 
@@ -2011,17 +2012,18 @@ public:
                 break;
 
             ull sglen = so.en - so.st;
-            ull vt = sg->append(sglen);
-            if (sg->isOverflow())
+            auto alloc = this->append(sglen);
+            if (!alloc.valid())
                 return;
+            auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
 
-            for (ull i = so.st + LANEID, j = vt + LANEID; i < so.en; i += 32, j += 32)
+            for (ull i = so.st + LANEID, j = alloc.vt + LANEID; i < so.en; i += 32, j += 32)
             {
-                sg->wrBuff.vertices[j] = sgHost->rdBuff.vertices[i];
-                sg->wrBuff.label[j] = sgHost->rdBuff.label[i];
-                sg->wrBuff.indeg[j] = sgHost->rdBuff.indeg[i];
-                sg->wrBuff.exdeg[j] = sgHost->rdBuff.exdeg[i];
-                sg->wrBuff.lvl2adj[j] = sgHost->rdBuff.lvl2adj[i];
+                write_buffer.vertices[j] = sgHost->rdBuff.vertices[i];
+                write_buffer.label[j] = sgHost->rdBuff.label[i];
+                write_buffer.indeg[j] = sgHost->rdBuff.indeg[i];
+                write_buffer.exdeg[j] = sgHost->rdBuff.exdeg[i];
+                write_buffer.lvl2adj[j] = sgHost->rdBuff.lvl2adj[i];
             }
         }
     }
@@ -2032,6 +2034,8 @@ public:
             return;
 
         ull vt = sgHost->append(so->en - so->st);
+        if (vt == INVALID_BUFFER_POS)
+            return;
         for (ull i = vt + LANEID, j = so->st + LANEID; j < so->en; i += 32, j += 32)
         {
             sgHost->wrBuff.vertices[i] = sg->rdBuff.vertices[j];

@@ -60,8 +60,10 @@ public:
         Timer timer;
         timer.StartTimer();
 
-        if (query_type != 1000)
+        if constexpr (Application::requires_query_plan)
         {
+            if (query_type != 1000)
+            {
             assert(hop == -1);
             Graph query_G("", (PresetPatternType)query_type, GraphType::QUERY);
             query_G.SetConditions(query_G.GetConditions(query_G.GetBlissGraph()));
@@ -162,6 +164,7 @@ public:
                                     plan.preBackNeighborCountHost, plan.preBackNeighborsHost, plan.preCondOrderHost,
                                     plan.preCondNumHost, plan.afterBackNeighborCountHost, plan.afterBackNeighborsHost,
                                     plan.afterCondOrderHost, plan.afterCondNumHost, plan.strategy, plan.moving_lvl);
+            }
         }
         // PipelineExecutor<Application>* executor = new PipelineExecutor<Application>(c, graph, max_partitioned_sources_num, app, max_view_bin_size, strategy);
         PipelineExecutor<Application>* executor = new PipelineExecutor<Application>(graph, app, plan.strategy);

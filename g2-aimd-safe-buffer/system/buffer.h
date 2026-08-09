@@ -4,6 +4,7 @@
 #include "common/meta.h"
 #include "common/gpu_env.h"
 
+constexpr ull INVALID_BUFFER_POS = std::numeric_limits<ull>::max();
 
 // Prefix
 /**************************************
@@ -84,63 +85,48 @@ public:
 
     __device__ IndexType append_thread(IndexType sglen, volatile bool *overflow)
     {
-        IndexType vt;
-        
         IndexType ot = atomicAdd(otail, 3);
-        vt = atomicAdd(vtail, sglen);
-
-        // if it's a host buffer
-        if (buffsize[0] == HOST_BUFF_SZ)
+        IndexType vt = atomicAdd(vtail, sglen);
+        const IndexType next_ot = ot + 3;
+        const IndexType next_vt = vt + sglen;
+        const IndexType offset_limit = buffsize[0] == HOST_BUFF_SZ ? HOST_OFFSET_SZ : buffsize[0];
+        if (next_ot > offset_limit || next_vt > buffsize[0])
         {
-            if (ot + 3 >= HOST_OFFSET_SZ || vt + sglen >= buffsize[0])
-            {
-                printf("Host Overflow :%llu,%llu\n", ot, vt);
-                overflow[0] = true;
-            }
-        }
-        else
-        // this is device buffer
-        {
-            assert(vt + sglen < buffsize[0]);
-            assert(ot + 3 < buffsize[0]);
-            if (ot > buffsize[0] * 0.9 || vt > buffsize[0] * 0.9)
-                overflow[0] = true;
+            overflow[0] = true;
+            if (next_ot <= offset_limit)
+                offsets[ot] = offsets[ot + 1] = offsets[ot + 2] = vt;
+            return INVALID_BUFFER_POS;
         }
         offsets[ot] = vt;
         offsets[ot + 1] = 0;
-        offsets[ot + 2] = vt + sglen;
+        offsets[ot + 2] = next_vt;
     
         return vt;
     }
 
     __device__ IndexType append(IndexType sglen, IndexType midpos, volatile bool *overflow)
     {
-        IndexType vt;
+        IndexType vt = INVALID_BUFFER_POS;
         if (LANEID == 0)
         {
             IndexType ot = atomicAdd(otail, 3);
-            vt = atomicAdd(vtail, sglen);
-
-            // if it's a host buffer
-            if (buffsize[0] == HOST_BUFF_SZ)
+            IndexType write_vt = atomicAdd(vtail, sglen);
+            const IndexType next_ot = ot + 3;
+            const IndexType next_vt = write_vt + sglen;
+            const IndexType offset_limit = buffsize[0] == HOST_BUFF_SZ ? HOST_OFFSET_SZ : buffsize[0];
+            if (next_ot > offset_limit || next_vt > buffsize[0])
             {
-                if (ot + 3 >= HOST_OFFSET_SZ || vt + sglen >= buffsize[0])
-                {
-                    printf("Host Overflow :%llu,%llu\n", ot, vt);
-                    overflow[0] = true;
-                }
+                overflow[0] = true;
+                if (next_ot <= offset_limit)
+                    offsets[ot] = offsets[ot + 1] = offsets[ot + 2] = write_vt;
             }
             else
-            // this is device buffer
             {
-                assert(vt + sglen < buffsize[0]);
-                assert(ot + 3 < buffsize[0]);
-                if (ot > buffsize[0] * 0.9 || vt > buffsize[0] * 0.9)
-                    overflow[0] = true;
+                offsets[ot] = write_vt;
+                offsets[ot + 1] = write_vt + midpos;
+                offsets[ot + 2] = next_vt;
+                vt = write_vt;
             }
-            offsets[ot] = vt;
-            offsets[ot + 1] = vt + midpos;
-            offsets[ot + 2] = vt + sglen;
         }
         vt = __shfl_sync(FULL, vt, 0);
         return vt;
@@ -148,32 +134,27 @@ public:
 
     __device__ IndexType append(IndexType sglen, volatile bool *overflow)
     {
-        IndexType vt;
+        IndexType vt = INVALID_BUFFER_POS;
         if (LANEID == 0)
         {
             IndexType ot = atomicAdd(otail, 3);
-            vt = atomicAdd(vtail, sglen);
-
-            // if it's a host buffer
-            if (buffsize[0] == HOST_BUFF_SZ)
+            IndexType write_vt = atomicAdd(vtail, sglen);
+            const IndexType next_ot = ot + 3;
+            const IndexType next_vt = write_vt + sglen;
+            const IndexType offset_limit = buffsize[0] == HOST_BUFF_SZ ? HOST_OFFSET_SZ : buffsize[0];
+            if (next_ot > offset_limit || next_vt > buffsize[0])
             {
-                if (ot + 3 >= HOST_OFFSET_SZ || vt + sglen >= buffsize[0])
-                {
-                    printf("Host Overflow :%llu,%llu\n", ot, vt);
-                    overflow[0] = true;
-                }
+                overflow[0] = true;
+                if (next_ot <= offset_limit)
+                    offsets[ot] = offsets[ot + 1] = offsets[ot + 2] = write_vt;
             }
             else
-            // this is device buffer
             {
-                assert(vt + sglen < buffsize[0]);
-                assert(ot + 3 < buffsize[0]);
-                if (ot > buffsize[0] * 0.9 || vt > buffsize[0] * 0.9)
-                    overflow[0] = true;
+                offsets[ot] = write_vt;
+                offsets[ot + 1] = 0;
+                offsets[ot + 2] = next_vt;
+                vt = write_vt;
             }
-            offsets[ot] = vt;
-            offsets[ot + 1] = 0;
-            offsets[ot + 2] = vt + sglen;
         }
         vt = __shfl_sync(FULL, vt, 0);
         return vt;
@@ -185,33 +166,31 @@ public:
      */
     __device__ IndexType append_batch(IndexType sglen, ui num, volatile bool *overflow, StoreStrategy mode)
     {
-        IndexType vt, ot;
+        IndexType vt = INVALID_BUFFER_POS, ot = 0;
         if (mode == StoreStrategy::EXPAND)
         {
             if (LANEID == 0)
             {
                 ot = atomicAdd(otail, 3 * num);
-                vt = atomicAdd(vtail, sglen * num);
-
-                // if it's a host buffer
-                if (buffsize[0] == HOST_BUFF_SZ)
+                IndexType write_vt = atomicAdd(vtail, sglen * num);
+                const IndexType next_ot = ot + 3 * num;
+                const IndexType next_vt = write_vt + sglen * num;
+                const IndexType offset_limit = buffsize[0] == HOST_BUFF_SZ ? HOST_OFFSET_SZ : buffsize[0];
+                if (next_ot > offset_limit || next_vt > buffsize[0])
                 {
-                    if (ot + 3 * num >= HOST_OFFSET_SZ || vt + sglen * num >= buffsize[0])
+                    overflow[0] = true;
+                    if (next_ot <= offset_limit)
                     {
-                        printf("Host Overflow :%llu,%llu\n", ot, vt);
-                        overflow[0] = true;
+                        for (ui i = 0; i < num; ++i)
+                            offsets[ot + 3 * i] = offsets[ot + 3 * i + 1] = offsets[ot + 3 * i + 2] = write_vt;
                     }
                 }
                 else
-                // this is device buffer
-                {
-                    assert(vt + sglen * num < buffsize[0]);
-                    assert(ot + 3 * num < buffsize[0]);
-                    if (ot > buffsize[0] * 0.6 || vt > buffsize[0] * 0.6)
-                        overflow[0] = true;
-                }
+                    vt = write_vt;
             }
             vt = __shfl_sync(FULL, vt, 0);
+            if (vt == INVALID_BUFFER_POS)
+                return vt;
             ot = __shfl_sync(FULL, ot, 0);
             for (ui i = LANEID; i < num; i += 32)
             {
@@ -226,29 +205,23 @@ public:
             if (LANEID == 0)
             {
                 ot = atomicAdd(otail, 3);
-                vt = atomicAdd(vtail, sglen + num); 
-
-                // if it's a host buffer
-                if (buffsize[0] == HOST_BUFF_SZ)
+                IndexType write_vt = atomicAdd(vtail, sglen + num);
+                const IndexType next_ot = ot + 3;
+                const IndexType next_vt = write_vt + sglen + num;
+                const IndexType offset_limit = buffsize[0] == HOST_BUFF_SZ ? HOST_OFFSET_SZ : buffsize[0];
+                if (next_ot > offset_limit || next_vt > buffsize[0])
                 {
-                    if (ot + 3 >= HOST_OFFSET_SZ || vt + sglen + num >= buffsize[0])
-                    {
-                        printf("Host Overflow :%llu,%llu\n", ot, vt);
-                        overflow[0] = true;
-                    }
+                    overflow[0] = true;
+                    if (next_ot <= offset_limit)
+                        offsets[ot] = offsets[ot + 1] = offsets[ot + 2] = write_vt;
                 }
                 else
-                // this is device buffer
                 {
-                    assert(vt + sglen + num < buffsize[0]);
-                    assert(ot + 3 < buffsize[0]);
-                    if (ot > buffsize[0] * 0.9 || vt > buffsize[0] * 0.9)
-                        overflow[0] = true;
+                    offsets[ot] = write_vt;
+                    offsets[ot + 1] = write_vt + sglen;
+                    offsets[ot + 2] = next_vt;
+                    vt = write_vt;
                 }
-
-                offsets[ot] = vt;
-                offsets[ot + 1] = vt + sglen;
-                offsets[ot + 2] = vt + sglen + num;
             }
             vt = __shfl_sync(FULL, vt, 0);
             return vt;
@@ -256,7 +229,7 @@ public:
         else
         {
             assert(false);
-            return 0;
+            return INVALID_BUFFER_POS;
         }
     }
 
@@ -264,16 +237,19 @@ public:
     // mode = StoreStrategy::EXPAND by default
     __device__ SubgraphOffsets next()
     {
-        IndexType s;
-        if (LANEID == 0)
+        const IndexType offset_limit = buffsize[0] == HOST_BUFF_SZ ? HOST_OFFSET_SZ : buffsize[0];
+        while (true)
         {
-            s = atomicAdd(ohead, 3);
+            IndexType s;
+            if (LANEID == 0)
+                s = atomicAdd(ohead, 3);
+            s = __shfl_sync(FULL, s, 0);
+            if (s >= otail[0] || s + 3 > offset_limit)
+                return {vtail[0], 0, 0};
+            SubgraphOffsets so = {offsets[s], offsets[s + 1], offsets[s + 2]};
+            if (so.st != so.en)
+                return so;
         }
-        s = __shfl_sync(FULL, s, 0);
-        if (s < otail[0])
-            return {offsets[s], offsets[s + 1], offsets[s + 2]}; // md is invalid
-        else
-            return {vtail[0], 0, 0};
     }
 
     __device__ SubgraphOffsets next(StoreStrategy mode)

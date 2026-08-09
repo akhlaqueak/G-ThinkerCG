@@ -155,6 +155,18 @@ public:
             generateSubgraphs<<<BLK_NUMS, BLK_DIM>>>(app, i);
             if (!SynchronizeKernel("generateSubgraphs"))
                 return false;
+            if (app.sgHost->overflow[0])
+            {
+                std::cerr << "Host buffer overflow" << std::endl;
+                return false;
+            }
+            if (app.sg->isOverflow())
+            {
+                app.iterationFailed();
+                app.sg->adjustChunk();
+                app.iterationSuccess();
+                continue;
+            }
             i += app.sg->chunk[0];
             while (true)
             {
@@ -174,6 +186,11 @@ public:
                     loadFromHost<<<BLK_NUMS, BLK_DIM>>>(app);
                     if (!SynchronizeKernel("loadFromHost"))
                         return false;
+                    if (app.sgHost->overflow[0])
+                    {
+                        std::cerr << "Host buffer overflow" << std::endl;
+                        return false;
+                    }
                     continue;
                 }
                 process<<<BLK_NUMS, BLK_DIM>>>(app);

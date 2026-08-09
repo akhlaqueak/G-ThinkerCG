@@ -65,7 +65,7 @@ done < ds.txt
 
 
 while IFS=$'\t' read -r ds ; do
-        fname=logs/$ds-$q-pingpong_abort.log
+        fname=logs/$ds.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else

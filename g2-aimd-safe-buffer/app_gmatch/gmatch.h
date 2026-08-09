@@ -15,6 +15,8 @@
 class GMatchApp : public AppBase<BufferBase>
 {
 public:
+    static constexpr bool requires_query_plan = true;
+
     // temporary array to store local candidate ?????
     ui *tempv;
     // bool *templ;
@@ -73,10 +75,13 @@ public:
         
             if (v >= ctx->sources_num[0])
                 break;
-            unsigned int vt = sg->append(1); // allocates a subgraph by atomic operations, and puts v as well
+            auto alloc = this->append(1);
+            if (!alloc.valid())
+                return;
             if (LANEID == 0)
             {
-                sg->wrBuff.vertices[vt] = ctx->sources[v];
+                auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+                write_buffer.vertices[alloc.vt] = ctx->sources[v];
             }
         }
     }
@@ -473,17 +478,19 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                    auto vt = sg->append_batch(sglen + 1, min, StoreStrategy::EXPAND);
-                                    if (sg->isOverflow())
+                                    auto alloc = this->append_batch(sglen + 1, min, StoreStrategy::EXPAND);
+                                    if (!alloc.valid())
                                         return;
+                                    auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+                                    auto vt = alloc.vt;
                                     for (ui i = LANEID; i < min; i += 32)
                                     {
                                         for (ui j = 0; j < sglen; ++j)
                                         {
                                             auto k = vt + i * (sglen + 1) + j;
-                                            sg->wrBuff.vertices[k] = partial_subgraphs[WARPID][j];
+                                            write_buffer.vertices[k] = partial_subgraphs[WARPID][j];
                                         }
-                                        sg->wrBuff.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                        write_buffer.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                     } 
                                 }
                             }
@@ -492,16 +499,18 @@ public:
                                 for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                                 {
                                     ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                    auto vt = sg->append_batch(sglen, min, StoreStrategy::PREFIX);
-                                    if (sg->isOverflow())
+                                    auto alloc = this->append_batch(sglen, min, StoreStrategy::PREFIX);
+                                    if (!alloc.valid())
                                         return;
+                                    auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+                                    auto vt = alloc.vt;
                                     for (ui i = LANEID; i < sglen; i += 32)
                                     {
                                         auto k = vt + i;
-                                        sg->wrBuff.vertices[k] = partial_subgraphs[WARPID][i];
+                                        write_buffer.vertices[k] = partial_subgraphs[WARPID][i];
                                     }
                                     for (ui i = LANEID; i < min; i += 32)
-                                        sg->wrBuff.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back 
+                                        write_buffer.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                 }
                             }
                         }
@@ -636,17 +645,19 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                             {
                                 ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                auto vt = sg->append_batch(sglen + 1, min, StoreStrategy::EXPAND);
-                                if (sg->isOverflow())
+                                auto alloc = this->append_batch(sglen + 1, min, StoreStrategy::EXPAND);
+                                if (!alloc.valid())
                                     return;
+                                auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+                                auto vt = alloc.vt;
                                 for (ui i = LANEID; i < min; i += 32)
                                 {
                                     for (ui j = 0; j < sglen; ++j)
                                     {
                                         auto k = vt + i * (sglen + 1) + j;
-                                        sg->wrBuff.vertices[k] = partial_subgraphs[WARPID][j];
+                                        write_buffer.vertices[k] = partial_subgraphs[WARPID][j];
                                     }
-                                    sg->wrBuff.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
+                                    write_buffer.vertices[vt + i * (sglen + 1) + sglen] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                                 }
                             }
                         }
@@ -655,16 +666,18 @@ public:
                             for (ui batch_id = 0; batch_id < len; batch_id += BATCH_SIZE)
                             {
                                 ui min = len - batch_id < BATCH_SIZE ? len - batch_id : BATCH_SIZE;
-                                auto vt = sg->append_batch(sglen, min, StoreStrategy::PREFIX);
-                                if (sg->isOverflow())
+                                auto alloc = this->append_batch(sglen, min, StoreStrategy::PREFIX);
+                                if (!alloc.valid())
                                     return;
+                                auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
+                                auto vt = alloc.vt;
                                 for (ui i = LANEID; i < sglen; i += 32)
                                 {
                                     auto k = vt + i;
-                                    sg->wrBuff.vertices[k] = partial_subgraphs[WARPID][i];
+                                    write_buffer.vertices[k] = partial_subgraphs[WARPID][i];
                                 }
                                 for (ui i = LANEID; i < min; i += 32)
-                                    sg->wrBuff.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back 
+                                    write_buffer.vertices[vt + sglen + i] = tempv[batch_id + i + GLWARPID * TEMPSIZE]; // add q on the back
                             }
                         }
                     }
@@ -684,15 +697,18 @@ public:
                 break;
             unsigned int sglen = so.en - so.st;
 
-            Index vt;
+            AppendResult alloc;
             if (so.md == 0)
-                vt = sg->append(sglen);
+                alloc = this->append(sglen);
             else
-                vt = sg->append(sglen, so.md - so.st);
+                alloc = this->append(sglen, so.md - so.st);
+            if (!alloc.valid())
+                return;
+            auto &write_buffer = alloc.to_host ? sgHost->wrBuff : sg->wrBuff;
 
-            for (Index i = so.st + LANEID, j = vt + LANEID; i < so.en; i += 32, j += 32)
+            for (Index i = so.st + LANEID, j = alloc.vt + LANEID; i < so.en; i += 32, j += 32)
             {
-                sg->wrBuff.vertices[j] = sgHost->rdBuff.vertices[i];
+                write_buffer.vertices[j] = sgHost->rdBuff.vertices[i];
             }
         }
     }
@@ -708,6 +724,8 @@ public:
             vt = sgHost->append(so->en - so->st);
         else
             vt = sgHost->append(so->en - so->st, so->md - so->st);
+        if (vt == INVALID_BUFFER_POS)
+            return;
 
         for (ull i = vt + LANEID, j = so->st + LANEID; j < so->en; i += 32, j += 32)
         {

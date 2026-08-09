@@ -30,7 +30,7 @@ make
 
 ### Compile
 ```
-cd app_BK
+cd app_mc
 make
 ```
 

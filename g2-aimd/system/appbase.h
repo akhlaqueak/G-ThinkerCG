@@ -70,6 +70,8 @@ template <template <typename> class BuffType, class GraphType = Graph>
 class AppBase
 {
 public:
+    static constexpr bool requires_query_plan = false;
+
     SubgraphContainer<BuffType<Index>> *sg;
     SubgraphContainer<BuffType<ull>> *sgHost;
 
