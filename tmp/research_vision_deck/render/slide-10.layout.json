@@ -1,0 +1,428 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/jms8sh",
+    "id": "jms8sh",
+    "slide": 10,
+    "layoutId": "60e3e98c-6c35-450b-acf0-c4741a4eba3f",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "37fcdd11-ee59-4f02-b7f8-0d4bc26e277a",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "60e3e98c-6c35-450b-acf0-c4741a4eba3f",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "37fcdd11-ee59-4f02-b7f8-0d4bc26e277a",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "37fcdd11-ee59-4f02-b7f8-0d4bc26e277a",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xgrehgrq",
+      "id": "1",
+      "bbox": [
+        56,
+        48,
+        430,
+        34
+      ],
+      "geometry": "rect",
+      "text": "The long-term vision",
+      "textPreview": "The long-term vision",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "+mn-lt",
+        "color": "#536071",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "The long-term vision"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "The long-term vision",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "color": "#536071",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "The long-term vision",
+              "fontSize": 20,
+              "color": "#536071",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ad0fmlsz",
+      "id": "2",
+      "bbox": [
+        56,
+        162,
+        900,
+        146
+      ],
+      "geometry": "rect",
+      "text": "ARIA becomes a reusable platform for evidence-grounded biomedical AI.",
+      "textPreview": "ARIA becomes a reusable platform for evidence-grounded biomedical AI.",
+      "resolvedFontSize": 50,
+      "resolvedTextStyle": {
+        "fontSize": 50,
+        "typeface": "+mn-lt",
+        "color": "#0B0F19",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "ARIA becomes a reusable platform"
+          },
+          {
+            "index": 2,
+            "text": "for evidence-grounded biomedical"
+          },
+          {
+            "index": 3,
+            "text": "AI."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "ARIA becomes a reusable platform for evidence-grounded biomedical AI.",
+          "resolvedTextStyle": {
+            "fontSize": 50,
+            "color": "#0B0F19",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "ARIA becomes a reusable platform for evidence-grounded biomedical AI.",
+              "fontSize": 50,
+              "color": "#0B0F19",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/be9wf69k",
+      "id": "3",
+      "bbox": [
+        56,
+        335,
+        240,
+        5
+      ],
+      "geometry": "rect",
+      "fillColor": "#3D8DFF",
+      "lineColor": "#3D8DFF",
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/obydkbat",
+      "id": "4",
+      "bbox": [
+        56,
+        378,
+        920,
+        112
+      ],
+      "geometry": "rect",
+      "text": "Every answer should carry an evidence trail: what was retrieved, why it mattered, how confident the system is, and whether behavior is improving over time.",
+      "textPreview": "Every answer should carry an evidence trail: what was retrieved, why it mattered, how confident the system is, and whether behavior is im...",
+      "resolvedFontSize": 30,
+      "resolvedTextStyle": {
+        "fontSize": 30,
+        "typeface": "+mn-lt",
+        "color": "#0B0F19",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Every answer should carry an evidence trail: what was retrieved,"
+          },
+          {
+            "index": 2,
+            "text": "why it mattered, how confident the system is, and whether"
+          },
+          {
+            "index": 3,
+            "text": "behavior is improving over time."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Every answer should carry an evidence trail: what was retrieved, why it mattered, how confident the system is, and whether behavior is improving over time.",
+          "resolvedTextStyle": {
+            "fontSize": 30,
+            "color": "#0B0F19",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Every answer should carry an evidence trail: what was retrieved, why it mattered, how confident the system is, and whether behavior is improving over time.",
+              "fontSize": 30,
+              "color": "#0B0F19",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9credgre",
+      "id": "5",
+      "bbox": [
+        1040,
+        126,
+        96,
+        430
+      ],
+      "geometry": "rect",
+      "fillColor": "#EAF6FE",
+      "lineColor": "#D0EDFA",
+      "lineWidth": 1
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m9gvi1s3",
+      "id": "6",
+      "bbox": [
+        1055,
+        315,
+        72,
+        38
+      ],
+      "geometry": "rect",
+      "text": "Q&A",
+      "textPreview": "Q&A",
+      "resolvedFontSize": 30,
+      "resolvedTextStyle": {
+        "fontSize": 30,
+        "typeface": "+mn-lt",
+        "color": "#3D8DFF",
+        "bold": true,
+        "alignment": "center",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Q&"
+          },
+          {
+            "index": 2,
+            "text": "A"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Q&A",
+          "resolvedTextStyle": {
+            "fontSize": 30,
+            "color": "#3D8DFF",
+            "bold": true,
+            "alignment": "center"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Q&A",
+              "fontSize": 30,
+              "color": "#3D8DFF",
+              "bold": true,
+              "alignment": "center"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/napwb698",
+      "id": "7",
+      "bbox": [
+        1186,
+        668,
+        40,
+        24
+      ],
+      "geometry": "rect",
+      "text": "10",
+      "textPreview": "10",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "+mn-lt",
+        "color": "#536071",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "10"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "10",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "color": "#536071",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "10",
+              "fontSize": 14,
+              "color": "#536071",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

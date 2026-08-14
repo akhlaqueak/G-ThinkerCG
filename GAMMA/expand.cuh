@@ -623,6 +623,75 @@ __global__ void expand_kernel(EmbeddingList emb_list, int level, CSRGraph g, exp
 	}
 	return ;
 }
+
+__global__ void expand_kernel_from_back_neighbor(EmbeddingList emb_list, int level, CSRGraph g, expand_constraint ec,
+												 emb_off_type base_off, uint32_t f_size, KeyT *emb_vid,
+												 emb_off_type *emb_idx, uint32_t *counter) {
+	uint32_t total_warp = (blockDim.x * gridDim.x) >> 5;
+	__shared__ KeyT sh_emb[BLOCK_SIZE][embedding_max_length];
+	uint32_t lane_id = threadIdx.x & 31;
+	uint32_t write_chunk_off = 0, inside_chunk_off = 0;
+
+	if (lane_id == 0) {
+		write_chunk_off = atomicAdd(counter, warp_write_chunk);
+		assert(write_chunk_off < EMB_FTR_CACHE_SIZE);
+	}
+	write_chunk_off = __shfl_sync(0xffffffff, write_chunk_off, 0);
+
+	for (uint32_t _i = (threadIdx.x + blockIdx.x * blockDim.x) >> 5; _i < f_size; _i += total_warp) {
+		emb_off_type emb_id = base_off + _i;
+		emb_list.get_embedding(level, emb_id, sh_emb[threadIdx.x]);
+
+		bool valid_emb = true;
+		for (uint32_t d = 0; d <= static_cast<uint32_t>(level); ++d) {
+			if (sh_emb[threadIdx.x][d] == 0xffffffff) {
+				valid_emb = false;
+				break;
+			}
+		}
+		if (!valid_emb || ec.nbr_size == 0)
+			continue;
+
+		uint8_t source_q = ec.nbrs & 0xff;
+		uint32_t source_degree = g.getDegree(sh_emb[threadIdx.x][source_q]);
+		for (uint32_t n = 1; n < ec.nbr_size; ++n) {
+			uint8_t q_n = (ec.nbrs >> (8 * n)) & 0xff;
+			uint32_t degree = g.getDegree(sh_emb[threadIdx.x][q_n]);
+			if (degree < source_degree) {
+				source_degree = degree;
+				source_q = q_n;
+			}
+		}
+
+		KeyT source_vertex = sh_emb[threadIdx.x][source_q];
+		KeyT *adj = g.getAdjListofSrc(source_vertex, g.edge_begin(source_vertex));
+		for (uint32_t e = lane_id; e < (source_degree + 31) / 32 * 32; e += 32) {
+			KeyT v = (e < source_degree) ? adj[e] : 0xffffffff;
+			uint32_t matched = emb_validation_check(sh_emb[threadIdx.x], g, level, ec, v) ? 1 : 0;
+			uint32_t results = 0;
+			warp_reduce(lane_id, matched, results);
+			uint32_t total_valid_num = matched + results;
+			total_valid_num = __shfl_sync(0xffffffff, total_valid_num, 31);
+
+			if (total_valid_num + inside_chunk_off >= warp_write_chunk) {
+				for (uint32_t p = inside_chunk_off + lane_id; p < warp_write_chunk; p += 32) {
+					emb_idx[write_chunk_off + p] = emb_id;
+					emb_vid[write_chunk_off + p] = 0xffffffff;
+				}
+				if (lane_id == 0)
+					write_chunk_off = atomicAdd(counter, warp_write_chunk);
+				write_chunk_off = __shfl_sync(0xffffffff, write_chunk_off, 0);
+				inside_chunk_off = 0;
+			}
+			if (matched == 1) {
+				emb_idx[write_chunk_off + inside_chunk_off + results] = emb_id;
+				emb_vid[write_chunk_off + inside_chunk_off + results] = v;
+			}
+			inside_chunk_off += total_valid_num;
+		}
+	}
+}
+
 /*__global__ void emblist_check(EmbeddingList emb_list, uint32_t level, uint32_t emb_size) {
 		uint32_t idx = threadIdx.x + blockIdx.x*blockDim.x;
 		KeyT sh_emb[BLOCK_SIZE][embedding_max_length];
@@ -736,7 +805,8 @@ void expand_in_batch(CSRGraph &g, EmbeddingList & emb_list, int cur_level, expan
 	log_info("extend_alloc finished here, now we start extend_insert......");
 
 }//in this expand function, the whole frontier are divided into batches, and then expanded seperately		
-void expand_dynamic(CSRGraph &g, EmbeddingList &emb_list, int cur_level, expand_constraint &ec, bool copy_back) {
+emb_off_type expand_dynamic(CSRGraph &g, EmbeddingList &emb_list, int cur_level, expand_constraint &ec, bool copy_back,
+							bool use_back_neighbor_source = false) {
 	Clock exp("expand in dynamic");
 	exp.start();
 	emb_off_type last_level_size = emb_list.size(cur_level-1);
@@ -760,9 +830,14 @@ void expand_dynamic(CSRGraph &g, EmbeddingList &emb_list, int cur_level, expand_
 		emb_off_type base_off = (emb_off_type)expand_batch_size*i;
 		uint32_t cur_batch_size = (i < batch_num-1)? expand_batch_size:(last_level_size-i*expand_batch_size);
 		log_info("start processing chunk %d",i);
-		//extend_indevice<<<nblocks, BLOCK_SIZE>>>(emb_list, cur_level-1, g, ec, base_off, cur_batch_size,
-		expand_kernel<<<nblocks, BLOCK_SIZE>>>(emb_list, cur_level-1, g, ec, base_off, cur_batch_size,
-											   emb_vid_d, emb_idx_d, global_counter);
+		if (use_back_neighbor_source) {
+			expand_kernel_from_back_neighbor<<<nblocks, BLOCK_SIZE>>>(emb_list, cur_level-1, g, ec, base_off, cur_batch_size,
+																	  emb_vid_d, emb_idx_d, global_counter);
+		} else {
+			//extend_indevice<<<nblocks, BLOCK_SIZE>>>(emb_list, cur_level-1, g, ec, base_off, cur_batch_size,
+			expand_kernel<<<nblocks, BLOCK_SIZE>>>(emb_list, cur_level-1, g, ec, base_off, cur_batch_size,
+												   emb_vid_d, emb_idx_d, global_counter);
+		}
 		check_cuda_error(cudaDeviceSynchronize());
 		log_info("end kernel for chuck %d",i);
 		check_cuda_error(cudaMemcpy(batch_expand_off+i, global_counter, sizeof(uint32_t),cudaMemcpyDeviceToHost));
@@ -796,7 +871,8 @@ void expand_dynamic(CSRGraph &g, EmbeddingList &emb_list, int cur_level, expand_
 		cudaMemcpy(gc_h, global_counter, sizeof(uint32_t), cudaMemcpyDeviceToHost);
 		embedTableSize += gc_h[0] * 12;
 		delete [] gc_h;
-		printf("all used mem is %d MB, and data label is %d MB\n", all_size/1024/1024, g.nnodes/1024/1024);
+		log_info("all used mem is %llu MB, and data label is %u MB",
+				 static_cast<unsigned long long>(all_size/1024/1024), g.nnodes/1024/1024);
 	}
 		
 	check_cuda_error(cudaFree(emb_vid_d));
@@ -804,7 +880,7 @@ void expand_dynamic(CSRGraph &g, EmbeddingList &emb_list, int cur_level, expand_
 	check_cuda_error(cudaFree(global_counter));
 	log_info(exp.count("end expand here, and valid emb number is %lu", valid_unit_num));
 	delete [] batch_expand_off;
-	return ;
+	return valid_unit_num;
 }//in this expand function, the whole frontier are expanded in batches; what's more, we give local shared memory to each warp to cache local intersection results; lastly, we use dynamically methods to place the newly generated frontiers.
 
 

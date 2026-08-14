@@ -53,6 +53,13 @@ BUILD
 $ cd ${GAMMA_ROOT}
 $ make
 ```
+
+For an A100-compatible build, the default architecture is `sm_80`. You can override it:
+
+```
+$ make ARCH=sm_80 sm
+```
+
 RUN
 
 K-Clique counting.
@@ -65,6 +72,25 @@ Subgraph matching.
 
 ```
 ./sm ${data} ${query_name} debug
+```
+
+The `sm` executable also accepts the same graph/query style used by `app_gmatch`:
+
+```
+./sm -dg ${data_graph}.bin -q ${query_id}
+```
+
+or through the helper script:
+
+```
+./run.sh --rebuild -dg ${data_graph}.bin -q ${query_id}
+```
+
+The app-gmatch mode prints:
+
+```
+Total time (s): ...
+Total count: ...
 ```
 
 Frequent pattern mining.

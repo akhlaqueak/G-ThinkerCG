@@ -376,7 +376,7 @@ public:
 	//TODO: this is IMPORTANT!
 	void copy_to_vid(KeyT *src, emb_off_type off, uint32_t copy_size, uint32_t l) {
 		assert(mem_head + (copy_size+31)/32*32 < MAX_EMB_UNIT_NUM);
-		memset(h_vid_lists[l] + copy_size/32*32, -1, sizeof(KeyT)*32);
+		memset(h_vid_lists[l] + off + copy_size/32*32, -1, sizeof(KeyT)*32);
 		check_cuda_error(cudaMemcpy(h_vid_lists[l]+off, src, sizeof(KeyT)*copy_size, cudaMemcpyDeviceToHost));
 		copy_size = (copy_size + 31)/32*32;
 		sizes[l] += copy_size;
@@ -394,7 +394,7 @@ public:
 				break;
 			case UNIFIED_MEM:
 				assert(mem_head + (copy_size+31)/32*32 < MAX_EMB_UNIT_NUM);
-				memset(h_vid_lists[last_level]+copy_size/32*32, -1, sizeof(KeyT)*32);
+				memset(h_vid_lists[l]+off+copy_size/32*32, -1, sizeof(KeyT)*32);
 				check_cuda_error(cudaMemcpy(h_vid_lists[l]+off, src, sizeof(KeyT)*copy_size, cudaMemcpyDeviceToHost));
 				copy_size = (copy_size + 31)/32*32;
 				sizes[l] += copy_size;
@@ -409,7 +409,7 @@ public:
 				printf("ERROR: COPY VID TO DEVICE EMBEDDING IS NOT SUPPORT YET!\n");
 				break;
 			case UNIFIED_MEM:
-				memset(h_idx_lists[last_level]+copy_size/32*32, 0, sizeof(emb_off_type)*32);
+				memset(h_idx_lists[l]+off+copy_size/32*32, 0, sizeof(emb_off_type)*32);
 				check_cuda_error(cudaMemcpy(h_idx_lists[l]+off, src, sizeof(emb_off_type)*copy_size, cudaMemcpyDeviceToHost));
 				break;
 		}
@@ -421,7 +421,7 @@ public:
 				printf("ERROR: COPY VID TO DEVICE EMBEDDING IS NOT SUPPORT YET!\n");
 				break;
 			case UNIFIED_MEM:
-				memset(h_edge_infos[last_level]+copy_size/32*32, -1, sizeof(label_type)*32);
+				memset(h_edge_infos[l]+off+copy_size/32*32, -1, sizeof(label_type)*32);
 				check_cuda_error(cudaMemcpy(h_edge_infos[l]+off, src, sizeof(label_type)*copy_size, cudaMemcpyDeviceToHost));
 				break;
 		}

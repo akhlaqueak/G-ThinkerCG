@@ -2,6 +2,8 @@
 
 #ifndef GRAPH_H
 #define GRAPH_H
+#include <cstdio>
+#include <cstring>
 struct Edge {
   Edge(KeyT from, KeyT to) : src(from), dst(to) {}
   KeyT src;
@@ -114,7 +116,7 @@ public:
     return  row_start[src + 1];
   };
   void read(std::string file, bool read_labels, mem_type mem_tp) {
-    std::cout << "Reading graph from file: " << file << "\n";
+    log_info("Reading graph from file: %s", file.c_str());
     //need_dag = dag;
     memory_type = mem_tp;
     read_topology_graph(file.c_str());
@@ -146,6 +148,14 @@ public:
   }
   void read_graph_labels(const char file_name[]){
     std::string fileneme = file_name;
+    if (fileneme.size() >= 4 && fileneme.substr(fileneme.size() - 4) == ".bin") {
+      node_data_type *node_data_h = (node_data_type *)calloc(nnodes, sizeof(node_data_type));
+      check_cuda_error(cudaMalloc((void **)&node_data, sizeof(node_data_type)*nnodes));
+      check_cuda_error(cudaMemcpy(node_data, node_data_h, sizeof(node_data_type)*nnodes, cudaMemcpyHostToDevice));
+      check_cuda_error(cudaDeviceSynchronize());
+      free(node_data_h);
+      return;
+    }
     std::string vertex_label_file = file_name + std::string(".vlabel");
 	//if define and use edge label
     //std::string edge_label_file = file_name + ".elabel";
@@ -220,6 +230,10 @@ public:
   }
   void read_topology_graph(const char file_name[]) { 
     std::string fileneme = file_name;
+    if (fileneme.size() >= 4 && fileneme.substr(fileneme.size() - 4) == ".bin") {
+      read_gthinker_bin_graph(file_name);
+      return;
+    }
     std::string vertex_file = file_name + std::string(".col");
     std::string edge_file = file_name + std::string(".dst");
     //std::string weight_file = filename + ".val";
@@ -310,6 +324,90 @@ public:
     file.close();
     //file2.close();
     return ;
+  }
+  void read_gthinker_bin_graph(const char file_name[]) {
+    FILE* file = fopen(file_name, "rb");
+    if (file == NULL) {
+        fprintf(stderr, "G-Thinker bin file open failed: %s\n", file_name);
+        exit(1);
+    }
+
+    size_t uintV_size = 0, uintE_size = 0, vertex_count = 0, edge_count = 0;
+    size_t res = 0;
+    res += fread(&uintV_size, sizeof(size_t), 1, file);
+    res += fread(&uintE_size, sizeof(size_t), 1, file);
+    res += fread(&vertex_count, sizeof(size_t), 1, file);
+    res += fread(&edge_count, sizeof(size_t), 1, file);
+    if (res != 4 || uintV_size != sizeof(KeyT) || uintE_size != sizeof(OffsetT)) {
+        fprintf(stderr, "Unsupported G-Thinker bin format: %s\n", file_name);
+        fclose(file);
+        exit(1);
+    }
+
+    nnodes = static_cast<uint32_t>(vertex_count);
+    nedges = static_cast<uint64_t>(edge_count);
+    OffsetT *row_start_h = (OffsetT *)malloc((nnodes + 1) * sizeof(OffsetT));
+    edge_dst_h = (KeyT *)malloc(nedges * sizeof(KeyT));
+    if (row_start_h == NULL || edge_dst_h == NULL) {
+        fprintf(stderr, "Host allocation failed while reading: %s\n", file_name);
+        fclose(file);
+        exit(1);
+    }
+    res = 0;
+    res += fread(row_start_h, sizeof(OffsetT), nnodes + 1, file);
+    res += fread(edge_dst_h, sizeof(KeyT), nedges, file);
+    if (res != static_cast<size_t>(nnodes + 1) + static_cast<size_t>(nedges)) {
+        fprintf(stderr, "Unexpected EOF while reading: %s\n", file_name);
+        fclose(file);
+        exit(1);
+    }
+    fclose(file);
+
+    check_cuda_error(cudaMalloc((void **)&row_start, sizeof(OffsetT)*(nnodes+1)));
+    check_cuda_error(cudaMemcpy(row_start, row_start_h, sizeof(OffsetT)*(nnodes+1), cudaMemcpyHostToDevice));
+    free(row_start_h);
+
+    switch (memory_type) {
+        case GPU_MEM:
+            check_cuda_error(cudaMalloc((void**)&edge_dst, nedges*sizeof(KeyT)));
+            check_cuda_error(cudaMemcpy(edge_dst, edge_dst_h, sizeof(KeyT)*nedges, cudaMemcpyHostToDevice));
+            check_cuda_error(cudaDeviceSynchronize());
+            free(edge_dst_h);
+            edge_dst_h = NULL;
+            break;
+        case UNIFIED_MEM:
+            check_cuda_error(cudaMallocManaged((void**)&edge_dst, nedges*sizeof(KeyT)));
+            memcpy(edge_dst, edge_dst_h, sizeof(KeyT)*nedges);
+            check_cuda_error(cudaMemAdvise(edge_dst, nedges*sizeof(KeyT), cudaMemAdviseSetReadMostly, 0));
+            check_cuda_error(cudaDeviceSynchronize());
+            free(edge_dst_h);
+            edge_dst_h = NULL;
+            break;
+        case ZERO_COPY_MEM:
+            {
+              KeyT *mapped_edges = NULL;
+              check_cuda_error(cudaHostAlloc((void **)&mapped_edges, sizeof(KeyT)*nedges, cudaHostAllocMapped));
+              memcpy(mapped_edges, edge_dst_h, sizeof(KeyT)*nedges);
+              free(edge_dst_h);
+              edge_dst_h = mapped_edges;
+              check_cuda_error(cudaHostGetDevicePointer((void **)&edge_dst_zc, (void *)edge_dst_h, 0));
+            }
+            break;
+        case COMBINED_MEM:
+            check_cuda_error(cudaMallocManaged((void**)&edge_dst, nedges*sizeof(KeyT)));
+            memcpy(edge_dst, edge_dst_h, sizeof(KeyT)*nedges);
+            check_cuda_error(cudaMemAdvise(edge_dst, nedges*sizeof(KeyT), cudaMemAdviseSetReadMostly, 0));
+            check_cuda_error(cudaDeviceSynchronize());
+            {
+              KeyT *mapped_edges = NULL;
+              check_cuda_error(cudaHostAlloc((void **)&mapped_edges, sizeof(KeyT)*nedges, cudaHostAllocMapped));
+              memcpy(mapped_edges, edge_dst, sizeof(KeyT)*nedges);
+              free(edge_dst_h);
+              edge_dst_h = mapped_edges;
+              check_cuda_error(cudaHostGetDevicePointer((void **)&edge_dst_zc, (void *)edge_dst_h, 0));
+            }
+            break;
+    }
   }
  };
 #endif

@@ -3,6 +3,7 @@
 #define COMMON_GRPAH_H
 
 #include <sstream>
+#include <cstdint>
 #include <unordered_set>
 #include <unordered_map>
 #include <map>

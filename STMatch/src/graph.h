@@ -17,6 +17,13 @@
 
 namespace STMatch {
 
+  inline void stmatch_cuda_check(cudaError_t err, const char* call) {
+    if (err != cudaSuccess) {
+      std::cerr << "CUDA error after " << call << ": " << cudaGetErrorString(err) << std::endl;
+      exit(1);
+    }
+  }
+
   typedef struct {
 
     graph_node_t nnodes = 0;
@@ -37,16 +44,16 @@ namespace STMatch {
     Graph* to_gpu() {
       Graph gcopy = g;
 
-      cudaMalloc(&gcopy.vertex_label, sizeof(bitarray32) * g.nnodes);
-      cudaMalloc(&gcopy.rowptr, sizeof(graph_edge_t) * (g.nnodes + 1));
-      cudaMalloc(&gcopy.colidx, sizeof(graph_node_t) * g.nedges);
-      cudaMemcpy(gcopy.vertex_label, g.vertex_label, sizeof(bitarray32) * g.nnodes, cudaMemcpyHostToDevice);
-      cudaMemcpy(gcopy.rowptr, g.rowptr, sizeof(graph_edge_t) * (g.nnodes + 1), cudaMemcpyHostToDevice);
-      cudaMemcpy(gcopy.colidx, g.colidx, sizeof(graph_node_t) * g.nedges, cudaMemcpyHostToDevice);
+      stmatch_cuda_check(cudaMalloc(&gcopy.vertex_label, sizeof(bitarray32) * g.nnodes), "cudaMalloc(graph.vertex_label)");
+      stmatch_cuda_check(cudaMalloc(&gcopy.rowptr, sizeof(graph_edge_t) * (g.nnodes + 1)), "cudaMalloc(graph.rowptr)");
+      stmatch_cuda_check(cudaMalloc(&gcopy.colidx, sizeof(graph_node_t) * g.nedges), "cudaMalloc(graph.colidx)");
+      stmatch_cuda_check(cudaMemcpy(gcopy.vertex_label, g.vertex_label, sizeof(bitarray32) * g.nnodes, cudaMemcpyHostToDevice), "cudaMemcpy(graph.vertex_label)");
+      stmatch_cuda_check(cudaMemcpy(gcopy.rowptr, g.rowptr, sizeof(graph_edge_t) * (g.nnodes + 1), cudaMemcpyHostToDevice), "cudaMemcpy(graph.rowptr)");
+      stmatch_cuda_check(cudaMemcpy(gcopy.colidx, g.colidx, sizeof(graph_node_t) * g.nedges, cudaMemcpyHostToDevice), "cudaMemcpy(graph.colidx)");
 
       Graph* gpu_g;
-      cudaMalloc(&gpu_g, sizeof(Graph));
-      cudaMemcpy(gpu_g, &gcopy, sizeof(Graph), cudaMemcpyHostToDevice);
+      stmatch_cuda_check(cudaMalloc(&gpu_g, sizeof(Graph)), "cudaMalloc(Graph)");
+      stmatch_cuda_check(cudaMemcpy(gpu_g, &gcopy, sizeof(Graph), cudaMemcpyHostToDevice), "cudaMemcpy(Graph)");
       return gpu_g;
     }
 

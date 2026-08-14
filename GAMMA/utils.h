@@ -38,8 +38,12 @@ typedef uint32_t ATT;
 #define embedding_max_length 7
 #define BLOCK_SIZE 256
 #define max_label 1024
+#ifndef expand_batch_size
 #define expand_batch_size (1<<24)//20000000
-#define EMB_FTR_CACHE_SIZE 600000000 
+#endif
+#ifndef EMB_FTR_CACHE_SIZE
+#define EMB_FTR_CACHE_SIZE 600000000
+#endif
 #define FIRST(x) ((x>>32)&0xffffffff)
 #define SECOND(x) (x&0xffffffff)
 #define MAX_EMB_UNIT_NUM 6000000000

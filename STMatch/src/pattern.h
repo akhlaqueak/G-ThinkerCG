@@ -71,8 +71,8 @@ namespace STMatch {
 
     Pattern* to_gpu() {
       Pattern* patcopy;
-      cudaMalloc(&patcopy, sizeof(Pattern));
-      cudaMemcpy(patcopy, &pat, sizeof(Pattern), cudaMemcpyHostToDevice);
+      stmatch_cuda_check(cudaMalloc(&patcopy, sizeof(Pattern)), "cudaMalloc(Pattern)");
+      stmatch_cuda_check(cudaMemcpy(patcopy, &pat, sizeof(Pattern), cudaMemcpyHostToDevice), "cudaMemcpy(Pattern)");
       return patcopy;
     }
 

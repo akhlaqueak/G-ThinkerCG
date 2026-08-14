@@ -26,7 +26,7 @@ run_case() {
         echo "START: $(date)"
         echo
     } > "$logfile"
-
+    sleep 5s
     if timeout 10m "$@" >> "$logfile" 2>&1; then
         {
             echo
@@ -46,20 +46,21 @@ run_case() {
         } >> "$logfile"
     fi
 }
-
+run=0
 while IFS=$'\t' read -r ds; do
-
+    # run=1
     [ -z "$ds" ] && continue
-    for eta in 1000 2000 5000 10000 20000; do 
-        fname="logs/$ds-eta-$eta-pp0.log"
-    # run_case "$fname" \
-    #     ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -cpu 0 -gpuchunk 1000000 -eta $eta -pingpong 0
+    fname="$ds-pp2-cpugpu-upd.log"
+    if [ $run -eq 1 ]; then 
+    run_case "$fname" \
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -pingpong 2 -tau 500 -gpuchunk 100000
+    else
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
         else
             echo -en "X "
         fi
-    done
+    fi
     echo
 done < ds.txt
 

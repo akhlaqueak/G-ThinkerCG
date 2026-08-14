@@ -2,13 +2,18 @@ DEBUG =
 
 OPTIONS = -Xptxas -v
 GPU_MATCH = src/gpu_match.cu
+ARCH ?= sm_80
+GRID_DIM ?= 16
+BLOCK_DIM ?= 128
+GRAPH_DEGREE ?= 16384
+DEFINES = -DSTMATCH_GRID_DIM=$(GRID_DIM) -DSTMATCH_BLOCK_DIM=$(BLOCK_DIM) -DSTMATCH_GRAPH_DEGREE=$(GRAPH_DEGREE)
 
 define compile_cu_test
-	nvcc -std=c++17 $(DEBUG) $(OPTIONS) -arch=compute_86 $(1) cu_test.cu -o $(2)
+	nvcc -std=c++17 $(DEBUG) $(OPTIONS) $(DEFINES) -arch=$(ARCH) $(1) cu_test.cu -o $(2)
 endef
 
 define compile_gpu_match
-	nvcc -std=c++17 $(DEBUG) $(OPTIONS) -arch=compute_86 -dc -I. $(1) -o $(2)
+	nvcc -std=c++17 $(DEBUG) $(OPTIONS) $(DEFINES) -arch=$(ARCH) -dc -I. $(1) -o $(2)
 endef
 
 define edit_config

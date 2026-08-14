@@ -48,7 +48,7 @@ wikipedia_link_ceb
 
 
 quer="2 5 9"
-timeout_threshold="10m"
+timeout_threshold="30m"
 skip_existing_logs=0
 skip_completed_logs=1
 mkdir -p logs
@@ -89,16 +89,36 @@ run_case() {
 
 while IFS=$'\t' read -r d q; do
 
+        run=0
+        fname="logs/$d-$q-STMatch.log"
 
-            fname="logs/$d-$q-cpugpu-chunk-10.log"
-            run_case "$fname" ./run -dg "ds/$d.bin" -q "$q" -pingpong 0 -gpuchunk 100000 -cpuchunk 10
+        if [ $run -eq 1 ]; then 
+            run_case "$fname" ./STMatch -dg "ds/$d.bin" -q "$q" 
+        else
+            if grep -q "Total time" "$fname" 2>/dev/null; then
+                grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+            else
+                echo -en "X "
+            fi
+        echo 
+        fi
+done < ds.txt
 
-        #     if grep -q "Total time" "$fname" 2>/dev/null; then
-        #         grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
-        #     else
-        #         echo -en "X "
-        #     fi
-        # echo 
+# script of EGSM, since it has OOM and Errors
+while IFS=$'\t' read -r d q; do
+        run=0
+        fname="logs/$d-$q-GAMMA.log"
+
+            if grep -q "Total time" "$fname" 2>/dev/null; then
+                grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+            elif grep -q "out of memory" "$fname" 2>/dev/null; then
+                echo -en "OOM "
+            elif grep -q "illegal memory" "$fname" 2>/dev/null; then
+                echo -en "OOM "
+            else #OOT
+                echo -en "X "
+            fi
+        echo
 done < ds.txt
 
 cp run run-exp

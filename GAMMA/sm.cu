@@ -1,12 +1,43 @@
 #include <stdlib.h>
 #include <iostream>
+#include <algorithm>
+#include <chrono>
+#include <cctype>
+#include <iomanip>
+#include <sstream>
 #include "utils.h"
 #include "accessMode.cuh"
 #include "expand.cuh"
 #include "queryGraph.cuh"
+#include "gmatch_compat.h"
 #include <cuda_runtime.h>
 
 using namespace std;
+static bool is_unsigned_integer(const std::string& value) {
+	return !value.empty() && std::all_of(value.begin(), value.end(), [](unsigned char c) {
+		return std::isdigit(c);
+	});
+}
+
+static std::string format_count(unsigned long long value) {
+	std::string digits = std::to_string(value);
+	std::string formatted;
+	formatted.reserve(digits.size() + digits.size() / 3);
+	const size_t first_group = digits.size() % 3;
+	for (size_t i = 0; i < digits.size(); ++i) {
+		if (i > 0 && (i - first_group) % 3 == 0)
+			formatted.push_back(',');
+		formatted.push_back(digits[i]);
+	}
+	return formatted;
+}
+
+static void print_usage(const char* exe) {
+	printf("Usage:\n");
+	printf("  %s -dg <graph.bin> -q <query_id> [-mt 1] [-gpu 0] [--verbose]\n", exe);
+	printf("  %s <gamma_graph_prefix> <query_file> <graph_mt> [debug]\n", exe);
+}
+
 __global__ void set_validation(CSRGraph g, uint8_t *valid_candi, uint32_t nnodes, uint8_t lab, uint32_t min_deg) {
 	uint32_t tid = threadIdx.x + blockDim.x*blockIdx.x;
 	for (uint32_t i = tid; i < nnodes; i += (blockDim.x*gridDim.x)) {
@@ -16,26 +47,71 @@ __global__ void set_validation(CSRGraph g, uint8_t *valid_candi, uint32_t nnodes
 	return ;
 }
 int main(int argc, char *argv[]) {
-	if (argc < 4) {
-		printf("usage: ./sm ($data_graph) ($query_graph) graph_mt debug\n");
-		return 0;
+	std::string data_graph_path;
+	std::string query_arg;
+	int graph_mt = 1;
+	int gpu_id = 0;
+	bool verbose = false;
+	bool app_gmatch_query = false;
+
+	if (argc >= 4 && argv[1][0] != '-') {
+		data_graph_path = argv[1];
+		query_arg = argv[2];
+		graph_mt = atoi(argv[3]);
+		verbose = argc > 4 && string(argv[4]) == "debug";
+	} else {
+		for (int i = 1; i < argc; ++i) {
+			std::string arg = argv[i];
+			if (arg == "-h" || arg == "--help") {
+				print_usage(argv[0]);
+				return 0;
+			} else if ((arg == "-dg" || arg == "-d") && i + 1 < argc) {
+				data_graph_path = argv[++i];
+			} else if (arg == "-q" && i + 1 < argc) {
+				query_arg = argv[++i];
+			} else if ((arg == "-mt" || arg == "--graph-mt") && i + 1 < argc) {
+				graph_mt = atoi(argv[++i]);
+			} else if (arg == "-gpu" && i + 1 < argc) {
+				gpu_id = atoi(argv[++i]);
+			} else if (arg == "--verbose" || arg == "debug") {
+				verbose = true;
+			} else {
+				fprintf(stderr, "Unknown or incomplete argument: %s\n", arg.c_str());
+				print_usage(argv[0]);
+				return 1;
+			}
+		}
 	}
-	if (string(argv[argc-1]) != "debug") {
+	if (data_graph_path.empty() || query_arg.empty()) {
+		print_usage(argv[0]);
+		return 1;
+	}
+	if (!verbose) {
 		log_set_quiet(true);
 	}
+	check_cuda_error(cudaSetDevice(gpu_id));
+	const auto total_start = std::chrono::steady_clock::now();
 	Clock start("Start");
 	//assert(k <= embedding_max_length);
 	queryGraph Gquery;
-	Gquery.readFromFile(argv[2]);
-	std::string file_name = argv[1];
+	uint64_t automorphisms = 1;
+	if (is_unsigned_integer(query_arg)) {
+		int query_id = atoi(query_arg.c_str());
+		Gquery.loadFromGMatchPreset(query_id);
+		app_gmatch_query = true;
+	} else {
+		Gquery.readFromFile(query_arg.c_str());
+	}
+	std::string file_name = data_graph_path;
 	CSRGraph data_graph;
 	mem_type mt_emb = (mem_type)1;//0 GPU 1 Unified 2 Zero 3 Combine
-	mem_type mt_graph = (mem_type)atoi(argv[3]);
+	mem_type mt_graph = (mem_type)graph_mt;
 	if (mt_graph > 1)
 		check_cuda_error(cudaSetDeviceFlags(cudaDeviceMapHost));
 	data_graph.read(file_name, true, mt_graph);//for sm. we should definitely read vertex labels
 	log_info(start.start());
-	log_info(start.count("nedges %lu, nnodes %d", data_graph.get_nedges(), data_graph.get_nnodes()));
+	log_info(start.count("nedges %llu, nnodes %u",
+						 static_cast<unsigned long long>(data_graph.get_nedges()), data_graph.get_nnodes()));
 	EmbeddingList emb_list;
 	uint32_t nnodes = data_graph.get_nnodes();
 	uint64_t nedges = data_graph.get_nedges();
@@ -79,6 +155,7 @@ int main(int argc, char *argv[]) {
 	log_info(start.count("access controller initalization done!"));
 	Clock Expand("Expand");
 	log_info(Expand.start());
+	emb_off_type final_count = 0;
 	/*for (uint32_t i = 0; i < Gquery.vertex_num; i ++) {
 		cout << "here is vertex " << i << ":" << endl;
 		cout << "nbr ";
@@ -109,25 +186,27 @@ int main(int argc, char *argv[]) {
 			uint32_t cur_nbr = Gquery.adj_list[query_node][j];
 			//cout << query_node << " " << cur_nbr << " " ; cout << Gquery.adj_list[query_node][j];
 			if (query_node > Gquery.adj_list[query_node][j]) {//here we use id as matching order, resulting in this
-				_nbrs = _nbrs | ((cur_nbr&0xff) << (j*8));
+				_nbrs = _nbrs | ((cur_nbr&0xff) << (e_nbr_size*8));
 				e_nbr_size ++;
 			}
 			//cout  << " " << e_nbr_size << endl;
 		}
 		for (uint32_t j = 0; j < Gquery.order_list[query_node].size(); j ++) {
 			if (query_node > Gquery.order_list[query_node][j]) {
-				_order_nbr = _order_nbr | ((Gquery.order_list[query_node][j]&0xff) << (j*8));
+				_order_nbr = _order_nbr | ((Gquery.order_list[query_node][j]&0xff) << (e_order_nbr_size*8));
 				e_order_nbr_size ++;
 			}
 		}
 		expand_constraint ec((node_data_type)Gquery.vertex_label[query_node], Gquery.adj_list[query_node].size(),
 							 _nbrs, e_nbr_size, 
-							 (emb_order)1, _order_nbr, e_order_nbr_size);
+							 app_gmatch_query ? ID : DEGREE, _order_nbr, e_order_nbr_size);
 		//cout << "adjacency list and order list length is " << e_nbr_size << " " << e_order_nbr_size << endl;
 		//expand
 		log_info(Expand.count("for the %dth iteration, start expand... ...",i));
 		bool write_back = (i == Gquery.core.size()-1) ? false : true;
-		expand_dynamic(data_graph, emb_list, i, ec, write_back);
+		emb_off_type iteration_count = expand_dynamic(data_graph, emb_list, i, ec, write_back, true);
+		if (!write_back)
+			final_count = iteration_count;
 		//expand_in_batch(data_graph, emb_list, i, ec);
 		log_info(Expand.count("for the %dth iteration, end expand",i));
 		//log_info("the valid num of layer %d is %lu", i, results);
@@ -146,7 +225,14 @@ int main(int argc, char *argv[]) {
 	//CSRGraph data_graph_h;
 	//data_graph.copy_to_cpu(data_graph_h);
 	//#show the results in data_graph_h
-	//printf("the numbers of the matched subgraph is %lu\n", emb_list.size(Gquery.core.size()-1));
+	if (Gquery.core.size() == 1)
+		final_count = emb_list.size(0);
+	if (!app_gmatch_query && automorphisms > 1)
+		final_count /= automorphisms;
+	const auto total_end = std::chrono::steady_clock::now();
+	const double total_seconds = std::chrono::duration<double>(total_end - total_start).count();
+	printf("Total time (s): %.6f\n", total_seconds);
+	printf("Total count: %s\n", format_count(static_cast<unsigned long long>(final_count)).c_str());
 	emb_list.clean();
 	access_controller.clean();
 	data_graph.clean();

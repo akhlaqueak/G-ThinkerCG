@@ -48,8 +48,9 @@ run_case() {
 while IFS=$'\t' read -r ds k g; do
     [ -z "$ds" ] && continue
     c=1
+    fname="$ds-$k-$g-$c.log"
 sleep 5s
-    run_case "$ds-$k-$g-$c.log" \
+    run_case $fname \
         ./run -f "../ds/$ds.sbin" -k $k -g $g -c $c -cpu 0
 
     # run_case "$ds-$k-$g-fastqc.log" \
@@ -69,9 +70,7 @@ while IFS=$'\t' read -r ds k g; do
 #             echo -en "X "
 #         fi
 # done
-
-echo
-        fname=logs/$ds-$k-$g.log
+        fname=logs/$ds-$k-$g-1.log
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s\n", $NF}'
         else

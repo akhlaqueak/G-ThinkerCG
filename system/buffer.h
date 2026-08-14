@@ -101,13 +101,11 @@ public:
             const ull next_ot = ot + 2;
             const ull next_vt = write_vt + sglen;
             const ull cap = capacity[0];
-            const ull vertex_base = second_buffer ? cap / 2 : 0;
-            const ull vertex_span = second_buffer ? cap / 2 : cap;
-            const ull warning_limit = vertex_base + (vertex_span * 9) / 10;
-            const bool out_of_bounds = next_ot > cap || next_vt > cap;
+            const ull offset_limit = cap == HOST_BUFF_SZ ? HOST_OFFSET_SZ : cap;
+            const bool out_of_bounds = next_ot > offset_limit || next_vt > cap;
             const ull tasks_before = (ot - ohead[0]) / 2;
 
-            if (out_of_bounds || next_vt >= warning_limit)
+            if (out_of_bounds)
                 overflow[0] = true;
 
             if (tasks_before <= eta && tasks_before + 1 > eta)
@@ -122,7 +120,7 @@ public:
                 offsets[ot + 1] = next_vt;
                 vt = write_vt;
             }
-            else if (next_ot <= cap)
+            else if (next_ot <= offset_limit)
             {
                 offsets[ot] = write_vt;
                 offsets[ot + 1] = write_vt;
@@ -147,16 +145,12 @@ public:
             const ull next_ot = ot + 2ULL * num;
             const ull next_vt = write_vt + sglen * num;
             const ull cap = capacity[0];
-            const ull vertex_base = second_buffer ? cap / 2 : 0;
-            const ull vertex_span = second_buffer ? cap / 2 : cap;
-            const ull warning_limit = vertex_base + (vertex_span * 9) / 10;
             const ull tasks_before = (ot - ohead[0]) / 2;
+            const ull offset_limit = cap == HOST_BUFF_SZ ? HOST_OFFSET_SZ : cap;
             const bool out_of_bounds =
-                (cap == HOST_BUFF_SZ) ?
-                    (next_ot > HOST_OFFSET_SZ || next_vt > HOST_BUFF_SZ) :
-                    (next_ot > cap || next_vt > cap);
+                next_ot > offset_limit || next_vt > cap;
 
-            if (out_of_bounds || next_vt >= warning_limit)
+            if (out_of_bounds)
                 overflow[0] = true;
 
             if (tasks_before <= eta && tasks_before + num > eta)
@@ -167,8 +161,7 @@ public:
             else
             {
                 const bool can_write_invalid_offsets =
-                    (cap == HOST_BUFF_SZ && next_ot <= HOST_OFFSET_SZ) ||
-                    (cap != HOST_BUFF_SZ && next_ot <= cap);
+                    next_ot <= offset_limit;
                 if (can_write_invalid_offsets)
                 {
                     for (ui i = 0; i < num; ++i)

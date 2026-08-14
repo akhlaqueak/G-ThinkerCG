@@ -1,0 +1,187 @@
+{"kind":"deck","id":"pr/7npe9p","name":"Deck"}
+{"kind":"layout","layoutId":"37fcdd11-ee59-4f02-b7f8-0d4bc26e277a","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"60e3e98c-6c35-450b-acf0-c4741a4eba3f","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/nft0i9","slide":1,"title":"Research Scientist Interview | AI(X) Hub","textShapes":5}
+{"kind":"textbox","id":"sh/gry5o3m9","slide":1,"text":"Research Scientist Interview | AI(X) Hub","textPreview":"Research Scientist Interview | AI(X) Hub","textChars":40,"textLines":1,"bbox":[56,46,600,28]}
+{"kind":"textbox","id":"sh/fqp4vy5o","slide":1,"text":"ARIA as an evidence-grounded memory system","textPreview":"ARIA as an evidence-grounded memory system","textChars":42,"textLines":1,"bbox":[56,190,860,150]}
+{"kind":"shape","id":"sh/upg3mt43","slide":1,"bbox":[56,363,240,5]}
+{"kind":"textbox","id":"sh/pgrm18nq","slide":1,"text":"A 20-minute research vision for retrieval, memory, continual learning, evaluation, and sequencing","textPreview":"A 20-minute research vision for retrieval, memory, continual learning, evaluation, and sequencing","textChars":97,"textLines":1,"bbox":[56,398,780,80]}
+{"kind":"shape","id":"sh/4fy5s3m5","slide":1,"bbox":[932,122,250,420]}
+{"kind":"textbox","id":"sh/3ep4zy5k","slide":1,"text":"Retrieval\nMemory\nContinual\nEvaluation","textPreview":"Retrieval | Memory | Continual | Evaluation","textChars":37,"textLines":4,"bbox":[962,178,190,260]}
+{"kind":"textbox","id":"sh/2tgnqt4z","slide":1,"text":"Topic 2","textPreview":"Topic 2","textChars":7,"textLines":1,"bbox":[960,492,180,34]}
+{"kind":"notes","id":"nt/nft0i9","slide":1,"text":"Open by saying that ARIA should not be treated as a single predictive model.\nThe core thesis: ARIA is an evidence-grounded memory system that retrieves, updates, and explains prior experience as the archive evolves.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/tl2o3h","slide":2,"title":"ARIA research vision","textShapes":11}
+{"kind":"textbox","id":"sh/65c3y9kz","slide":2,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/t8nm9ojq","slide":2,"text":"The hard problem is not prediction alone","textPreview":"The hard problem is not prediction alone","textChars":40,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/s7ul0j25","slide":2,"bbox":[56,170,1168,1]}
+{"kind":"textbox","id":"sh/fa54by1w","slide":2,"text":"ARIA must reason over a living clinical archive where evidence is heterogeneous, incomplete, temporal, and continuously changing.","textPreview":"ARIA must reason over a living clinical archive where evidence is heterogeneous, incomplete, temporal, and continuously changing.","textChars":129,"textLines":1,"bbox":[72,188,640,116]}
+{"kind":"shape","id":"sh/e9w32tkb","slide":2,"bbox":[760,196,370,86]}
+{"kind":"textbox","id":"sh/1cnmd8jm","slide":2,"text":"Images","textPreview":"Images","textChars":6,"textLines":1,"bbox":[790,224,120,34]}
+{"kind":"shape","id":"sh/gbel4321","slide":2,"bbox":[760,305,370,86]}
+{"kind":"textbox","id":"sh/3y54fy1s","slide":2,"text":"Clinical notes","textPreview":"Clinical notes","textChars":14,"textLines":1,"bbox":[790,333,210,34]}
+{"kind":"shape","id":"sh/2dw36tk7","slide":2,"bbox":[760,414,370,86]}
+{"kind":"textbox","id":"sh/cf2h8fm1","slide":2,"text":"Structured events","textPreview":"Structured events","textChars":17,"textLines":1,"bbox":[790,442,250,34]}
+{"kind":"shape","id":"sh/xgvyhk3m","slide":2,"bbox":[760,523,370,86]}
+{"kind":"textbox","id":"sh/atkz6p4v","slide":2,"text":"Outcomes + provenance","textPreview":"Outcomes + provenance","textChars":21,"textLines":1,"bbox":[790,551,300,34]}
+{"kind":"shape","id":"sh/betgfalg","slide":2,"bbox":[72,348,500,1]}
+{"kind":"shape","id":"sh/kjmhczmx","slide":2,"bbox":[72,397,8,8]}
+{"kind":"textbox","id":"sh/lkvyl43i","slide":2,"text":"Retrieve relevant evidence, not just similar records","textPreview":"Retrieve relevant evidence, not just similar records","textChars":52,"textLines":1,"bbox":[98,388,574,46]}
+{"kind":"shape","id":"sh/yh4zap47","slide":2,"bbox":[72,447,8,8]}
+{"kind":"textbox","id":"sh/zidgjulc","slide":2,"text":"Update memory without forgetting or drifting silently","textPreview":"Update memory without forgetting or drifting silently","textChars":53,"textLines":1,"bbox":[98,438,574,46]}
+{"kind":"shape","id":"sh/8nmhgzm9","slide":2,"bbox":[72,497,8,8]}
+{"kind":"textbox","id":"sh/9ofyp43u","slide":2,"text":"Explain answers through traceable archive evidence","textPreview":"Explain answers through traceable archive evidence","textChars":50,"textLines":1,"bbox":[98,488,574,46]}
+{"kind":"textbox","id":"sh/hsrqd0rm","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/tl2o3h","slide":2,"text":"Use this slide to define the tension. If ARIA only optimizes predictive accuracy, it misses the archive use case.\nThe system needs to support multiple biomedical tasks by making evidence retrievable and auditable.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/00mg7f","slide":3,"title":"ARIA research vision","textShapes":15}
+{"kind":"textbox","id":"sh/lkra587a","slide":3,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/yxgbat8z","slide":3,"text":"My proposal: build ARIA as an evidence-grounded memory system","textPreview":"My proposal: build ARIA as an evidence-grounded memory system","textChars":61,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/zips3yp4","slide":3,"bbox":[56,170,1168,1]}
+{"kind":"shape","id":"sh/cvyt8jqt","slide":3,"bbox":[74,224,220,198]}
+{"kind":"textbox","id":"sh/xw7a1o7e","slide":3,"text":"Ingest","textPreview":"Ingest","textChars":6,"textLines":1,"bbox":[98,252,170,38]}
+{"kind":"textbox","id":"sh/atgb6t8n","slide":3,"text":"Normalize multimodal cases into stable entities and events.","textPreview":"Normalize multimodal cases into stable entities and events.","textChars":59,"textLines":1,"bbox":[98,314,166,82]}
+{"kind":"textbox","id":"sh/bupszep8","slide":3,"text":"→","textPreview":"→","textChars":1,"textLines":1,"bbox":[306,292,38,42]}
+{"kind":"shape","id":"sh/ore94jqh","slide":3,"bbox":[350,224,220,198]}
+{"kind":"textbox","id":"sh/ps7axo72","slide":3,"text":"Represent","textPreview":"Represent","textChars":9,"textLines":1,"bbox":[374,252,170,38]}
+{"kind":"textbox","id":"sh/pszaho7e","slide":3,"text":"Maintain linked text, image, structured, and temporal views.","textPreview":"Maintain linked text, image, structured, and temporal views.","textChars":60,"textLines":1,"bbox":[374,314,166,82]}
+{"kind":"textbox","id":"sh/orq98jqt","slide":3,"text":"→","textPreview":"→","textChars":1,"textLines":1,"bbox":[582,292,38,42]}
+{"kind":"shape","id":"sh/nqhsfep8","slide":3,"bbox":[626,224,220,198]}
+{"kind":"textbox","id":"sh/25or698n","slide":3,"text":"Retrieve","textPreview":"Retrieve","textChars":8,"textLines":1,"bbox":[650,252,170,38]}
+{"kind":"textbox","id":"sh/14fado72","slide":3,"text":"Combine semantic search, filters, graph expansion, and provenance.","textPreview":"Combine semantic search, filters, graph expansion, and provenance.","textChars":66,"textLines":1,"bbox":[650,314,166,82]}
+{"kind":"textbox","id":"sh/03694jqx","slide":3,"text":"→","textPreview":"→","textChars":1,"textLines":1,"bbox":[858,292,38,42]}
+{"kind":"shape","id":"sh/f2x8bepc","slide":3,"bbox":[902,224,220,198]}
+{"kind":"textbox","id":"sh/e1or298r","slide":3,"text":"Update","textPreview":"Update","textChars":6,"textLines":1,"bbox":[926,252,170,38]}
+{"kind":"textbox","id":"sh/d0fq9476","slide":3,"text":"Refresh indexes often; update models cautiously and measurably.","textPreview":"Refresh indexes often; update models cautiously and measurably.","textChars":63,"textLines":1,"bbox":[926,314,166,82]}
+{"kind":"textbox","id":"sh/sz690zql","slide":3,"text":"The system should answer with evidence trails: what was retrieved, why it was relevant, and whether current behavior is improving over time.","textPreview":"The system should answer with evidence trails: what was retrieved, why it was relevant, and whether current behavior is improving over time.","textChars":140,"textLines":1,"bbox":[126,500,1000,86]}
+{"kind":"textbox","id":"sh/4va1c32t","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/00mg7f","slide":3,"text":"This is the central architecture claim. ARIA needs an explicit memory layer, not just an embedding model.\nEmphasize separation of concerns: data ingestion, representation, retrieval, and updates can evolve independently.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/wzjbfl","slide":4,"title":"ARIA research vision","textShapes":15}
+{"kind":"textbox","id":"sh/nm18jal8","slide":4,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/ona9sfmt","slide":4,"text":"Memory should be layered, not monolithic","textPreview":"Memory should be layered, not monolithic","textChars":40,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/9ojqlk3y","slide":4,"bbox":[56,170,1168,1]}
+{"kind":"shape","id":"sh/apcrup4j","slide":4,"bbox":[110,202,870,54]}
+{"kind":"textbox","id":"sh/bql8nal4","slide":4,"text":"Raw archive","textPreview":"Raw archive","textChars":11,"textLines":1,"bbox":[136,215,220,26]}
+{"kind":"textbox","id":"sh/wru9wfmp","slide":4,"text":"Original images, notes, records, outcomes","textPreview":"Original images, notes, records, outcomes","textChars":41,"textLines":1,"bbox":[365,216,580,26]}
+{"kind":"shape","id":"sh/xs3qpk3a","slide":4,"bbox":[144,278,802,54]}
+{"kind":"textbox","id":"sh/qt87il4f","slide":4,"text":"Normalized entities","textPreview":"Normalized entities","textChars":19,"textLines":1,"bbox":[170,291,220,26]}
+{"kind":"textbox","id":"sh/ruh8bql0","slide":4,"text":"Patient, encounter, finding, treatment, time","textPreview":"Patient, encounter, finding, treatment, time","textChars":44,"textLines":1,"bbox":[399,292,522,26]}
+{"kind":"shape","id":"sh/fm1sjqdc","slide":4,"bbox":[178,354,734,54]}
+{"kind":"textbox","id":"sh/ulsbqlwr","slide":4,"text":"Learned views","textPreview":"Learned views","textChars":13,"textLines":1,"bbox":[204,367,220,26]}
+{"kind":"textbox","id":"sh/ho3ul0vi","slide":4,"text":"Image/text embeddings and task-specific representations","textPreview":"Image/text embeddings and task-specific representations","textChars":55,"textLines":1,"bbox":[433,368,464,26]}
+{"kind":"shape","id":"sh/gnatsvex","slide":4,"bbox":[212,430,666,54]}
+{"kind":"textbox","id":"sh/7i1sfqdg","slide":4,"text":"Evidence graph","textPreview":"Evidence graph","textChars":14,"textLines":1,"bbox":[238,443,220,26]}
+{"kind":"textbox","id":"sh/6hsbmlwv","slide":4,"text":"Links across entities, modalities, time, and provenance","textPreview":"Links across entities, modalities, time, and provenance","textChars":55,"textLines":1,"bbox":[467,444,406,26]}
+{"kind":"shape","id":"sh/tkjah0vm","slide":4,"bbox":[246,506,598,54]}
+{"kind":"textbox","id":"sh/sjatove1","slide":4,"text":"Task views","textPreview":"Task views","textChars":10,"textLines":1,"bbox":[272,519,220,26]}
+{"kind":"textbox","id":"sh/juhsb6d4","slide":4,"text":"Retrieval and reasoning views for specific applications","textPreview":"Retrieval and reasoning views for specific applications","textChars":55,"textLines":1,"bbox":[501,520,348,26]}
+{"kind":"textbox","id":"sh/it8bi1wz","slide":4,"text":"Design implication","textPreview":"Design implication","textChars":18,"textLines":1,"bbox":[890,218,250,30]}
+{"kind":"textbox","id":"sh/mpobu1gr","slide":4,"text":"A failed retrieval should be debuggable: was the raw data missing, the entity mapping wrong, the embedding stale, or the evidence graph incomplete?","textPreview":"A failed retrieval should be debuggable: was the raw data missing, the entity mapping wrong, the embedding stale, or the evidence graph i...","textChars":147,"textLines":1,"bbox":[890,264,270,170]}
+{"kind":"textbox","id":"sh/nqhcn6hc","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/wzjbfl","slide":4,"text":"Explain why layers matter: they make failure modes diagnosable.\nTie this to your systems background: scalable systems become research platforms when intermediate representations are explicit and reproducible.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/vf73yj","slide":5,"title":"ARIA research vision","textShapes":13}
+{"kind":"textbox","id":"sh/d0jet8n6","slide":5,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/qxsvitof","slide":5,"text":"Retrieval should combine similarity, structure, time, and provenance","textPreview":"Retrieval should combine similarity, structure, time, and provenance","textChars":68,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/by1wry50","slide":5,"bbox":[56,170,1168,1]}
+{"kind":"textbox","id":"sh/03axo36h","slide":5,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[80,198,54,42]}
+{"kind":"textbox","id":"sh/l43ex8n2","slide":5,"text":"Semantic retrieval","textPreview":"Semantic retrieval","textChars":18,"textLines":1,"bbox":[80,252,300,36]}
+{"kind":"shape","id":"sh/y1sfmdor","slide":5,"bbox":[80,302,280,1]}
+{"kind":"textbox","id":"sh/z21wvi5c","slide":5,"text":"Find cases, images, or notes with similar learned representations.","textPreview":"Find cases, images, or notes with similar learned representations.","textChars":66,"textLines":1,"bbox":[80,328,310,130]}
+{"kind":"textbox","id":"sh/g7qdcj6d","slide":5,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[460,198,54,42]}
+{"kind":"textbox","id":"sh/18zelony","slide":5,"text":"Structured constraints","textPreview":"Structured constraints","textChars":22,"textLines":1,"bbox":[460,252,300,36]}
+{"kind":"shape","id":"sh/10nq5cvy","slide":5,"bbox":[460,302,280,1]}
+{"kind":"textbox","id":"sh/0zepc7ud","slide":5,"text":"Respect cohort definitions, time windows, labels, and outcomes.","textPreview":"Respect cohort definitions, time windows, labels, and outcomes.","textChars":63,"textLines":1,"bbox":[460,328,310,130]}
+{"kind":"textbox","id":"sh/fy5832ds","slide":5,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[840,198,54,42]}
+{"kind":"textbox","id":"sh/edc7ahc7","slide":5,"text":"Graph expansion","textPreview":"Graph expansion","textChars":15,"textLines":1,"bbox":[840,252,300,36]}
+{"kind":"shape","id":"sh/p4nq9wvu","slide":5,"bbox":[840,302,280,1]}
+{"kind":"textbox","id":"sh/o3e9grup","slide":5,"text":"Move from a retrieved item to connected evidence and clinical context.","textPreview":"Move from a retrieved item to connected evidence and clinical context.","textChars":70,"textLines":1,"bbox":[840,328,310,130]}
+{"kind":"shape","id":"sh/n2587md4","slide":5,"bbox":[150,524,980,64]}
+{"kind":"textbox","id":"sh/21w7ehcj","slide":5,"text":"Retrieval output should be an evidence set, not a single nearest neighbor.","textPreview":"Retrieval output should be an evidence set, not a single nearest neighbor.","textChars":74,"textLines":1,"bbox":[180,542,920,30]}
+{"kind":"textbox","id":"sh/x87qdwv6","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/vf73yj","slide":5,"text":"This is where you can briefly mention your graph/search work: the archive is naturally a heterogeneous graph plus learned indexes.\nMake the key point that retrieval quality must be measured at the evidence-set level.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/50uvq4","slide":6,"title":"ARIA research vision","textShapes":13}
+{"kind":"textbox","id":"sh/zi9ovetg","slide":6,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/0jip4ja1","slide":6,"text":"Continual learning needs different update cadences","textPreview":"Continual learning needs different update cadences","textChars":50,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/lkr6xob6","slide":6,"bbox":[56,170,1168,1]}
+{"kind":"textbox","id":"sh/mlk76tsr","slide":6,"text":"Fast","textPreview":"Fast","textChars":4,"textLines":1,"bbox":[92,220,120,34]}
+{"kind":"shape","id":"sh/nmtozytc","slide":6,"bbox":[232,210,850,70]}
+{"kind":"textbox","id":"sh/872p83ax","slide":6,"text":"Index refresh","textPreview":"Index refresh","textChars":13,"textLines":1,"bbox":[262,223,300,34]}
+{"kind":"textbox","id":"sh/98b61obi","slide":6,"text":"New cases become retrievable quickly.","textPreview":"New cases become retrievable quickly.","textChars":37,"textLines":1,"bbox":[590,228,440,28]}
+{"kind":"textbox","id":"sh/a9k7ats3","slide":6,"text":"Medium","textPreview":"Medium","textChars":6,"textLines":1,"bbox":[92,332,120,34]}
+{"kind":"shape","id":"sh/vat83yto","slide":6,"bbox":[232,322,850,70]}
+{"kind":"textbox","id":"sh/fy5snm50","slide":6,"text":"Representation calibration","textPreview":"Representation calibration","textChars":26,"textLines":1,"bbox":[262,335,300,34]}
+{"kind":"textbox","id":"sh/exwreh4f","slide":6,"text":"Embeddings and uncertainty are checked against recent data.","textPreview":"Embeddings and uncertainty are checked against recent data.","textChars":59,"textLines":1,"bbox":[590,340,440,28]}
+{"kind":"textbox","id":"sh/1knapwn6","slide":6,"text":"Slow","textPreview":"Slow","textChars":4,"textLines":1,"bbox":[92,444,120,34]}
+{"kind":"shape","id":"sh/gje9grml","slide":6,"bbox":[232,434,850,70]}
+{"kind":"textbox","id":"sh/ru5sjm54","slide":6,"text":"Model retraining","textPreview":"Model retraining","textChars":16,"textLines":1,"bbox":[262,447,300,34]}
+{"kind":"textbox","id":"sh/6tcrah4j","slide":6,"text":"Major model changes require gated evaluation and rollback.","textPreview":"Major model changes require gated evaluation and rollback.","textChars":58,"textLines":1,"bbox":[590,452,440,28]}
+{"kind":"textbox","id":"sh/twnalwnu","slide":6,"text":"Do not let every new case rewrite the model. Let it enter memory first, then require evidence before changing learned behavior.","textPreview":"Do not let every new case rewrite the model. Let it enter memory first, then require evidence before changing learned behavior.","textChars":127,"textLines":1,"bbox":[126,570,1000,58]}
+{"kind":"textbox","id":"sh/sve9crm9","slide":6,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/50uvq4","slide":6,"text":"Use this slide to answer the balance between stored knowledge and new information.\nThe phrase to remember: new evidence enters retrieval quickly; model behavior changes slowly.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/ktuah0","slide":7,"title":"ARIA research vision","textShapes":11}
+{"kind":"textbox","id":"sh/983y94bm","slide":7,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/m5czy9sb","slide":7,"text":"ARIA should be evaluated temporally, continuously, and by task","textPreview":"ARIA should be evaluated temporally, continuously, and by task","textChars":62,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/n6lg7etg","slide":7,"bbox":[56,170,1168,1]}
+{"kind":"shape","id":"sh/wveh4jad","slide":7,"bbox":[82,207,8,8]}
+{"kind":"textbox","id":"sh/xwnidory","slide":7,"text":"Temporal splits: archive state at time t, test on future cases","textPreview":"Temporal splits: archive state at time t, test on future cases","textChars":62,"textLines":1,"bbox":[108,198,624,50]}
+{"kind":"shape","id":"sh/a9cz29s7","slide":7,"bbox":[82,261,8,8]}
+{"kind":"textbox","id":"sh/balgbets","slide":7,"text":"Retrieval relevance: recall@k, precision@k, expert judgment","textPreview":"Retrieval relevance: recall@k, precision@k, expert judgment","textChars":59,"textLines":1,"bbox":[108,252,624,50]}
+{"kind":"shape","id":"sh/czahszat","slide":7,"bbox":[82,315,8,8]}
+{"kind":"textbox","id":"sh/d0jy1kbe","slide":7,"text":"Clinical task utility: task metrics plus decision-support usefulness","textPreview":"Clinical task utility: task metrics plus decision-support usefulness","textChars":68,"textLines":1,"bbox":[108,306,624,50]}
+{"kind":"shape","id":"sh/l0j6xk72","slide":7,"bbox":[82,369,8,8]}
+{"kind":"textbox","id":"sh/kzap4f6h","slide":7,"text":"Reliability: calibration, uncertainty, subgroup performance","textPreview":"Reliability: calibration, uncertainty, subgroup performance","textChars":59,"textLines":1,"bbox":[108,360,624,50]}
+{"kind":"shape","id":"sh/jy1ovapw","slide":7,"bbox":[82,423,8,8]}
+{"kind":"textbox","id":"sh/yxs725or","slide":7,"text":"Drift: embedding shift, label shift, degradation alarms","textPreview":"Drift: embedding shift, label shift, degradation alarms","textChars":55,"textLines":1,"bbox":[108,414,624,50]}
+{"kind":"shape","id":"sh/t4361k7e","slide":7,"bbox":[780,205,360,350]}
+{"kind":"textbox","id":"sh/83up8z6t","slide":7,"text":"Core evaluation loop","textPreview":"Core evaluation loop","textChars":20,"textLines":1,"bbox":[812,232,285,30]}
+{"kind":"textbox","id":"sh/72lozup8","slide":7,"text":"Snapshot → benchmark → deploy index → monitor → compare","textPreview":"Snapshot → benchmark → deploy index → monitor → compare","textChars":55,"textLines":1,"bbox":[812,292,285,124]}
+{"kind":"shape","id":"sh/61s76pon","slide":7,"bbox":[812,426,260,3]}
+{"kind":"textbox","id":"sh/hs3q547a","slide":7,"text":"Improvement must beat historical performance and stability checks.","textPreview":"Improvement must beat historical performance and stability checks.","textChars":66,"textLines":1,"bbox":[812,456,270,58]}
+{"kind":"textbox","id":"sh/grupcz6p","slide":7,"text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/ktuah0","slide":7,"text":"This is a required topic in the prompt. Be explicit that random train/test splits are not enough for a living archive.\nEvaluation cadence: retrieval indexes can be evaluated weekly or monthly; representation/model updates should be gated by stronger retrospective tests.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/e21hrr","slide":8,"title":"ARIA research vision","textShapes":13}
+{"kind":"textbox","id":"sh/gj2xsra1","slide":8,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/fi9wzm9g","slide":8,"text":"First 18 months: build the research instrument before the ambitious system","textPreview":"First 18 months: build the research instrument before the ambitious system","textChars":74,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/uh0fq1sv","slide":8,"bbox":[56,170,1168,1]}
+{"kind":"shape","id":"sh/tgrexwbq","slide":8,"bbox":[92,218,300,210]}
+{"kind":"textbox","id":"sh/sfixora5","slide":8,"text":"0–6 months","textPreview":"0–6 months","textChars":10,"textLines":1,"bbox":[116,242,240,28]}
+{"kind":"textbox","id":"sh/7e9wvmtk","slide":8,"text":"Archive + schema","textPreview":"Archive + schema","textChars":16,"textLines":1,"bbox":[116,292,240,38]}
+{"kind":"textbox","id":"sh/6d0fmhsz","slide":8,"text":"Ingestion, entity model, provenance, snapshotting","textPreview":"Ingestion, entity model, provenance, snapshotting","textChars":49,"textLines":1,"bbox":[116,350,235,58]}
+{"kind":"shape","id":"sh/dcvy9gru","slide":8,"bbox":[462,218,300,210]}
+{"kind":"textbox","id":"sh/cbmx0ba9","slide":8,"text":"6–12 months","textPreview":"6–12 months","textChars":11,"textLines":1,"bbox":[486,242,240,28]}
+{"kind":"textbox","id":"sh/qtgned0n","slide":8,"text":"Hybrid retrieval","textPreview":"Hybrid retrieval","textChars":16,"textLines":1,"bbox":[486,292,240,38]}
+{"kind":"textbox","id":"sh/rup4nihs","slide":8,"text":"Vector + structured + temporal retrieval baseline","textPreview":"Vector + structured + temporal retrieval baseline","textChars":49,"textLines":1,"bbox":[486,350,235,58]}
+{"kind":"shape","id":"sh/cvy5gnid","slide":8,"bbox":[832,218,300,210]}
+{"kind":"textbox","id":"sh/dwrmpszy","slide":8,"text":"12–18 months","textPreview":"12–18 months","textChars":12,"textLines":1,"bbox":[856,242,240,28]}
+{"kind":"textbox","id":"sh/2pgnad0b","slide":8,"text":"Evaluation harness","textPreview":"Evaluation harness","textChars":18,"textLines":1,"bbox":[856,292,240,38]}
+{"kind":"textbox","id":"sh/3qp4ji1w","slide":8,"text":"Temporal benchmarks, drift checks, expert review workflow","textPreview":"Temporal benchmarks, drift checks, expert review workflow","textChars":57,"textLines":1,"bbox":[856,350,235,58]}
+{"kind":"textbox","id":"sh/4ry5cnih","slide":8,"text":"The first deliverable is not a perfect reasoner; it is a reproducible platform that makes ARIA measurable and extensible.","textPreview":"The first deliverable is not a perfect reasoner; it is a reproducible platform that makes ARIA measurable and extensible.","textChars":121,"textLines":1,"bbox":[112,510,1000,70]}
+{"kind":"textbox","id":"sh/ps7ml8z2","slide":8,"text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/e21hrr","slide":8,"text":"This is the sequencing answer. Make clear what comes first and why.\nSmall team logic: build infrastructure that makes later model work cheap, measurable, and trustworthy.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/brfjzj","slide":9,"title":"ARIA research vision","textShapes":12}
+{"kind":"textbox","id":"sh/qxwvatsb","slide":9,"text":"ARIA research vision","textPreview":"ARIA research vision","textChars":20,"textLines":1,"bbox":[56,36,420,26]}
+{"kind":"textbox","id":"sh/dknel8b2","slide":9,"text":"What I would deliberately defer","textPreview":"What I would deliberately defer","textChars":31,"textLines":1,"bbox":[56,78,1080,84]}
+{"kind":"shape","id":"sh/sjedc3ah","slide":9,"bbox":[56,170,1168,1]}
+{"kind":"textbox","id":"sh/fm5wnyt8","slide":9,"text":"Autonomous model updates","textPreview":"Autonomous model updates","textChars":24,"textLines":1,"bbox":[92,198,370,30]}
+{"kind":"textbox","id":"sh/elwvetsn","slide":9,"text":"Too risky before the evaluation harness is trusted.","textPreview":"Too risky before the evaluation harness is trusted.","textChars":51,"textLines":1,"bbox":[500,201,560,30]}
+{"kind":"shape","id":"sh/1o7ep8by","slide":9,"bbox":[92,254,960,1]}
+{"kind":"textbox","id":"sh/0nydg3ad","slide":9,"text":"Broad clinical deployment","textPreview":"Broad clinical deployment","textChars":25,"textLines":1,"bbox":[92,290,370,30]}
+{"kind":"textbox","id":"sh/vqlcbeto","slide":9,"text":"Start with retrospective and expert-in-the-loop studies.","textPreview":"Start with retrospective and expert-in-the-loop studies.","textChars":56,"textLines":1,"bbox":[500,293,560,30]}
+{"kind":"shape","id":"sh/upcv29c3","slide":9,"bbox":[92,346,960,1]}
+{"kind":"textbox","id":"sh/wbeh87al","slide":9,"text":"Open-ended reasoning agents","textPreview":"Open-ended reasoning agents","textChars":27,"textLines":1,"bbox":[92,382,370,30]}
+{"kind":"textbox","id":"sh/xcnyhsr6","slide":9,"text":"Useful later, but only after retrieval and provenance are reliable.","textPreview":"Useful later, but only after retrieval and provenance are reliable.","textChars":67,"textLines":1,"bbox":[500,385,560,30]}
+{"kind":"shape","id":"sh/a9wz6xsf","slide":9,"bbox":[92,438,960,1]}
+{"kind":"textbox","id":"sh/ba5gf290","slide":9,"text":"Training foundation models from scratch","textPreview":"Training foundation models from scratch","textChars":39,"textLines":1,"bbox":[92,474,370,30]}
+{"kind":"textbox","id":"sh/kzyhc7ah","slide":9,"text":"High cost; unclear benefit before platform baselines exist.","textPreview":"High cost; unclear benefit before platform baselines exist.","textChars":59,"textLines":1,"bbox":[500,477,560,30]}
+{"kind":"shape","id":"sh/l07ilcr2","slide":9,"bbox":[92,530,960,1]}
+{"kind":"shape","id":"sh/ydwzaxsr","slide":9,"bbox":[920,515,210,68]}
+{"kind":"textbox","id":"sh/je50j29c","slide":9,"text":"Depth over coverage","textPreview":"Depth over coverage","textChars":19,"textLines":1,"bbox":[944,536,160,24]}
+{"kind":"textbox","id":"sh/03uh0nad","slide":9,"text":"09","textPreview":"09","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/brfjzj","slide":9,"text":"This slide directly responds to the prompt's instruction to state what you are setting aside.\nThe message should sound disciplined, not conservative: defer what cannot yet be measured well.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}
+{"kind":"slide","id":"sl/jms8sh","slide":10,"title":"The long-term vision","textShapes":5}
+{"kind":"textbox","id":"sh/xgrehgrq","slide":10,"text":"The long-term vision","textPreview":"The long-term vision","textChars":20,"textLines":1,"bbox":[56,48,430,34]}
+{"kind":"textbox","id":"sh/ad0fmlsz","slide":10,"text":"ARIA becomes a reusable platform for evidence-grounded biomedical AI.","textPreview":"ARIA becomes a reusable platform for evidence-grounded biomedical AI.","textChars":69,"textLines":1,"bbox":[56,162,900,146]}
+{"kind":"shape","id":"sh/be9wf69k","slide":10,"bbox":[56,335,240,5]}
+{"kind":"textbox","id":"sh/obydkbat","slide":10,"text":"Every answer should carry an evidence trail: what was retrieved, why it mattered, how confident the system is, and whether behavior is improving over time.","textPreview":"Every answer should carry an evidence trail: what was retrieved, why it mattered, how confident the system is, and whether behavior is im...","textChars":155,"textLines":1,"bbox":[56,378,920,112]}
+{"kind":"shape","id":"sh/9credgre","slide":10,"bbox":[1040,126,96,430]}
+{"kind":"textbox","id":"sh/m9gvi1s3","slide":10,"text":"Q&A","textPreview":"Q&A","textChars":3,"textLines":1,"bbox":[1055,315,72,38]}
+{"kind":"textbox","id":"sh/napwb698","slide":10,"text":"10","textPreview":"10","textChars":2,"textLines":1,"bbox":[1186,668,40,24]}
+{"kind":"notes","id":"nt/jms8sh","slide":10,"text":"Close by returning to the thesis. The platform is useful because it combines retrieval, memory, continual learning, and evaluation.\nInvite discussion around tradeoffs: update cadence, expert-in-the-loop review, and what first biomedical use case should anchor the platform.\n\n[Sources] Research vision exercise prompt: /Users/akahmad/Downloads/Research Vison Exercise.docx"}

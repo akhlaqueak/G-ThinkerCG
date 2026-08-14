@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
@@ -7,6 +8,13 @@
 
 using namespace std;
 using namespace STMatch;
+
+static void check_cuda(cudaError_t err, const char* call) {
+  if (err != cudaSuccess) {
+    cerr << "CUDA error after " << call << ": " << cudaGetErrorString(err) << endl;
+    exit(1);
+  }
+}
 
 static void print_usage(const char* program) {
   cerr << "Usage:\n";
@@ -26,9 +34,23 @@ static char* get_option(int argc, char* argv[], const string& option) {
   return nullptr;
 }
 
+static string format_count(unsigned long long value) {
+  string digits = to_string(value);
+  string formatted;
+  formatted.reserve(digits.size() + digits.size() / 3);
+  const size_t first_group = digits.size() % 3;
+  for (size_t i = 0; i < digits.size(); ++i) {
+    if (i > 0 && (i - first_group) % 3 == 0) {
+      formatted.push_back(',');
+    }
+    formatted.push_back(digits[i]);
+  }
+  return formatted;
+}
+
 int main(int argc, char* argv[]) {
 
-  cudaSetDevice(0);
+  check_cuda(cudaSetDevice(0), "cudaSetDevice");
 
   string graph_file;
   string pattern_file;
@@ -68,15 +90,18 @@ int main(int argc, char* argv[]) {
       ? STMatch::PatternPreprocessor(gmatch_query_id)
       : STMatch::PatternPreprocessor(pattern_file);
 
+  JobQueuePreprocessor queue_preprocessor(g.g, p);
+
   // copy graph and pattern to GPU global memory
   Graph* gpu_graph = g.to_gpu();
   Pattern* gpu_pattern = p.to_gpu();
-  JobQueue* gpu_queue = JobQueuePreprocessor(g.g, p).to_gpu();
+  JobQueue* gpu_queue = queue_preprocessor.to_gpu();
   CallStack* gpu_callstack;
 
   // allocate the callstack for all warps in global memory
   graph_node_t* slot_storage;
-  cudaMalloc(&slot_storage, sizeof(graph_node_t) * NWARPS_TOTAL * MAX_SLOT_NUM * UNROLL * GRAPH_DEGREE);
+  const size_t slot_storage_bytes = sizeof(graph_node_t) * NWARPS_TOTAL * MAX_SLOT_NUM * UNROLL * GRAPH_DEGREE;
+  check_cuda(cudaMalloc(&slot_storage, slot_storage_bytes), "cudaMalloc(slot_storage)");
   //cout << "global memory usage: " << sizeof(graph_node_t) * NWARPS_TOTAL * MAX_SLOT_NUM * UNROLL * GRAPH_DEGREE / 1024.0 / 1024 / 1024 << " GB" << endl;
 
   std::vector<CallStack> stk(NWARPS_TOTAL);
@@ -87,62 +112,63 @@ int main(int argc, char* argv[]) {
     memset(s.slot_size, 0, sizeof(s.slot_size));
     s.slot_storage = (graph_node_t(*)[UNROLL][GRAPH_DEGREE])((char*)slot_storage + i * sizeof(graph_node_t) * MAX_SLOT_NUM * UNROLL * GRAPH_DEGREE);
   }
-  cudaMalloc(&gpu_callstack, NWARPS_TOTAL * sizeof(CallStack));
-  cudaMemcpy(gpu_callstack, stk.data(), sizeof(CallStack) * NWARPS_TOTAL, cudaMemcpyHostToDevice);
+  const size_t callstack_bytes = NWARPS_TOTAL * sizeof(CallStack);
+  check_cuda(cudaMalloc(&gpu_callstack, callstack_bytes), "cudaMalloc(gpu_callstack)");
+  check_cuda(cudaMemcpy(gpu_callstack, stk.data(), callstack_bytes, cudaMemcpyHostToDevice),
+             "cudaMemcpy(gpu_callstack)");
 
   size_t* gpu_res;
-  cudaMalloc(&gpu_res, sizeof(size_t) * NWARPS_TOTAL);
-  cudaMemset(gpu_res, 0, sizeof(size_t) * NWARPS_TOTAL);
+  check_cuda(cudaMalloc(&gpu_res, sizeof(size_t) * NWARPS_TOTAL), "cudaMalloc(gpu_res)");
+  check_cuda(cudaMemset(gpu_res, 0, sizeof(size_t) * NWARPS_TOTAL), "cudaMemset(gpu_res)");
   size_t* res = new size_t[NWARPS_TOTAL];
 
   int* idle_warps;
-  cudaMalloc(&idle_warps, sizeof(int) * GRID_DIM);
-  cudaMemset(idle_warps, 0, sizeof(int) * GRID_DIM);
+  check_cuda(cudaMalloc(&idle_warps, sizeof(int) * GRID_DIM), "cudaMalloc(idle_warps)");
+  check_cuda(cudaMemset(idle_warps, 0, sizeof(int) * GRID_DIM), "cudaMemset(idle_warps)");
 
   int* idle_warps_count;
-  cudaMalloc(&idle_warps_count, sizeof(int));
-  cudaMemset(idle_warps_count, 0, sizeof(int));
+  check_cuda(cudaMalloc(&idle_warps_count, sizeof(int)), "cudaMalloc(idle_warps_count)");
+  check_cuda(cudaMemset(idle_warps_count, 0, sizeof(int)), "cudaMemset(idle_warps_count)");
 
   int* global_mutex;
-  cudaMalloc(&global_mutex, sizeof(int) * GRID_DIM);
-  cudaMemset(global_mutex, 0, sizeof(int) * GRID_DIM);
+  check_cuda(cudaMalloc(&global_mutex, sizeof(int) * GRID_DIM), "cudaMalloc(global_mutex)");
+  check_cuda(cudaMemset(global_mutex, 0, sizeof(int) * GRID_DIM), "cudaMemset(global_mutex)");
 
   bool* stk_valid;
-  cudaMalloc(&stk_valid, sizeof(bool) * GRID_DIM);
-  cudaMemset(stk_valid, 0, sizeof(bool) * GRID_DIM);
+  check_cuda(cudaMalloc(&stk_valid, sizeof(bool) * GRID_DIM), "cudaMalloc(stk_valid)");
+  check_cuda(cudaMemset(stk_valid, 0, sizeof(bool) * GRID_DIM), "cudaMemset(stk_valid)");
 
   cudaEvent_t start, stop;
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
+  check_cuda(cudaEventCreate(&start), "cudaEventCreate(start)");
+  check_cuda(cudaEventCreate(&stop), "cudaEventCreate(stop)");
 
-  cudaEventRecord(start);
+  check_cuda(cudaEventRecord(start), "cudaEventRecord(start)");
 
   //cout << "shared memory usage: " << sizeof(Graph) << " " << sizeof(Pattern) << " " << sizeof(JobQueue) << " " << sizeof(CallStack) * NWARPS_PER_BLOCK << " " << NWARPS_PER_BLOCK * 33 * sizeof(int) << " Bytes" << endl;
 
   _parallel_match << <GRID_DIM, BLOCK_DIM >> > (gpu_graph, gpu_pattern, gpu_callstack, gpu_queue, gpu_res, idle_warps, idle_warps_count, global_mutex);
+  check_cuda(cudaGetLastError(), "kernel launch");
 
 
-  cudaEventRecord(stop);
+  check_cuda(cudaEventRecord(stop), "cudaEventRecord(stop)");
 
-  cudaEventSynchronize(stop);
+  check_cuda(cudaEventSynchronize(stop), "cudaEventSynchronize(stop)");
 
   float milliseconds = 0;
-  cudaEventElapsedTime(&milliseconds, start, stop);
+  check_cuda(cudaEventElapsedTime(&milliseconds, start, stop), "cudaEventElapsedTime");
   //printf("matching time: %f ms\n", milliseconds);
 
-  cudaMemcpy(res, gpu_res, sizeof(size_t) * NWARPS_TOTAL, cudaMemcpyDeviceToHost);
+  check_cuda(cudaMemcpy(res, gpu_res, sizeof(size_t) * NWARPS_TOTAL, cudaMemcpyDeviceToHost),
+             "cudaMemcpy(gpu_res)");
 
   unsigned long long tot_count = 0;
   for (int i=0; i<NWARPS_TOTAL; i++) tot_count += res[i];
 
-  if(!LABELED) tot_count = tot_count * p.PatternMultiplicity;
-  
-  if (use_gmatch_query) {
-    printf("Q%d\t%f\t%llu\n", gmatch_query_id, milliseconds, tot_count);
+  if(!LABELED && !use_gmatch_query) {
+    tot_count = tot_count * p.PatternMultiplicity;
   }
-  else {
-    printf("%s\t%f\t%llu\n", pattern_file.c_str(), milliseconds, tot_count);
-  }
-  //cout << "count: " << tot_count << endl;
+
+  cout << "Total time (s): " << fixed << setprecision(6) << milliseconds / 1000.0 << endl;
+  cout << "Total count: " << format_count(tot_count) << endl;
   return 0;
 }

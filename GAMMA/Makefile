@@ -1,5 +1,6 @@
 NVCC=nvcc
-NVCCFLAGS=-gencode arch=compute_70,code=sm_70 #--ptxas-options=-v
+ARCH ?= sm_80
+NVCCFLAGS=-arch=$(ARCH) #--ptxas-options=-v
 CXX=g++
 CXXFLAGS=-O3 -std=c++11 #-fopemmp -Iinclude
 DEBUGFLAGS=#-G -g
@@ -17,4 +18,4 @@ multimerge: multimerge.cu ${DEPENDENCY}
 log.o: log.cpp 
 	$(CXX) $(CXXFLAGS) -c log.cpp -o log.o
 clean:
-	rm -f kcl *.o 
+	rm -f kcl fsm sm multimerge *.o 

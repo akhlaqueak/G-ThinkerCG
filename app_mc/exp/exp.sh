@@ -86,15 +86,15 @@ run_case() {
     fi
 }
 
-cp run run-exp
+
 for d in $ds; do 
     for q in $quer; do
-        # run_case "logs/$d-$q-nogpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -gpu 0
+        run_case "logs/$d-$q-pp2-upd.log" ./run -dg "ds/$d.bin" -q "$q" -cpu 0
         # run_case "logs/$d-$q-g2aimd.log" ./g2aimd -dg "ds/$d.bin" -q "$q" -cpu 0
         # run_case "logs/$d-$q-nocpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -cpu 0 -pingpong 0 -gpuchunk 100000
         # run_case "logs/$d-$q-with_cpu_gpu.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 0 -gpuchunk 100000 -cpuchunk 1
-        run_case "logs/$d-$q-with_cpu_gpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 1 -gpuchunk 100000 -cpuchunk 1
-        run_case "logs/$d-$q-nocpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -pingpong 1 -gpuchunk 100000 -cpu 0
+        # run_case "logs/$d-$q-with_cpu_gpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -tau 100000 -pingpong 1 -gpuchunk 100000 -cpuchunk 1
+        # run_case "logs/$d-$q-nocpu_pingpong_abort.log" ./run-exp -dg "ds/$d.bin" -q "$q" -pingpong 1 -gpuchunk 100000 -cpu 0
 
     done
 done

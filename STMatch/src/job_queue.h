@@ -61,12 +61,12 @@ namespace STMatch {
 
     JobQueue* to_gpu() {
       JobQueue qcopy = q;
-      cudaMalloc(&qcopy.q, sizeof(Job) * q.length);
-      cudaMemcpy(qcopy.q, q.q, sizeof(Job) * q.length, cudaMemcpyHostToDevice);
+      stmatch_cuda_check(cudaMalloc(&qcopy.q, sizeof(Job) * q.length), "cudaMalloc(job_queue.q)");
+      stmatch_cuda_check(cudaMemcpy(qcopy.q, q.q, sizeof(Job) * q.length, cudaMemcpyHostToDevice), "cudaMemcpy(job_queue.q)");
 
       JobQueue* gpu_q;
-      cudaMalloc(&gpu_q, sizeof(JobQueue));
-      cudaMemcpy(gpu_q, &qcopy, sizeof(JobQueue), cudaMemcpyHostToDevice);
+      stmatch_cuda_check(cudaMalloc(&gpu_q, sizeof(JobQueue)), "cudaMalloc(JobQueue)");
+      stmatch_cuda_check(cudaMemcpy(gpu_q, &qcopy, sizeof(JobQueue), cudaMemcpyHostToDevice), "cudaMemcpy(JobQueue)");
       return gpu_q;
     }
   };

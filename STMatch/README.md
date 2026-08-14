@@ -40,14 +40,14 @@ Now you can see 7 executable files ending with .exe in ./bin directory.
 
 The executables also accept the same graph/query inputs used by `app_gmatch`:
 ```Shell
-./bin/fig_local_global_unroll.exe -dg /path/to/data.bin -q 6
+./bin/table_edge_ulb.exe -dg /path/to/data.bin -q 6
 ```
 
 `-dg` reads the single-file CSR binary format used by `app_gmatch`, and `-q`
 generates the matching preset query graph with the same query remapping logic.
 The original STMatch input style still works:
 ```Shell
-./bin/fig_local_global_unroll.exe ./data/bin_graph/wiki-Vote/ ./data/pattern/2.g
+./bin/table_edge_ulb.exe ./data/bin_graph/wiki-Vote/ ./data/pattern/2.g
 ```
 
 
