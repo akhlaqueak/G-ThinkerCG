@@ -127,6 +127,7 @@ void print_help(const char *program)
     cout << "  -c 4                  GPU chunk divisor" << endl;
     cout << "  -min_gpuchunk 1000    Minimum GPU chunk" << endl;
     cout << "  -hg_steal 1000000     Host tasks transferred to GPU" << endl;
+    cout << "  -min_hg_steal 1000    Minimum queued tasks before GPU stealing" << endl;
     cout << "  -eta 2000" << endl;
     cout << "  -tau <microseconds>" << endl;
     cout << "  -pingpong 1" << endl;
@@ -254,6 +255,7 @@ public:
         cout << "gpu chunk divisor (c): " << gpu_chunk_divisor_ << endl;
         cout << "minimum gpu chunk: " << min_gpu_chunk_ << endl;
         cout << "host-to-gpu steal: " << cmd.runtime.hg_steal << endl;
+        cout << "minimum host-to-gpu steal: " << cmd.runtime.min_hg_steal << endl;
         cout << "pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
 

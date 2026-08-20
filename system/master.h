@@ -60,6 +60,7 @@ public:
         tasks_per_fetch_gpu_worker_g = config.tasks_per_fetch_gpu_worker;
         tasks_per_fetch_g = config.tasks_per_fetch_cpu_worker;
         host_to_gpu_transfer_size_g = config.hg_steal;
+        min_transfer_size_g = config.min_hg_steal;
         tau_time_g = config.tau_time_us;
         g_ping_pong_flag = config.ping_pong != 0;
         g_abort_chunk_flag = config.ping_pong == 1;

@@ -18,6 +18,7 @@ static void print_help(const char *program)
     cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 200" << endl;
     cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 1000000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
+    cout << "  -min_hg_steal <n>  Minimum queued tasks before GPU stealing. Default: 1000" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 1000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 2" << endl;
 }
@@ -52,6 +53,7 @@ public:
         cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
+        cout << "-min_hg_steal: " << cmd.runtime.min_hg_steal << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;

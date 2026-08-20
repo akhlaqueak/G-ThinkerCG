@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=GM-MPI
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=20
+#SBATCH --ntasks-per-node=10
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=10G
 #SBATCH --partition=medium
