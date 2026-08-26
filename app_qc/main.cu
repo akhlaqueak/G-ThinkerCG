@@ -121,13 +121,15 @@ void print_help(const char *program)
     cout << "  -drop_oversized_tasks 0" << endl;
     cout << endl;
     cout << "Runtime parameters:" << endl;
-    cout << "  -cpu 28" << endl;
+    cout << "  -cpu 32" << endl;
     cout << "  -gpu 1" << endl;
     cout << "  -cpuchunk 10" << endl;
     cout << "  -c 4                  GPU chunk divisor" << endl;
     cout << "  -min_gpuchunk 1000    Minimum GPU chunk" << endl;
     cout << "  -hg_steal 1000000     Host tasks transferred to GPU" << endl;
+    cout << "  -gh_steal 1000        GPU tasks transferred to host/CPU" << endl;
     cout << "  -min_hg_steal 1000    Minimum queued tasks before GPU stealing" << endl;
+    cout << "  -idle_worker_divisor 2 GPU-to-host idle threshold divisor (cpu/divisor)" << endl;
     cout << "  -eta 2000" << endl;
     cout << "  -tau <microseconds>" << endl;
     cout << "  -pingpong 1" << endl;
@@ -180,7 +182,7 @@ public:
     QCApp()
     {
         CommandLine::RuntimeConfig defaults;
-        defaults.num_cpu_workers = 28;
+        defaults.num_cpu_workers = 32;
         defaults.num_gpu_workers = 1;
         defaults.tasks_per_fetch_gpu_worker = 10000;
         defaults.tasks_per_fetch_cpu_worker = 10;
@@ -255,7 +257,10 @@ public:
         cout << "gpu chunk divisor (c): " << gpu_chunk_divisor_ << endl;
         cout << "minimum gpu chunk: " << min_gpu_chunk_ << endl;
         cout << "host-to-gpu steal: " << cmd.runtime.hg_steal << endl;
+        cout << "gpu-to-host steal: " << cmd.runtime.gh_steal << endl;
         cout << "minimum host-to-gpu steal: " << cmd.runtime.min_hg_steal << endl;
+        cout << "GPU-to-host idle-worker divisor: " << cmd.runtime.idle_worker_divisor
+             << " (threshold: " << cmd.runtime.num_cpu_workers / cmd.runtime.idle_worker_divisor << ")" << endl;
         cout << "pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
 

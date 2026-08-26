@@ -19,7 +19,9 @@ static void print_help(const char *program)
     cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 200" << endl;
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
+    cout << "  -gh_steal <n>      GPU-to-host steal chunk. Default: 1000" << endl;
     cout << "  -min_hg_steal <n>  Minimum queued tasks before GPU stealing. Default: 1000" << endl;
+    cout << "  -idle_worker_divisor <n> GPU-to-host idle threshold divisor (cpu/n). Default: 2" << endl;
     cout << "  -prefixbatch <n>   Prefix batch size for CPU/GPU. Default: 100" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 100000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 1" << endl;
@@ -64,7 +66,10 @@ public:
         cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
+        cout << "-gh_steal: " << cmd.runtime.gh_steal << endl;
         cout << "-min_hg_steal: " << cmd.runtime.min_hg_steal << endl;
+        cout << "-idle_worker_divisor: " << cmd.runtime.idle_worker_divisor
+             << " (threshold: " << cmd.runtime.num_cpu_workers / cmd.runtime.idle_worker_divisor << ")" << endl;
         cout << "-prefixbatch: " << gm_prefix_batch_size_g << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;

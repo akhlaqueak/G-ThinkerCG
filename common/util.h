@@ -89,7 +89,9 @@ class CommandLine {
        size_t tasks_per_fetch_gpu_worker = 1000000;
        size_t tasks_per_fetch_cpu_worker = 50;
        size_t hg_steal = 1000000;
+       size_t gh_steal = 1000;
        size_t min_hg_steal = 1000;
+       size_t idle_worker_divisor = 2;
        size_t prefix_batch_size = 100;
        ui eta_per_warp = 1000;
        ui tau_time_us = 10;
@@ -186,10 +188,18 @@ class CommandLine {
        runtime.tasks_per_fetch_gpu_worker = GetOptionIntValue("-gpuchunk", static_cast<int>(defaults.tasks_per_fetch_gpu_worker));
        runtime.tasks_per_fetch_cpu_worker = GetOptionIntValue("-cpuchunk", static_cast<int>(defaults.tasks_per_fetch_cpu_worker));
        runtime.hg_steal = GetOptionIntValue("-hg_steal", static_cast<int>(defaults.hg_steal));
+       const int gh_steal = GetOptionIntValue("-gh_steal", static_cast<int>(defaults.gh_steal));
+       if (gh_steal <= 0)
+         BadArgument("-gh_steal must be greater than 0");
+       runtime.gh_steal = static_cast<size_t>(gh_steal);
        const int min_hg_steal = GetOptionIntValue("-min_hg_steal", static_cast<int>(defaults.min_hg_steal));
        if (min_hg_steal <= 0)
          BadArgument("-min_hg_steal must be greater than 0");
        runtime.min_hg_steal = static_cast<size_t>(min_hg_steal);
+       const int idle_worker_divisor = GetOptionIntValue("-idle_worker_divisor", static_cast<int>(defaults.idle_worker_divisor));
+       if (idle_worker_divisor <= 0)
+         BadArgument("-idle_worker_divisor must be greater than 0");
+       runtime.idle_worker_divisor = static_cast<size_t>(idle_worker_divisor);
        runtime.prefix_batch_size = GetOptionIntValue("-prefixbatch", static_cast<int>(defaults.prefix_batch_size));
        runtime.eta_per_warp = GetOptionIntValue("-eta", defaults.eta_per_warp);
        runtime.tau_time_us = GetOptionIntValue("-tau", defaults.tau_time_us);

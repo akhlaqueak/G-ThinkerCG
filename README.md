@@ -57,12 +57,14 @@ The applications share the following CPU-GPU runtime controls. Defaults that dif
 
 | Option | Description | Default |
 |---|---|---:|
-| `-cpu <n>` | Number of CPU workers | `28 / 28 / 32` |
+| `-cpu <n>` | Number of CPU workers | `32` |
 | `-gpu <n>` | Number of GPU workers | `1` |
 | `-cpuchunk <n>` | Tasks assigned to a CPU worker per fetch | `10 / 200 / 200` |
 | `-gpuchunk <n>` | Initial GPU tasks per fetch; QC computes its GPU root chunk separately | `QC: dynamic / MC: 1000000 / GMatch: 100000` |
 | `-hg_steal <n>` | Maximum tasks transferred from the shared host queue to a GPU in one steal | `1000000` |
+| `-gh_steal <n>` | Maximum tasks transferred from the GPU host buffer to the shared CPU queue in one spill | `1000` |
 | `-min_hg_steal <n>` | Minimum shared-queue size required before a GPU steals CPU-generated work | `1000` |
+| `-idle_worker_divisor <n>` | Divides the CPU-worker count to determine the GPU-to-host idle-worker threshold | `2` |
 | `-eta <n>` | GPU ETA limit per warp | `2000` |
 | `-tau <microseconds>` | CPU task-decomposition time threshold | `10 / 1000 / 100000` |
 | `-pingpong <mode>` | GPU buffer mode: `0` disabled, `1` enabled with abort, `2` enabled without abort | `1 / 2 / 1` |
@@ -74,6 +76,8 @@ The stealing controls are independent. For example:
 ```
 
 This configuration waits until the shared queue contains at least 2,000 tasks, then transfers at most 500,000 tasks to the GPU. `-min_hg_steal` must be greater than zero.
+
+The GPU-to-host idle threshold is `floor(cpu_workers / idle_worker_divisor)`. For example, `-cpu 20 -idle_worker_divisor 2` produces a threshold of 10, while divisor 4 produces a threshold of 5. The divisor must be greater than zero. The spill condition uses a strict comparison, `workers_list.size() > threshold`. The worker list can also contain idle GPU workers, so this is an idle-worker threshold rather than an exact idle-CPU count.
 
 Use `-gpu 0` for CPU-only execution. Use `-cpu 0` for GPU-only execution when the selected application and graph do not require CPU handling of oversized tasks.
 
@@ -91,12 +95,13 @@ Example with explicit scheduling parameters:
 ```bash
 ./run \
   -dg ../graphs/soc-amazon.bin \
-  -cpu 28 \
+  -cpu 32 \
   -gpu 1 \
   -cpuchunk 200 \
   -gpuchunk 1000000 \
   -min_hg_steal 1000 \
   -hg_steal 1000000 \
+  -gh_steal 1000 \
   -tau 1000 \
   -pingpong 2
 ```

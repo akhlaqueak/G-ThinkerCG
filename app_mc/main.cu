@@ -12,13 +12,15 @@ static void print_help(const char *program)
     cout << "Usage: " << program << " [options]" << endl;
     cout << "Options:" << endl;
     cout << "  -dg <path>         Data graph binary file. Default: ./data/com-friendster.ungraph.txt.bin" << endl;
-    cout << "  -cpu <n>           CPU workers. Default: 28" << endl;
+    cout << "  -cpu <n>           CPU workers. Default: 32" << endl;
     cout << "  -gpu <n>           GPU workers. Default: 1" << endl;
     cout << "  -eta <n>           ETA per warp. Default: 2000" << endl;
     cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 200" << endl;
     cout << "  -gpuchunk <n>      GPU tasks per fetch. Default: 1000000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
+    cout << "  -gh_steal <n>      GPU-to-host steal chunk. Default: 1000" << endl;
     cout << "  -min_hg_steal <n>  Minimum queued tasks before GPU stealing. Default: 1000" << endl;
+    cout << "  -idle_worker_divisor <n> GPU-to-host idle threshold divisor (cpu/n). Default: 2" << endl;
     cout << "  -tau <n>           CPU decomposition threshold (us). Default: 1000" << endl;
     cout << "  -pingpong <0|1|2>  0=no ping-pong, 1=ping-pong with abort, 2=ping-pong without abort. Default: 2" << endl;
 }
@@ -32,7 +34,7 @@ public:
     MCApp()
     {
         CommandLine::RuntimeConfig defaults;
-        defaults.num_cpu_workers = 28;
+        defaults.num_cpu_workers = 32;
         defaults.num_gpu_workers = 1;
         defaults.tasks_per_fetch_gpu_worker = 1000000;
         defaults.tasks_per_fetch_cpu_worker = 200;
@@ -53,7 +55,10 @@ public:
         cout << "-cpuchunk: " << cmd.runtime.tasks_per_fetch_cpu_worker << endl;
         cout << "-gpuchunk: " << cmd.runtime.tasks_per_fetch_gpu_worker << endl;
         cout << "-hg_steal: " << cmd.runtime.hg_steal << endl;
+        cout << "-gh_steal: " << cmd.runtime.gh_steal << endl;
         cout << "-min_hg_steal: " << cmd.runtime.min_hg_steal << endl;
+        cout << "-idle_worker_divisor: " << cmd.runtime.idle_worker_divisor
+             << " (threshold: " << cmd.runtime.num_cpu_workers / cmd.runtime.idle_worker_divisor << ")" << endl;
         cout << "-tau: " << cmd.runtime.tau_time_us << endl;
         cout << "-pingpong: " << cmd.runtime.ping_pong << endl;
         cout << " ======= ********** ========" << endl;
