@@ -124,7 +124,7 @@ void print_help(const char *program)
     cout << "  -cpu 32" << endl;
     cout << "  -gpu 1" << endl;
     cout << "  -cpuchunk 10" << endl;
-    cout << "  -c 4                  GPU chunk divisor" << endl;
+    cout << "  -c 2                  GPU chunk divisor" << endl;
     cout << "  -min_gpuchunk 1000    Minimum GPU chunk" << endl;
     cout << "  -hg_steal 1000000     Host tasks transferred to GPU" << endl;
     cout << "  -gh_steal 1000        GPU tasks transferred to host/CPU" << endl;
@@ -155,7 +155,7 @@ class QCApp : public Master<QCCPUWorker, QCGPUContext>
 public:
     bool gpu_enabled_;
     bool drop_oversized_tasks_ = false;
-    size_t gpu_chunk_divisor_ = 4;
+    size_t gpu_chunk_divisor_ = 2;
     size_t min_gpu_chunk_ = 1000;
 
     size_t initial_task_vertices_count(size_t root_index) const
@@ -202,7 +202,7 @@ public:
         std::string output_file = cmd.GetOptionValue("-o", "output.txt");
         scheduling_toggle = cmd.GetOptionIntValue("-sched", 0);
         drop_oversized_tasks_ = cmd.GetOptionIntValue("-drop_oversized_tasks", 0) != 0;
-        const int gpu_chunk_divisor = cmd.GetOptionIntValue("-c", 4);
+        const int gpu_chunk_divisor = cmd.GetOptionIntValue("-c", 2);
         const int min_gpu_chunk = cmd.GetOptionIntValue("-min_gpuchunk", 1000);
         if (gpu_chunk_divisor <= 0)
             throw std::invalid_argument("c must be greater than 0");

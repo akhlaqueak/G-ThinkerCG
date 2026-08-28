@@ -47,13 +47,14 @@ run_case() {
     fi
 }
 run=0
+    run=0
+    for gh in 500 1000 5000 10000; do
 while IFS=$'\t' read -r ds; do
-    # run=1
     [ -z "$ds" ] && continue
-    fname="$ds-pp2-cpugpu-upd.log"
+    fname="$ds-pp2-cpugpu-ghsteal-$gh.log"
     if [ $run -eq 1 ]; then 
     run_case "$fname" \
-        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -pingpong 2 -tau 500 -gpuchunk 100000
+        ./run -dg "$HOME/graphs/data/kcore/$ds.bin" -gh_steal $gh
     else
         if grep -q "Total time" "$fname" 2>/dev/null; then
             grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
@@ -63,6 +64,8 @@ while IFS=$'\t' read -r ds; do
     fi
     echo
 done < ds.txt
+echo
+    done
 
 
 while IFS=$'\t' read -r ds ; do

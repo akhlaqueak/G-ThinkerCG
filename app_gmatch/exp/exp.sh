@@ -48,7 +48,7 @@ wikipedia_link_ceb
 
 
 quer="2 5 9"
-timeout_threshold="30m"
+timeout_threshold="10m"
 skip_existing_logs=0
 skip_completed_logs=1
 mkdir -p logs
@@ -87,22 +87,32 @@ run_case() {
 }
 
 
-while IFS=$'\t' read -r d q; do
+run_experiments() {
+    local run="$1"
+    local fname
 
-        run=0
-        fname="logs/$d-$q-STMatch.log"
+    for cp in 1 10 50 100 200; do
+        while IFS=$'\t' read -r d q; do
+            fname="logs/$d-$q-cp-$cp"
 
-        if [ $run -eq 1 ]; then 
-            run_case "$fname" ./STMatch -dg "ds/$d.bin" -q "$q" 
-        else
-            if grep -q "Total time" "$fname" 2>/dev/null; then
-                grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+            if [ "$run" -eq 1 ]; then
+                run_case "$fname" ./run -dg "ds/$d.bin" -q "$q" \
+                    -cpuchunk "$cp" -gh_steal 5000
             else
-                echo -en "X "
+                if grep -q "Total time" "$fname" 2>/dev/null; then
+                    grep "Total time" "$fname" | awk '{printf "%s ", $NF}'
+                else
+                    echo -n "X "
+                fi
+                echo
             fi
-        echo 
-        fi
-done < ds.txt
+        done < ds.txt
+        echo
+    done
+}
+
+run_experiments 1
+run_experiments 0
 
 # script of EGSM, since it has OOM and Errors
 while IFS=$'\t' read -r d q; do

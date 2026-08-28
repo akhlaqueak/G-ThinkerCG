@@ -454,9 +454,17 @@ public:
 public:
     __device__ virtual void process(MCBuffer &Brd, ull *row_ptrs, VertexID *cols)
     {
+    }
+    virtual void init_level()
+    {
+
+    }
+    __device__ virtual void extend(MCBuffer &Brd, MCBuffer &Bwr, MCBuffer &H, ull *row_ptrs, VertexID *cols)
+
+    {
         while (true)
         {
-            if (isLevelFilled()) 
+            if (isLevelFilled())
                 break;
             SubgraphOffsets so = Brd.next();
             if (so.empty())
@@ -475,15 +483,6 @@ public:
                 markQ(&so, pivot);
             }
         }
-    }
-    virtual void init_level()
-    {
-
-    }
-    __device__ virtual void extend(MCBuffer &Brd, MCBuffer &Bwr, MCBuffer &H, ull *row_ptrs, VertexID *cols)
-
-    {
-
     }
 
     __device__ void markQ(SubgraphOffsets *so, VertexID pivot)

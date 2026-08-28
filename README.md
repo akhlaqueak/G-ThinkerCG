@@ -59,7 +59,7 @@ The applications share the following CPU-GPU runtime controls. Defaults that dif
 |---|---|---:|
 | `-cpu <n>` | Number of CPU workers | `32` |
 | `-gpu <n>` | Number of GPU workers | `1` |
-| `-cpuchunk <n>` | Tasks assigned to a CPU worker per fetch | `10 / 200 / 200` |
+| `-cpuchunk <n>` | Tasks assigned to a CPU worker per fetch | `QC: 10 / MC: 200 / GMatch: 1` |
 | `-gpuchunk <n>` | Initial GPU tasks per fetch; QC computes its GPU root chunk separately | `QC: dynamic / MC: 1000000 / GMatch: 100000` |
 | `-hg_steal <n>` | Maximum tasks transferred from the shared host queue to a GPU in one steal | `1000000` |
 | `-gh_steal <n>` | Maximum tasks transferred from the GPU host buffer to the shared CPU queue in one spill | `1000` |
@@ -203,7 +203,7 @@ By default, QC counts quasi-cliques without performing the final maximality chec
 | `-rmnonmax [0\|1]` | Run the maximality-removal pass and write final results | `0` |
 | `-sched <0\|1>` | QC scheduling mode: `0` dynamic, `1` static | `0` |
 | `-drop_oversized_tasks <0\|1>` | Drop top-level tasks too large for the GPU task buffer instead of routing them to CPU workers | `0` |
-| `-c <n>` | Divisor used to compute the initial GPU root chunk | `4` |
+| `-c <n>` | Divisor used to compute the initial GPU root chunk | `2` |
 | `-min_gpuchunk <n>` | Lower bound for the computed initial GPU root chunk | `1000` |
 
 QC reports preprocessing and search time, the count before maximality checking, the largest result size, oversized-root instrumentation, and—when enabled—the final maximal quasi-clique count.

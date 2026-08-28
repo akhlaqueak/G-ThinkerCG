@@ -16,7 +16,7 @@ static void print_help(const char *program)
     cout << "  -cpu <n>           CPU workers. Default: 32" << endl;
     cout << "  -gpu <n>           GPU workers. Default: 1" << endl;
     cout << "  -eta <n>           ETA per warp. Default: 2000" << endl;
-    cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 200" << endl;
+    cout << "  -cpuchunk <n>      CPU tasks per fetch. Default: 1" << endl;
     cout << "  -gpuchunk <n>      GPU roots/tasks per fetch. Default: 100000" << endl;
     cout << "  -hg_steal <n>      Host-to-GPU steal chunk. Default: 1000000" << endl;
     cout << "  -gh_steal <n>      GPU-to-host steal chunk. Default: 1000" << endl;
@@ -42,7 +42,7 @@ public:
         defaults.num_cpu_workers = 32;
         defaults.num_gpu_workers = 1;
         defaults.tasks_per_fetch_gpu_worker = 100000;
-        defaults.tasks_per_fetch_cpu_worker = 200;
+        defaults.tasks_per_fetch_cpu_worker = 1;
         defaults.eta_per_warp = 2000;
         defaults.prefix_batch_size = 100;
         defaults.tau_time_us = 100000;
